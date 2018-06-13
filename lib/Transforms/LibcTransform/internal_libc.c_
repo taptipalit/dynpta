@@ -1,0 +1,39 @@
+#include <stdbool.h>
+
+typedef _Bool uint1_t;
+
+typedef unsigned long size_t;
+
+void internal_memset(void *s, char c, size_t n, int align, uint1_t isVolatile);
+int internal_memcmp(const void *s1, const void *s2, size_t n);
+void internal_memcpy(void *dest, const void *src, size_t n, int align, uint1_t isVolatile);
+
+void internal_memset(void *s, char c, size_t n, int align, uint1_t isVolatile) {
+    while (n > 0) {
+        *(char *) s = c;
+        s++;
+        n--;
+    }
+}
+
+int internal_memcmp(const void *s1, const void *s2, size_t n) {
+    if(!n) {
+        return 0;
+    }
+    while(--n && (*(char *)s1 == *(char *)s2)) {
+        s1 = (char *)s1 + 1;
+        s2 = (char *)s2 + 1;
+    }
+    return ( *((unsigned char *)s1) - *((unsigned char *)s2));
+}
+
+void internal_memcpy(void *dest, const void *src, size_t n, int align, uint1_t isVolatile) {
+    while (n > 0) {
+        *(char*) dest = *(char *) src;
+        dest++;
+        src++;
+        n--;
+    }
+}
+
+
