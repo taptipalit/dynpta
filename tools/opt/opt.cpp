@@ -451,7 +451,7 @@ int main(int argc, char **argv) {
   initializeWriteBitcodePassPass(Registry);
   initializeFunctionPointerAnalysisPassPass(Registry);
   initializeLibcTransformPassPass(Registry);
-  initializeWPAPassPass(Registry);
+  //initializeWPAPassPass(Registry);
 
 #ifdef LINK_POLLY_INTO_TOOLS
   polly::initializePollyPasses(Registry);

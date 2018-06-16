@@ -105,6 +105,7 @@ LTOCodeGenerator::~LTOCodeGenerator() {}
 // PassManagerBuilder::populateLTOPassManager(), and make sure all LTO
 // passes are initialized.
 void LTOCodeGenerator::initializeLTOPasses() {
+  dbgs() << "Ini\n";
   PassRegistry &R = *PassRegistry::getPassRegistry();
 
   initializeInternalizeLegacyPassPass(R);
@@ -128,6 +129,8 @@ void LTOCodeGenerator::initializeLTOPasses() {
   initializeMemCpyOptLegacyPassPass(R);
   initializeDCELegacyPassPass(R);
   initializeCFGSimplifyPassPass(R);
+  initializeFunctionPointerAnalysisPassPass(R);
+  initializeLibcTransformPassPass(R);
 }
 
 void LTOCodeGenerator::setAsmUndefinedRefs(LTOModule *Mod) {

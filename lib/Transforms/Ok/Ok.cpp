@@ -1,4 +1,4 @@
-//===- Try.cpp - Example code from "Writing an LLVM Pass" ---------------===//
+//===- Ok.cpp - Example code from "Writing an LLVM Pass" ---------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements two versions of the LLVM "Try World" pass described
+// This file implements two versions of the LLVM "Ok World" pass described
 // in docs/WritingAnLLVMPass.html
 //
 //===----------------------------------------------------------------------===//
@@ -18,37 +18,37 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-#define DEBUG_TYPE "try"
+#define DEBUG_TYPE "ok"
 
-STATISTIC(TryCounter, "Counts number of functions greeted");
+STATISTIC(OkCounter, "Counts number of functions greeted");
 
 namespace {
-  // Try - The first implementation, without getAnalysisUsage.
-  struct Try : public FunctionPass {
+  // Ok - The first implementation, without getAnalysisUsage.
+  struct Ok : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
-    Try() : FunctionPass(ID) {}
+    Ok() : FunctionPass(ID) {}
 
     bool runOnFunction(Function &F) override {
-      ++TryCounter;
-      errs() << "Try: ";
+      ++OkCounter;
+      errs() << "Ok: ";
       errs().write_escaped(F.getName()) << '\n';
       return false;
     }
   };
 }
 
-char Try::ID = 0;
-static RegisterPass<Try> X("try", "Try World Pass");
+char Ok::ID = 0;
+static RegisterPass<Ok> X("ok", "Ok World Pass");
 
 namespace {
-  // Try2 - The second implementation with getAnalysisUsage implemented.
-  struct Try2 : public FunctionPass {
+  // Ok2 - The second implementation with getAnalysisUsage implemented.
+  struct Ok2 : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
-    Try2() : FunctionPass(ID) {}
+    Ok2() : FunctionPass(ID) {}
 
     bool runOnFunction(Function &F) override {
-      ++TryCounter;
-      errs() << "Try: ";
+      ++OkCounter;
+      errs() << "Ok: ";
       errs().write_escaped(F.getName()) << '\n';
       return false;
     }
@@ -60,6 +60,6 @@ namespace {
   };
 }
 
-char Try2::ID = 0;
-static RegisterPass<Try2>
-Y("try2", "Try World Pass (with getAnalysisUsage implemented)");
+char Ok2::ID = 0;
+static RegisterPass<Ok2>
+Y("ok2", "Ok World Pass (with getAnalysisUsage implemented)");

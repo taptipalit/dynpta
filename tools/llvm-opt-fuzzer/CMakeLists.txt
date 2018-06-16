@@ -20,6 +20,7 @@ set(LLVM_LINK_COMPONENTS
   TransformUtils
   Vectorize
   Passes
+  #FunctionPointerAnalysis
 )
 
 add_llvm_fuzzer(llvm-opt-fuzzer

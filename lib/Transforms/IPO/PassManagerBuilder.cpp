@@ -30,6 +30,8 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Transforms/AggressiveInstCombine/AggressiveInstCombine.h"
+#include "llvm/Transforms/FunctionPointerAnalysis.h"
+#include "llvm/Transforms/LibcTransform.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/ForceFunctionAttrs.h"
 #include "llvm/Transforms/IPO/FunctionAttrs.h"
@@ -42,6 +44,8 @@
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Vectorize.h"
 
+#include <iostream>
+using namespace std;
 using namespace llvm;
 
 static cl::opt<bool>
@@ -447,6 +451,8 @@ void PassManagerBuilder::populateModulePassManager(
 
     addExtensionsToPM(EP_EnabledOnOptLevel0, MPM);
 
+  MPM.add(createLibcTransformPass());
+  MPM.add(createFunctionPointerAnalysisPass());
     // Rename anon globals to be able to export them in the summary.
     // This has to be done after we add the extensions to the pass manager
     // as there could be passes (e.g. Adddress sanitizer) which introduce
@@ -916,6 +922,9 @@ void PassManagerBuilder::populateThinLTOPassManager(
 }
 
 void PassManagerBuilder::populateLTOPassManager(legacy::PassManagerBase &PM) {
+  errs() << "what";
+  PM.add(createLibcTransformPass());
+  PM.add(createFunctionPointerAnalysisPass());
   if (LibraryInfo)
     PM.add(new TargetLibraryInfoWrapperPass(*LibraryInfo));
 
@@ -1032,6 +1041,7 @@ void LLVMPassManagerBuilderPopulateLTOPassManager(LLVMPassManagerBuilderRef PMB,
   // an RunInliner option.
   if (RunInliner && !Builder->Inliner)
     Builder->Inliner = createFunctionInliningPass();
-
   Builder->populateLTOPassManager(*LPM);
+  //LPM->add(createLibcTransformPass());
+//  LPM->add(createFunctionPointerAnalysisPass());
 }

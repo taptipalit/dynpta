@@ -395,11 +395,11 @@ void initializeWinEHPreparePass(PassRegistry&);
 void initializeWriteBitcodePassPass(PassRegistry&);
 void initializeWriteThinLTOBitcodePass(PassRegistry&);
 void initializeXRayInstrumentationPass(PassRegistry&);
-void initializeMIRCanonicalizerPass(PassRegistry &);
-void initializeFunctionPointerAnalysisPassPass(PassRegistry &);
-void initializeLibcTransformPassPass(PassRegistry &);
-void initializeWPAPassPass(PassRegistry &);
-void initializeAndersenAAWrapperPassPass(PassRegistry &);
+void initializeMIRCanonicalizerPass(PassRegistry&);
+void initializeFunctionPointerAnalysisPassPass(PassRegistry&);
+void initializeLibcTransformPassPass(PassRegistry&);
+//void initializeWPAPassPass(PassRegistry &);
+//void initializeAndersenAAWrapperPassPass(PassRegistry &);
 
 } // end namespace llvm
 

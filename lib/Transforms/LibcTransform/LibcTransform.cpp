@@ -1,5 +1,6 @@
 #include "llvm/Transforms/LibcTransform.h"
-
+#include <iostream>
+using namespace std;
 using namespace llvm;
 
 
@@ -30,7 +31,7 @@ using namespace llvm;
         Function* internalMemcmpFn = M.getFunction("internal_memcmp");
 
         StringRef memcmpStr("memcmp");
-
+        dbgs() << "lIbbc global variable .... \n";
         for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
             if (auto *F = dyn_cast<Function>(MIterator)) {
                 for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
@@ -77,7 +78,7 @@ using namespace llvm;
 
 char LibcTransformPass::ID = 0;
 
-ModulePass* llvm::createLibcTransformPass() { return new LibcTransformPass(); } 
+ModulePass* llvm::createLibcTransformPass() { cout << "WOAH OKAY\n"; return new LibcTransformPass(); } 
 
 INITIALIZE_PASS_BEGIN(LibcTransformPass, "libc-transform", "Transform calls to memcpy, memset, memcmp and their string equivalents", false, true)
 INITIALIZE_PASS_END(LibcTransformPass, "libc-transform", "Transform calls to memcpy, memset, memcmp, and their string equivalents", false, true)

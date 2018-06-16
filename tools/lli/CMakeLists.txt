@@ -18,8 +18,8 @@ set(LLVM_LINK_COMPONENTS
   Target
   TransformUtils
   native
-  FunctionPointerAnalysis
   LibcTransform
+  FunctionPointerAnalysis
   SVF
   )
 

@@ -25,12 +25,19 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/IR/Constants.h"
 
+#include "llvm/PassRegistry.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+
 #include <vector>
 #include <algorithm>
 #include <map>
 #include <set>
 
 #include "llvm/IR/Metadata.h"
+
+#include <iostream>
+using namespace std;
 using namespace llvm;
 
 namespace {
@@ -91,7 +98,7 @@ namespace {
 		}
 	};
 
-	struct FunctionPointerAnalysisPass : public ModulePass {
+	struct FunctionPointerAnalysisPass: public ModulePass {
 		static char ID;
 		
 		// The list of function pointers that are created
@@ -309,5 +316,5 @@ ModulePass* llvm::createFunctionPointerAnalysisPass() { return new FunctionPoint
 INITIALIZE_PASS_BEGIN(FunctionPointerAnalysisPass, "function-ptr-analysis", "Function Pointer Analysis", false, true)
 //INITIALIZE_PASS_DEPENDENCY(AndersenAAWrapperPass);
 INITIALIZE_PASS_END(FunctionPointerAnalysisPass, "function-ptr-analysis", "Function Pointer Analysis", false, true)
+//static RegisterPass<FunctionPointerAnalysisPass> X("function-ptr-analysis", "FPA", false, true);
 
-//static RegisterPass<FunctionPointerAnalysisPass> X("function-ptr-analysis", "Function Pointer Analysis", false, true);

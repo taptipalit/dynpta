@@ -16,8 +16,7 @@
 ;===------------------------------------------------------------------------===;
 
 [common]
-subdirectories = AggressiveInstCombine Coroutines IPO InstCombine Instrumentation Scalar Utils Vectorize ObjCARC FunctionPointerAnalysis LibcTransform
-
+subdirectories = AggressiveInstCombine Coroutines IPO InstCombine Instrumentation Scalar Utils Vectorize ObjCARC LibcTransform FunctionPointerAnalysis 
 [component_0]
 type = Group
 name = Transforms

@@ -30,4 +30,7 @@ required_libraries =
  Linker
  ObjCARC
  Scalar
+ LibcTransform
+ FunctionPointerAnalysis
  all-targets
+
