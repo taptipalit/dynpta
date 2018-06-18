@@ -16,7 +16,6 @@
 ;===------------------------------------------------------------------------===;
 [common]
 subdirectories = SVF 
-;AndersenAnalysis
 
 [component_0]
 type = Library

@@ -32,4 +32,5 @@ required_libraries =
  Passes
  LibcTransform
  FunctionPointerAnalysis
+ SVF
  all-targets

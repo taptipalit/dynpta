@@ -32,5 +32,6 @@ required_libraries =
  Scalar
  LibcTransform
  FunctionPointerAnalysis
+ SVF
  all-targets
 
