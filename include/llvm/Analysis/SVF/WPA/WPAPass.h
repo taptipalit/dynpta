@@ -45,6 +45,9 @@
 #include "llvm/Analysis/SVF/WPA/Andersen.h"
 #include "llvm/Analysis/SVF/WPA/FlowSensitive.h"
 #include <llvm/Support/CommandLine.h>
+#include <iostream>
+using namespace std;
+using namespace llvm;
 
 class SVFModule;
 
@@ -103,12 +106,14 @@ public:
     virtual llvm::AliasResult alias(const llvm::Value* V1,	const llvm::Value* V2);
 
     /// We start from here
-    virtual bool runOnModule(llvm::Module& module) {
+    virtual bool runOnModule(llvm::Module& module);/* {
+	dbgs() << "1";
         return false;
-    }
+    }*/
 
     /// Run pointer analysis on SVFModule
     void runOnModule(SVFModule svfModule);
+    //virtual bool runOnModule(SVFModule svfModule);
 
     /// PTA name
     virtual inline llvm::StringRef getPassName() const {
