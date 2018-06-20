@@ -41,6 +41,10 @@
 #include <llvm/Analysis/AliasAnalysis.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Pass.h>
+#include "llvm/Analysis/SVF/Util/SVFModule.h"
+#include "llvm/Analysis/SVF/WPA/Andersen.h"
+#include "llvm/Analysis/SVF/WPA/FlowSensitive.h"
+#include <llvm/Support/CommandLine.h>
 
 class SVFModule;
 
@@ -56,7 +60,14 @@ class WPAPass: public llvm::ModulePass {
 public:
     /// Pass ID
     static char ID;
+    
+    std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap;
+    std::map<llvm::Value*, std::set<llvm::Value*>> ptsFromMap;
 
+    std::map<PAGNode*, std::set<PAGNode*>> pagPtsToMap;
+    std::map<PAGNode*, std::set<PAGNode*>> pagPtsFromMap;
+
+    
     enum AliasCheckRule {
         Conservative,	///< return MayAlias if any pta says alias
         Veto,			///< return NoAlias if any pta says no alias
@@ -64,9 +75,9 @@ public:
     };
 
     /// Constructor needs TargetLibraryInfo to be passed to the AliasAnalysis
-    WPAPass() : llvm::ModulePass(ID) {
+    WPAPass(); //: llvm::ModulePass(ID) {
 
-    }
+    //}
 
     /// Destructor
     ~WPAPass();
@@ -104,6 +115,27 @@ public:
         return "WPAPass";
     }
 
+    virtual PointerAnalysis* getPTA(); 
+
+    virtual PAG* getPAG();
+
+    virtual std::map<PAGNode*, std::set<PAGNode*>>& getPAGPtsToMap() {
+        return pagPtsToMap;
+    }
+
+    virtual std::map<PAGNode*, std::set<PAGNode*>>& getPAGPtsFromMap() {
+        return pagPtsFromMap;
+    }
+
+    //virtual void buildResultMaps(); 
+    
+     virtual std::map<llvm::Value*, std::set<llvm::Value*>>& getPtsToMap() {
+        return ptsToMap;
+    }
+
+    virtual std::map<llvm::Value*, std::set<llvm::Value*>>& getPtsFromMap() {
+        return ptsFromMap;
+    }
 private:
     /// Create pointer analysis according to specified kind and analyze the module.
     void runPointerAnalysis(SVFModule svfModule, u32_t kind);
@@ -112,5 +144,11 @@ private:
     PointerAnalysis* _pta;	///<  pointer analysis to be executed.
 };
 
+namespace llvm {
+	class ModulePass;
+	class Module;
+
+	ModulePass *createWPAPass();
+}
 
 #endif /* WPA_H_ */

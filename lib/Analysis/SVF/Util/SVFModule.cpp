@@ -33,7 +33,7 @@
 #include <llvm/IR/LLVMContext.h>		// for llvm LLVMContext
 #include <llvm/Support/SourceMgr.h> // for SMDiagnostic
 #include <llvm/Bitcode/BitcodeWriter.h>		// for WriteBitcodeToFile
-#include <llvm/IRReader/IRReader.h>	// IR reader for bit file
+#include "llvm/IRReader/IRReader.h"	// IR reader for bit file
 #include <llvm/Support/FileSystem.h>	// for sys::fs::F_None
 
 using namespace std;

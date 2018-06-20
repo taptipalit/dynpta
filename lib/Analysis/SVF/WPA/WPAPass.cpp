@@ -39,14 +39,15 @@
 #include "llvm/Analysis/SVF/WPA/Andersen.h"
 #include "llvm/Analysis/SVF/WPA/FlowSensitive.h"
 #include <llvm/Support/CommandLine.h>
-
+#include <iostream>
+using namespace std;
 using namespace llvm;
 
 char WPAPass::ID = 0;
-
+/*
 static RegisterPass<WPAPass> WHOLEPROGRAMPA("wpa",
         "Whole Program Pointer Analysis Pass");
-
+*/
 /// register this into alias analysis group
 ///static RegisterAnalysisGroup<AliasAnalysis> AA_GROUP(WHOLEPROGRAMPA);
 
@@ -70,6 +71,10 @@ static cl::bits<WPAPass::AliasCheckRule> AliasRule(cl::desc("Select alias check 
 cl::opt<bool> anderSVFG("svfg", cl::init(false),
                         cl::desc("Generate SVFG after Andersen's Analysis"));
 
+/// Constructor
+WPAPass::WPAPass() : llvm::ModulePass(ID) {
+    initializeWPAPassPass(*PassRegistry::getPassRegistry());
+}
 /*!
  * Destructor
  */
@@ -87,13 +92,69 @@ WPAPass::~WPAPass() {
  * We start from here
  */
 void WPAPass::runOnModule(SVFModule svfModule) {
-    for (u32_t i = 0; i< PointerAnalysis::Default_PTA; i++) {
+//bool WPAPass::runOnModule(SVFModule svfModule) {
+ /*   for (u32_t i = 0; i< PointerAnalysis::Default_PTA; i++) {
         if (PASelected.isSet(i))
             runPointerAnalysis(svfModule, i);
-    }
+    }*/
+	//cout << "WPA\n";
+	dbgs() << "WPA";
+	_pta = new Andersen();
+	_pta->analyze(svfModule);
+//	return false;
 }
 
+PAG* WPAPass::getPAG() {
+	return _pta->getPAG();
+}
 
+PointerAnalysis* WPAPass::getPTA() {
+	return _pta;
+}
+/*
+void WPAPass::buildResultMaps(void) {
+    PAG* pag = _pta->getPAG();
+    for (PAG::iterator it = pag->begin(), eit = pag->end(); it != eit; it++) {
+        NodeID ptr = it->first;
+        PointsTo pts = _pta->getPts(it->first);
+        PAGNode* node = pag->getPAGNode(ptr);
+        if (isa<DummyValPN>(node) || isa<DummyObjPN>(node)) {
+            continue;
+        }
+
+        for (NodeBS::iterator ptIt = pts.begin(), ptEit = pts.end(); ptIt != ptEit; ++ptIt) {
+            PAGNode* ptNode = pag->getPAGNode(*ptIt);
+            if (!isa<ObjPN>(ptNode)) {
+                continue;
+            }
+            if (isa<DummyValPN>(ptNode) || isa<DummyObjPN>(ptNode)) {
+                continue;
+            }
+            // The PAG equivalents
+    //std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap;
+    //std::map<llvm::Value*, std::set<llvm::Value*>> ptsFromMap;
+
+    //std::map<PAGNode*, std::set<PAGNode*>> pagPtsToMap;
+    //std::map<PAGNode*, std::set<PAGNode*>> pagPtsFromMap;
+
+            pagPtsToMap[node].insert(ptNode);
+            //pagPtsToMap[node] = ptNode;
+    //std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap;
+            pagPtsFromMap[ptNode].insert(node);
+           // pagPtsFromMap.insert(ptNode, node);
+
+            if (node->getValue() != ptNode->getValue()) {
+		const llvm::Value* a = node->getValue();
+                ptsToMap[(llvm::Value*)(a)].insert((std::set<llvm::Value*>)(ptNode->getValue()));
+                //ptsToMap.insert(pair<llvm::Value*, std::set<llvm::Value*>>(a, ptNode->getValue()));
+                //ptsFromMap[ptNode->getValue()].insert(node->getValue());
+                ptsFromMap.insert(ptNode->getValue(), node->getValue());
+            }
+        }
+    }
+}
+	
+*/
 /*!
  * Create pointer analysis according to a specified kind and then analyze the module.
  */
@@ -176,3 +237,10 @@ llvm::AliasResult WPAPass::alias(const Value* V1, const Value* V2) {
 
     return result;
 }
+
+ModulePass* llvm::createWPAPass() {
+    dbgs() << "createWPAPass";
+    return new WPAPass();
+}
+INITIALIZE_PASS_BEGIN(WPAPass, "wpa", "Whole Program Analysis", true, true);
+INITIALIZE_PASS_END(WPAPass, "wpa", "Whole Program Analysis", true, true);

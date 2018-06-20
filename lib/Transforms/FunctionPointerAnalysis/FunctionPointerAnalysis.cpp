@@ -235,6 +235,7 @@ namespace {
 		}
 
 		bool runOnModule(Module &M) override {
+      		//	errs() << "Hello: ";
             /*
             std::map<llvm::Value*, std::set<llvm::Value*>> fnPtsToMap = getAnalysis<AndersenAAWrapperPass>().getResult().getSanitizedPtsToGraph();
 
@@ -311,7 +312,7 @@ namespace {
 
 char FunctionPointerAnalysisPass::ID = 0;
 
-ModulePass* llvm::createFunctionPointerAnalysisPass() { return new FunctionPointerAnalysisPass(); } 
+ModulePass* llvm::createFunctionPointerAnalysisPass() { cout << "FF"; return new FunctionPointerAnalysisPass(); } 
 
 INITIALIZE_PASS_BEGIN(FunctionPointerAnalysisPass, "function-ptr-analysis", "Function Pointer Analysis", false, true)
 //INITIALIZE_PASS_DEPENDENCY(AndersenAAWrapperPass);

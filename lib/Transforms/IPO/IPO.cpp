@@ -61,6 +61,7 @@ void llvm::initializeIPO(PassRegistry &Registry) {
   initializeWholeProgramDevirtPass(Registry);
   initializeLibcTransformPassPass(Registry);
   initializeFunctionPointerAnalysisPassPass(Registry);
+  //initializeWPAPassPass(Registry);
 }
 
 void LLVMInitializeIPO(LLVMPassRegistryRef R) {

@@ -32,6 +32,7 @@
 #include "llvm/Transforms/AggressiveInstCombine/AggressiveInstCombine.h"
 #include "llvm/Transforms/FunctionPointerAnalysis.h"
 #include "llvm/Transforms/LibcTransform.h"
+#include "llvm/Analysis/SVF/WPA/WPAPass.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/ForceFunctionAttrs.h"
 #include "llvm/Transforms/IPO/FunctionAttrs.h"
@@ -451,8 +452,9 @@ void PassManagerBuilder::populateModulePassManager(
 
     addExtensionsToPM(EP_EnabledOnOptLevel0, MPM);
 
-  MPM.add(createLibcTransformPass());
-  MPM.add(createFunctionPointerAnalysisPass());
+  //MPM.add(createLibcTransformPass());
+  //MPM.add(createFunctionPointerAnalysisPass());
+  //MPM.add(createWPAPass());
     // Rename anon globals to be able to export them in the summary.
     // This has to be done after we add the extensions to the pass manager
     // as there could be passes (e.g. Adddress sanitizer) which introduce
@@ -922,9 +924,9 @@ void PassManagerBuilder::populateThinLTOPassManager(
 }
 
 void PassManagerBuilder::populateLTOPassManager(legacy::PassManagerBase &PM) {
-  errs() << "what";
-  PM.add(createLibcTransformPass());
-  PM.add(createFunctionPointerAnalysisPass());
+  //PM.add(createLibcTransformPass());
+  //PM.add(createFunctionPointerAnalysisPass());
+  PM.add(createWPAPass());
   if (LibraryInfo)
     PM.add(new TargetLibraryInfoWrapperPass(*LibraryInfo));
 

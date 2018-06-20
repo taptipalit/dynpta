@@ -55,6 +55,7 @@
 #include "llvm/Transforms/Vectorize.h"
 #include "llvm/Transforms/FunctionPointerAnalysis.h"
 #include "llvm/Transforms/LibcTransform.h"
+#include "llvm/Analysis/SVF/WPA/WPAPass.h"
 #include <cstdlib>
 
 namespace {
@@ -220,6 +221,7 @@ namespace {
       (void) llvm::createScalarizeMaskedMemIntrinPass();
       (void) llvm::createFunctionPointerAnalysisPass();
       (void) llvm::createLibcTransformPass();
+      (void) llvm::createWPAPass();
 
 
       (void)new llvm::IntervalPartition();

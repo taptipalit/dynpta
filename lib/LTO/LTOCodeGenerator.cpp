@@ -129,6 +129,7 @@ void LTOCodeGenerator::initializeLTOPasses() {
   initializeMemCpyOptLegacyPassPass(R);
   initializeDCELegacyPassPass(R);
   initializeCFGSimplifyPassPass(R);
+  initializeWPAPassPass(R);
   initializeFunctionPointerAnalysisPassPass(R);
   initializeLibcTransformPassPass(R);
 }
