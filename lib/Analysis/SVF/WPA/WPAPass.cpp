@@ -91,17 +91,30 @@ WPAPass::~WPAPass() {
 /*!
  * We start from here
  */
-void WPAPass::runOnModule(SVFModule svfModule) {
+    //virtual bool runOnModule(llvm::Module& module) {
+    //void runOnModule(SVFModule svfModule);
+//void runOnModule(SVFModule svfModule) {
 //bool WPAPass::runOnModule(SVFModule svfModule) {
  /*   for (u32_t i = 0; i< PointerAnalysis::Default_PTA; i++) {
         if (PASelected.isSet(i))
             runPointerAnalysis(svfModule, i);
     }*/
 	//cout << "WPA\n";
-	dbgs() << "WPA";
+//	dbgs() << "WPA";
+//	_pta = new Andersen();
+//	_pta->analyze(svfModule);
+	//return false;
+//}
+bool WPAPass::runOnModule(llvm::Module& svfModule) {
+ /*   for (u32_t i = 0; i< PointerAnalysis::Default_PTA; i++) {
+        if (PASelected.isSet(i))
+            runPointerAnalysis(svfModule, i);
+    }*/
+	//cout << "WPA\n";
+	dbgs() << "2";
 	_pta = new Andersen();
 	_pta->analyze(svfModule);
-//	return false;
+	return false;
 }
 
 PAG* WPAPass::getPAG() {
