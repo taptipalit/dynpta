@@ -60,12 +60,16 @@ static cl::opt<string> WriteAnder("write-ander",  cl::init(""),
 static cl::opt<string> ReadAnder("read-ander",  cl::init(""),
                                  cl::desc("Read Andersen's analysis results from a file"));
 
-
-
+/*
+bool Andersen::runOnModule(llvm::Module& module) {
+	analyze(module);
+	return false;
+}*/
 /*!
  * Andersen analysis
  */
 void Andersen::analyze(SVFModule svfModule) {
+//void Andersen::analyze(llvm::Module& svfModule) {
     /// Initialization for the Solver
     dbgs() << "analyze\n";
     initialize(svfModule);
@@ -149,10 +153,10 @@ void Andersen::processNode(NodeID nodeId) {
     // handle copy, call, return, gep
     for (ConstraintNode::const_iterator it = node->directOutEdgeBegin(), eit =
                 node->directOutEdgeEnd(); it != eit; ++it) {
-        /*if (GepCGEdge* gepEdge = llvm::dyn_cast<GepCGEdge>(*it))
+        if (GepCGEdge* gepEdge = llvm::dyn_cast<GepCGEdge>(*it))
             processGep(nodeId, gepEdge);
         else
-*/
+
             processCopy(nodeId, *it);
     }
 }
@@ -227,7 +231,7 @@ bool Andersen::processStore(NodeID node, const ConstraintEdge* store) {
  */
 bool Andersen::processCopy(NodeID node, const ConstraintEdge* edge) {
     numOfProcessedCopy++;
-
+    dbgs() << node << edge;
     assert((isa<CopyCGEdge>(edge)) && "not copy/call/ret ??");
     NodeID dst = edge->getDstID();
     PointsTo& srcPts = getPts(node);

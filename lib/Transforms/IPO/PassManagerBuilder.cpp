@@ -896,6 +896,7 @@ void PassManagerBuilder::populateThinLTOPassManager(
     legacy::PassManagerBase &PM) {
   PerformThinLTO = true;
 
+  //PM.add(createWPAPass());
   if (VerifyInput)
     PM.add(createVerifierPass());
 
@@ -927,6 +928,7 @@ void PassManagerBuilder::populateLTOPassManager(legacy::PassManagerBase &PM) {
   //PM.add(createLibcTransformPass());
   //PM.add(createFunctionPointerAnalysisPass());
   PM.add(createWPAPass());
+  dbgs() << "SUP\n";
   if (LibraryInfo)
     PM.add(new TargetLibraryInfoWrapperPass(*LibraryInfo));
 

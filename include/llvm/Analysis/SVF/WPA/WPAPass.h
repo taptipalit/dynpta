@@ -78,9 +78,12 @@ public:
     };
 
     /// Constructor needs TargetLibraryInfo to be passed to the AliasAnalysis
-    WPAPass(); //: llvm::ModulePass(ID) {
+    WPAPass() : llvm::ModulePass(ID) {
+  	dbgs() << "const\n";
+	initializeWPAPassPass(*PassRegistry::getPassRegistry());
+  	dbgs() << "const\n";
 
-    //}
+    }
 
     /// Destructor
     ~WPAPass();
@@ -106,9 +109,9 @@ public:
     virtual llvm::AliasResult alias(const llvm::Value* V1,	const llvm::Value* V2);
 
     /// We start from here
-    virtual bool runOnModule(llvm::Module& module);/* {
-	dbgs() << "1";
-        return false;
+    virtual bool runOnModule(llvm::Module& module);// {
+	/*dbgs() << "1";
+        return runOnModule(module);
     }*/
 
     /// Run pointer analysis on SVFModule
@@ -144,6 +147,7 @@ public:
 private:
     /// Create pointer analysis according to specified kind and analyze the module.
     void runPointerAnalysis(SVFModule svfModule, u32_t kind);
+    //void runPointerAnalysis(llvm::Module& svfModule, u32_t kind);
 
     PTAVector ptaVector;	///< all pointer analysis to be executed.
     PointerAnalysis* _pta;	///<  pointer analysis to be executed.

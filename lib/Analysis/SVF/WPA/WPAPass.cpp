@@ -72,9 +72,10 @@ cl::opt<bool> anderSVFG("svfg", cl::init(false),
                         cl::desc("Generate SVFG after Andersen's Analysis"));
 
 /// Constructor
-WPAPass::WPAPass() : llvm::ModulePass(ID) {
-    initializeWPAPassPass(*PassRegistry::getPassRegistry());
-}
+//WPAPass::WPAPass() : llvm::ModulePass(ID) {
+
+  //  initializeWPAPassPass(*PassRegistry::getPassRegistry());
+//}
 /*!
  * Destructor
  */
@@ -93,27 +94,31 @@ WPAPass::~WPAPass() {
  */
     //virtual bool runOnModule(llvm::Module& module) {
     //void runOnModule(SVFModule svfModule);
-//void runOnModule(SVFModule svfModule) {
-//bool WPAPass::runOnModule(SVFModule svfModule) {
+void WPAPass::runOnModule(SVFModule svfModule) {
  /*   for (u32_t i = 0; i< PointerAnalysis::Default_PTA; i++) {
         if (PASelected.isSet(i))
             runPointerAnalysis(svfModule, i);
     }*/
 	//cout << "WPA\n";
-//	dbgs() << "WPA";
-//	_pta = new Andersen();
-//	_pta->analyze(svfModule);
+	dbgs() << "own\n";
+	_pta = new Andersen();
+	//_pta = new FlowSensitive();
+	_pta->analyze(svfModule);
 	//return false;
-//}
-bool WPAPass::runOnModule(llvm::Module& svfModule) {
+}
+
+bool WPAPass::runOnModule(llvm::Module& module) {
  /*   for (u32_t i = 0; i< PointerAnalysis::Default_PTA; i++) {
         if (PASelected.isSet(i))
             runPointerAnalysis(svfModule, i);
     }*/
 	//cout << "WPA\n";
 	dbgs() << "2";
-	_pta = new Andersen();
-	_pta->analyze(svfModule);
+	SVFModule *svfModule = new SVFModule(module);
+	runOnModule(*svfModule);
+	//_pta = new Andersen();
+	//_pta->analyze(svfModule);
+	delete svfModule;
 	return false;
 }
 
@@ -252,6 +257,7 @@ llvm::AliasResult WPAPass::alias(const Value* V1, const Value* V2) {
 }
 
 ModulePass* llvm::createWPAPass() {
+    dbgs() << "createWPAPass";
     dbgs() << "createWPAPass";
     return new WPAPass();
 }

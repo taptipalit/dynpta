@@ -86,12 +86,14 @@ public:
             delete consCG;
         consCG = NULL;
     }
-
+    //virtual bool runOnModule(llvm::Module& svfModule);
     /// Andersen analysis
     void analyze(SVFModule svfModule);
+    //void analyze(llvm::Module& svfModule);
 
     /// Initialize analysis
     virtual inline void initialize(SVFModule svfModule) {
+    //virtual inline void initialize(llvm::Module& svfModule) {
         resetData();
         /// Build PAG
         PointerAnalysis::initialize(svfModule);
@@ -256,6 +258,7 @@ public:
 
     /// Create an singleton instance directly instead of invoking llvm pass manager
     static AndersenWave* createAndersenWave(SVFModule svfModule) {
+    //static AndersenWave* createAndersenWave(llvm::Module& svfModule) {
         if(waveAndersen==NULL) {
             waveAndersen = new AndersenWave();
             waveAndersen->analyze(svfModule);
@@ -324,6 +327,7 @@ public:
 
     /// Create an singleton instance directly instead of invoking llvm pass manager
     static AndersenWaveDiff* createAndersenWaveDiff(SVFModule svfModule) {
+    //static AndersenWaveDiff* createAndersenWaveDiff(llvm::Module& svfModule) {
         if(diffWave==NULL) {
             diffWave = new AndersenWaveDiff();
             diffWave->analyze(svfModule);
@@ -456,6 +460,7 @@ public:
     AndersenLCD(PTATY type = AndersenLCD_WPA): Andersen(type) {}
 
     /// Create an singleton instance directly instead of invoking llvm pass manager
+    //static AndersenLCD* createAndersenWave(llvm::Module& svfModule) {
     static AndersenLCD* createAndersenWave(SVFModule svfModule) {
         if(lcdAndersen==NULL) {
             lcdAndersen = new AndersenLCD();
