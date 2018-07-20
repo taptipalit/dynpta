@@ -1,0 +1,14 @@
+# Build arguments go here.
+# See "gn args <out_dir> --list" for available build arguments.
+is_debug = false
+is_component_build = true
+symbol_level = 0
+enable_nacl = false
+clang_base_path = "/home/raunak/llvm-7.0.0.obj"
+clang_use_chrome_plugins = false
+clang_version = "7.0.0"
+gold_path = "/home/raunak/llvm-7.0.0.obj/bin"
+use_lld = false
+use_gold = true
+use_jumbo_build = true
+remove_webcore_debug_symbols = true
