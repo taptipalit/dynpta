@@ -46,6 +46,17 @@ typedef WPASolver<ConstraintGraph*> WPAConstraintSolver;
 
 class Andersen:  public WPAConstraintSolver, public BVDataPTAImpl {
 
+private:
+    llvm::SparseBitVector<> SensitiveObjList;
+    bool isSensitivePointsTo(PointsTo& ptsTo) {
+        if (ptsTo.intersects(SensitiveObjList)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+
 
 public:
     typedef std::set<const ConstraintEdge*> EdgeSet;
@@ -61,6 +72,9 @@ public:
     static Size_t numOfProcessedGep;	/// Number of processed Gep edge
     static Size_t numOfProcessedLoad;	/// Number of processed Load edge
     static Size_t numOfProcessedStore;	/// Number of processed Store edge
+
+    static Size_t numOfSensitiveCopy; /// Number of sensitive Copy edges encountered
+    static Size_t numCopyEdge;          /// Total number of copy edges encountered
 
     static Size_t numOfSCCDetection;
     static double timeOfSCCDetection;
@@ -91,12 +105,27 @@ public:
     void analyze(SVFModule svfModule);
     //void analyze(llvm::Module& svfModule);
 
+    void collectGlobalSensitiveAnnotations(llvm::Module& module);
+
+    void collectLocalSensitiveAnnotations(llvm::Module& module);
+
+    bool isSensitiveObj(NodeID nodeID) {
+        if (SensitiveObjList.test(nodeID)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     /// Initialize analysis
     virtual inline void initialize(SVFModule svfModule) {
     //virtual inline void initialize(llvm::Module& svfModule) {
         resetData();
+        assert(svfModule.getModuleNum() == 1 && "More than one module, don't know what to do with this");
         /// Build PAG
         PointerAnalysis::initialize(svfModule);
+        collectGlobalSensitiveAnnotations(svfModule.getModuleRef(0));
+        collectLocalSensitiveAnnotations(svfModule.getModuleRef(0));
         /// Build Constraint Graph
         consCG = new ConstraintGraph(pag);
         setGraph(consCG);

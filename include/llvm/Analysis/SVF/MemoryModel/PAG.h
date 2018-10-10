@@ -366,6 +366,12 @@ public:
     inline bool hasValueNode(const llvm::Value* V) {
         return symInfo->hasValSym(V);
     }
+
+    inline bool hasObjectNode(const llvm::Value* V) {
+        return symInfo->hasObjSym(V);
+    }
+
+
     /// getObject - Return the obj node id refer to the memory object for the
     /// specified global, heap or alloca instruction according to llvm value.
     inline NodeID getObjectNode(const llvm::Value *V) {

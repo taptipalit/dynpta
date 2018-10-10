@@ -43,6 +43,8 @@ Size_t Andersen::numOfProcessedGep = 0;
 Size_t Andersen::numOfProcessedLoad = 0;
 Size_t Andersen::numOfProcessedStore = 0;
 
+Size_t Andersen::numOfSensitiveCopy = 0;
+
 Size_t Andersen::numOfSCCDetection = 0;
 double Andersen::timeOfSCCDetection = 0;
 double Andersen::timeOfSCCMerges = 0;
@@ -59,6 +61,149 @@ static cl::opt<string> WriteAnder("write-ander",  cl::init(""),
                                   cl::desc("Write Andersen's analysis results to a file"));
 static cl::opt<string> ReadAnder("read-ander",  cl::init(""),
                                  cl::desc("Read Andersen's analysis results from a file"));
+
+#define DEBUG_TYPE "andersen"
+
+void Andersen::collectGlobalSensitiveAnnotations(Module &M) {
+    std::vector<StringRef> GlobalSensitiveNameList;
+
+    // Get the names of the global variables that are sensitive
+    if(GlobalVariable* GA = M.getGlobalVariable("llvm.global.annotations")) {
+        for (Value *AOp : GA->operands()) {
+            if (ConstantArray *CA = dyn_cast<ConstantArray>(AOp)) {
+                for (Value *CAOp : CA->operands()) {
+                    if (ConstantStruct *CS = dyn_cast<ConstantStruct>(CAOp)) {
+                        if (CS->getNumOperands() < 4) {
+                            LLVM_DEBUG(dbgs() << "Unexpected number of operands found. Skipping annotation. \n");
+                            break;
+                        }
+
+                        Value *CValue = CS->getOperand(0);
+                        if (ConstantExpr *Cons = dyn_cast<ConstantExpr>(CValue)) {
+                            GlobalSensitiveNameList.push_back(Cons->getOperand(0)->getName());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Add the global variables which are sensitive to the list
+    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+        if (I->getName() != "llvm.global.annotations") {
+            GlobalVariable* GV = llvm::cast<GlobalVariable>(I);
+            if (std::find(GlobalSensitiveNameList.begin(), GlobalSensitiveNameList.end(), GV->getName()) != GlobalSensitiveNameList.end()) {
+                // It might be an object or a pointer, we'll deal with these guys later
+                if (pag->hasObjectNode(GV)) {
+                    NodeID objID = pag->getObjectNode(GV);
+                    SensitiveObjList.set(objID);
+                    //PAGNode* objNode = pag->getPAGNode(objID);
+                    //SensitiveObjList.push_back(objNode);
+                    // Find all Field-edges and corresponding field nodes
+                    NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
+                    for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
+                        SensitiveObjList.set(*fIt);
+                        //PAGNode* fldNode = pag->getPAGNode(*fIt);
+                        //SensitiveObjList.push_back(fldNode);
+                    }
+                    //SensitiveObjList.push_back(objNode);
+                } else if (pag->hasValueNode(GV)) {
+                    NodeID valID = pag->getValueNode(GV);
+                    SensitiveObjList.set(valID);
+                    //SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(GV)));
+                }
+            }
+        }
+    }
+}
+
+
+void Andersen::collectLocalSensitiveAnnotations(Module& M) {
+	// Do one pass around the program to gather all sensitive values
+
+	// For each function ... 
+	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+		if (auto *F = dyn_cast<Function>(MIterator)) {
+			// Get the local sensitive values
+			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+					//outs() << "Basic block found, name : " << BB->getName() << "\n";
+					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+							// Check if it's an annotation
+							if (isa<CallInst>(Inst)) {
+								CallInst* CInst = dyn_cast<CallInst>(Inst);
+								// CallInst->getCalledValue() gives us a pointer to the Function
+								if (CInst->getCalledValue()->getName().equals("llvm.var.annotation")) {
+									Value* SV = CInst->getArgOperand(0);
+									for (Value::use_iterator useItr = SV->use_begin(), useEnd = SV->use_end(); useItr != useEnd; useItr++) {
+										Value* UseValue = dyn_cast<Value>(*useItr);
+                                        if (pag->hasObjectNode(UseValue)) {
+                                            NodeID objID = pag->getObjectNode(UseValue);
+                                            SensitiveObjList.set(objID);
+                                            //PAGNode* objNode = pag->getPAGNode(objID);
+                                            //SensitiveObjList.push_back(objNode);
+                                            // Find all Field-edges and corresponding field nodes
+                                            NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
+                                            for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
+                                                SensitiveObjList.set(*fIt);
+                                                //PAGNode* fldNode = pag->getPAGNode(*fIt);
+                                                //SensitiveObjList.push_back(fldNode);
+                                            }
+                                            //SensitiveObjList.set(*fIt);
+                                            //SensitiveObjList.push_back(objNode);
+                                        } else if (pag->hasValueNode(UseValue)) {
+                                            NodeID valID = pag->getValueNode(UseValue);
+                                            SensitiveObjList.set(valID);
+										    //SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(UseValue)));
+                                        }
+									}
+								}
+							}	
+						}
+					}
+				}
+			}
+
+			// Check for bitcast versions. This is needed because annotation function calls seem to take 8bit arguments only.
+			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+							if (isa<BitCastInst>(Inst)) {
+								BitCastInst* BCInst = dyn_cast<BitCastInst>(Inst);
+								Value* RetVal = llvm::cast<Value>(Inst);
+								if (isSensitiveObj(pag->getValueNode(RetVal))) { // A CastInst is a Value not Obj
+									// The bitcasted version of this variable was used in the annotation call,
+									// So add this variable too to the encrypted list
+                                    Value* val = BCInst->getOperand(0);
+                                    if (pag->hasObjectNode(val)) {
+                                        NodeID objID = pag->getObjectNode(val);
+                                        SensitiveObjList.set(objID);
+                                        //PAGNode* objNode = pag->getPAGNode(objID);
+                                        //SensitiveObjList.push_back(objNode);
+                                        // Find all Field-edges and corresponding field nodes
+                                        NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
+                                        for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
+                                            SensitiveObjList.set(*fIt);
+                                            //PAGNode* fldNode = pag->getPAGNode(*fIt);
+                                            //SensitiveObjList.push_back(fldNode);
+                                        }
+                                        //SensitiveObjList.push_back(objNode);
+                                    } else if (pag->hasValueNode(val)) {
+                                        NodeID valID = pag->getValueNode(val);
+                                        SensitiveObjList.set(valID);
+									    //SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(val)));
+                                    }
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 
 /*
 bool Andersen::runOnModule(llvm::Module& module) {
@@ -235,7 +380,10 @@ bool Andersen::processCopy(NodeID node, const ConstraintEdge* edge) {
     assert((isa<CopyCGEdge>(edge)) && "not copy/call/ret ??");
     NodeID dst = edge->getDstID();
     PointsTo& srcPts = getPts(node);
+    int dstPtsCountBef = getPts(dst).count();
     bool changed = unionPts(dst,srcPts);
+    int dstPtsCountAft = getPts(dst).count();
+
     if (changed)
         pushIntoWorklist(dst);
 

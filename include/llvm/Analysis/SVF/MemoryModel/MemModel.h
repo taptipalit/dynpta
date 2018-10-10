@@ -577,6 +577,13 @@ public:
             return (valSymMap.find(val) != valSymMap.end());
     }
 
+    inline bool hasObjSym(const llvm::Value* val) {
+        if (isNullPtrSym(val) || isBlackholeSym(val))
+            return true;
+        else
+            return (objSymMap.find(val) != objSymMap.end());
+    }
+
     inline SymID getObjSym(const llvm::Value *val) const {
         /// find the unique defined global across multiple modules
         if(const llvm::GlobalVariable* gvar = llvm::dyn_cast<llvm::GlobalVariable>(val)) {
