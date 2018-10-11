@@ -79,9 +79,7 @@ public:
 
     /// Constructor needs TargetLibraryInfo to be passed to the AliasAnalysis
     WPAPass() : llvm::ModulePass(ID) {
-  	dbgs() << "const\n";
 	initializeWPAPassPass(*PassRegistry::getPassRegistry());
-  	dbgs() << "const\n";
 
     }
 

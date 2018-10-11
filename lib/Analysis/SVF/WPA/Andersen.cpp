@@ -215,8 +215,8 @@ bool Andersen::runOnModule(llvm::Module& module) {
  */
 void Andersen::analyze(SVFModule svfModule) {
 //void Andersen::analyze(llvm::Module& svfModule) {
+    Size_t prevIterationSensitiveCopyEdges = 0;
     /// Initialization for the Solver
-    dbgs() << "analyze\n";
     initialize(svfModule);
 
 
@@ -238,8 +238,17 @@ void Andersen::analyze(SVFModule svfModule) {
 
             reanalyze = false;
 
+            errs() << "Running one iteration:\n";
+            errs() << "Calling solve ... \n";
             /// Start solving constraints
             solve();
+
+            if (numOfSensitiveCopy > prevIterationSensitiveCopyEdges) {
+                errs() << "Useful iteration" << "\n";
+            } else {
+                errs() << "Useless iteration" << "\n";
+            }
+            prevIterationSensitiveCopyEdges = numOfSensitiveCopy;
 
             double cgUpdateStart = stat->getClk();
             if (updateCallGraph(getIndirectCallsites()))
@@ -376,13 +385,19 @@ bool Andersen::processStore(NodeID node, const ConstraintEdge* store) {
  */
 bool Andersen::processCopy(NodeID node, const ConstraintEdge* edge) {
     numOfProcessedCopy++;
-    dbgs() << node << edge;
     assert((isa<CopyCGEdge>(edge)) && "not copy/call/ret ??");
     NodeID dst = edge->getDstID();
+    PointsTo& dstPtsBef = getPts(dst);
     PointsTo& srcPts = getPts(node);
+    PointsTo& dstPtsAft = getPts(dst);
     int dstPtsCountBef = getPts(dst).count();
     bool changed = unionPts(dst,srcPts);
     int dstPtsCountAft = getPts(dst).count();
+
+    if (changed && isSensitivePointsTo(dstPtsBef)) {
+        numOfSensitiveCopy++;
+        SensitiveObjList |= dstPtsAft;
+    }
 
     if (changed)
         pushIntoWorklist(dst);

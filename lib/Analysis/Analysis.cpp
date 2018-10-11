@@ -82,7 +82,6 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeLCSSAVerificationPassPass(Registry);
   initializeMemorySSAWrapperPassPass(Registry);
   initializeMemorySSAPrinterLegacyPassPass(Registry);
-  dbgs() << "analusis.cpp\n";
   initializeWPAPassPass(Registry);
 }
 

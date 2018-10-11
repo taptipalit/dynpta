@@ -100,7 +100,6 @@ void WPAPass::runOnModule(SVFModule svfModule) {
             runPointerAnalysis(svfModule, i);
     }*/
 	//cout << "WPA\n";
-	dbgs() << "own\n";
 	//_pta = new AndersenWaveDiff();
     _pta = new Andersen();
 	//_pta = new FlowSensitive();
@@ -114,7 +113,6 @@ bool WPAPass::runOnModule(llvm::Module& module) {
             runPointerAnalysis(svfModule, i);
     }*/
 	//cout << "WPA\n";
-	dbgs() << "2";
 	SVFModule *svfModule = new SVFModule(module);
 	runOnModule(*svfModule);
 	//_pta = new Andersen();
