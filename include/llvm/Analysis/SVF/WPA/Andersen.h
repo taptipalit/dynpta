@@ -196,6 +196,7 @@ protected:
     /// Override WPASolver function in order to use the default solver
     virtual void processNode(NodeID nodeId);
 
+    void preprocessAllAddr();
     /// handling various constraints
     //@{
     void processAllAddr();

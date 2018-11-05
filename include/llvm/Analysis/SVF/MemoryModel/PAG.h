@@ -81,6 +81,7 @@ private:
     CSToRetMap callSiteRetMap;	///< Map a callsite to its callsite returns PAGNodes
     FunToRetMap funRetMap;	///< Map a function to its unique function return PAGNodes
     static PAG* pag;	///< Singleton pattern here to enable instance of PAG can only be created once.
+    static PAG* cfgPag; ///< PAG for the CFG only
     CallSiteToFunPtrMap indCallSiteToFunPtrMap; ///< Map an indirect callsite to its function pointer
     FunPtrToCallSitesMap funPtrToCallSitesMap;	///< Map a function pointer to the callsites where it is used
     bool fromFile; ///< Whether the PAG is built according to user specified data from a txt file

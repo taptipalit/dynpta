@@ -41,6 +41,11 @@
 #include <llvm/Analysis/AliasAnalysis.h>
 #include <llvm/Analysis/CallGraph.h>	// call graph
 
+/*
+static cl::opt<bool> CFGOnly("cfg-only", cl::init(true),
+       cl::desc("Perform points-to analysis to resolve cfg only"));
+       */
+
 class CHGraph;
 class CHNode;
 
@@ -103,6 +108,7 @@ private:
 
 protected:
 
+    bool cfgOnlyFlag;
     /// User input flags
     //@{
     /// Flag for printing the statistic results
@@ -113,6 +119,7 @@ protected:
 
     /// PAG
     static PAG* pag;
+    static PAG* cfgPag;
     /// Module
     SVFModule svfMod;
     /// Pointer analysis Type

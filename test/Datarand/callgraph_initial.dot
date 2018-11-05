@@ -1,0 +1,9 @@
+digraph "Call Graph" {
+	label="Call Graph";
+
+	Node0x7019f20 [shape=record,shape=circle,label="{main}"];
+	Node0x7019f20 -> Node0x701a7c0[color=black];
+	Node0x7019f20 -> Node0x701a840[color=black];
+	Node0x701a840 [shape=record,shape=Mrecord,label="{printf}"];
+	Node0x701a7c0 [shape=record,shape=Mrecord,label="{llvm.var.annotation}"];
+}

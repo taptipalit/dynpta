@@ -1,0 +1,8 @@
+test.o
+-r=test.o,f,pl
+-r=test.o,printf,
+-r=test.o,g,pl
+-r=test.o,dosomething,pl
+-r=test.o,main,plx
+-r=test.o,val1,pl
+-r=test.o,val2,pl

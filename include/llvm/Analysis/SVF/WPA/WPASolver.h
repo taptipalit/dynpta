@@ -52,6 +52,7 @@ public:
     typedef FIFOWorkList<NodeID> WorkList;
 
 protected:
+    bool cfgOnly;
 
     /// Constructor
     WPASolver(): _graph(NULL),scc(NULL)
@@ -85,6 +86,10 @@ protected:
         return getSCCDetector()->topoNodeStack();
     }
 
+    virtual bool isSensitiveObj(NodeID nodeID) {
+        return false;
+    }
+
     /// Constraint Solving
     virtual void solve() {
 
@@ -98,7 +103,11 @@ protected:
         while (!nodeStack.empty()) {
             NodeID nodeId = nodeStack.top();
             nodeStack.pop();
-            processNode(nodeId);
+            if (!cfgOnly) {
+                if (isSensitiveObj(nodeId)) { // Start only with the sensitive nodes
+                    processNode(nodeId);
+                }
+            }
         }
 
         /// start solving

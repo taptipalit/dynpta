@@ -38,7 +38,7 @@ using namespace llvm;
 using namespace analysisUtil;
 
 
-static cl::opt<bool> CallGraphDotGraph("dump-callgraph", cl::init(false),
+static cl::opt<bool> CallGraphDotGraph("dump-callgraph", cl::init(true),
                                        cl::desc("Dump dot graph of Call Graph"));
 
 PTACallGraph::CallSiteToIdMap PTACallGraph::csToIdMap;

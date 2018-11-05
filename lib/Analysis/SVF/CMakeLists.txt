@@ -17,6 +17,7 @@ set(SOURCES
     Util/PTAStat.cpp
     Util/ThreadAPI.cpp
     Util/SVFModule.cpp
+    Util/SensitiveDataHelper.cpp
     MemoryModel/ConsG.cpp
     MemoryModel/LocationSet.cpp
     MemoryModel/LocMemModel.cpp

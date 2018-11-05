@@ -32,6 +32,7 @@
 
 #include "llvm/Analysis/SVF/MemoryModel/PAG.h"
 #include "llvm/Analysis/SVF/Util/ExtAPI.h"
+#include "llvm/Analysis/SVF/Util/SensitiveDataHelper.h"
 
 #include <llvm/IR/InstVisitor.h>	// for instruction visitor
 
@@ -41,9 +42,13 @@ class SVFModule;
  *  PAG Builder
  */
 class PAGBuilder: public llvm::InstVisitor<PAGBuilder> {
+public: 
+    enum Mode {CFG_ONLY, FULL};
 private:
     PAG* pag;
     SVFModule svfMod;
+    Mode svfMode;
+    SensitiveDataHelper* sensitiveHelper;
 public:
     /// Constructor
     PAGBuilder(): pag(PAG::getPAG()) {
@@ -53,7 +58,7 @@ public:
     }
 
     /// Start building PAG here
-    PAG* build(SVFModule svfModule);
+    PAG* build(SVFModule svfModule, Mode mode);
 
     /// Return PAG
     PAG* getPAG() const {

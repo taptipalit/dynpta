@@ -47,6 +47,9 @@ using namespace cppUtil;
 static cl::opt<bool> TYPEPrint("print-type", cl::init(false),
                                cl::desc("Print type"));
 
+static cl::opt<bool> CFGOnly("cfg-only", cl::init(true), 
+        cl::desc("Perform points-to analysis to resolve cfg only"));
+
 static cl::opt<bool> FuncPointerPrint("print-fp", cl::init(false),
                                       cl::desc("Print targets of indirect call site"));
 
@@ -146,7 +149,14 @@ void PointerAnalysis::initialize(SVFModule svfModule) {
 
         } else {
             PAGBuilder builder;
-            pag = builder.build(svfModule);
+            if (CFGOnly) {
+                cfgOnlyFlag = true;
+                pag = builder.build(svfModule, PAGBuilder::CFG_ONLY);
+            } else {
+                cfgOnlyFlag = false;
+                // TODO, modify things
+                pag = builder.build(svfModule, PAGBuilder::FULL);
+            }
         }
 
         chgraph = new CHGraph();
@@ -493,13 +503,19 @@ void BVDataPTAImpl::dumpTopLevelPtsTo() {
  */
 void PointerAnalysis::dumpPts(NodeID ptr, const PointsTo& pts) {
 
-    const PAGNode* node = pag->getPAGNode(ptr);
+    PAGNode* node = pag->getPAGNode(ptr);
     /// print the points-to set of node which has the maximum pts size.
     if (isa<DummyObjPN> (node)) {
         outs() << "##<Dummy Obj > id:" << node->getId();
     } else if (!isa<DummyValPN>(node)) {
         outs() << "##<" << node->getValue()->getName() << "> ";
         outs() << "Source Loc: " << getSourceLoc(node->getValue());
+        if (GepObjPN* gepObjNode = dyn_cast<GepObjPN>(node)) {
+            outs() << "Field sensitive object found ... \n";
+            LocationSet lSet = gepObjNode->getLocationSet();
+            outs() << "Offset ... " << lSet.getOffset() << "\n";
+        }
+
     }
     outs() << "\nPtr " << node->getId() << " ";
 
@@ -516,18 +532,23 @@ void PointerAnalysis::dumpPts(NodeID ptr, const PointsTo& pts) {
     outs() << "";
 
     for (NodeBS::iterator it = pts.begin(), eit = pts.end(); it != eit; ++it) {
-        const PAGNode* node = pag->getPAGNode(*it);
+        PAGNode* node = pag->getPAGNode(*it);
         if(isa<ObjPN>(node) == false)
             continue;
         NodeID ptd = node->getId();
         outs() << "!!Target NodeID " << ptd << "\t [";
-        const PAGNode* pagNode = pag->getPAGNode(ptd);
+        PAGNode* pagNode = pag->getPAGNode(ptd);
         if (isa<DummyValPN>(node))
             outs() << "DummyVal\n";
         else if (isa<DummyObjPN>(node))
             outs() << "Dummy Obj id: " << node->getId() << "]\n";
         else {
             outs() << "<" << pagNode->getValue()->getName() << "> ";
+            if (GepObjPN* gepObjNode = dyn_cast<GepObjPN>(pagNode)) {
+                outs() << "Field sensitive object found ... \n";
+                LocationSet lSet = gepObjNode->getLocationSet();
+                outs() << "Offset ... " << lSet.getOffset() << "\n";
+            }
             outs() << "Source Loc: " << getSourceLoc(pagNode->getValue()) << "] \n";
         }
     }
