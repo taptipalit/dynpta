@@ -42,6 +42,7 @@ set(SOURCES
     SABER/SaberSVFGBuilder.cpp
     SABER/SrcSnkDDA.cpp
     WPA/Andersen.cpp
+    WPA/AndersenDD.cpp
     WPA/AndersenLCD.cpp
     WPA/AndersenStat.cpp
     WPA/AndersenWave.cpp

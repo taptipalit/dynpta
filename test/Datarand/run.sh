@@ -5,9 +5,9 @@ fileinst=$file"_inst"
 
 set -x
 
-LLVMROOT=/mnt/Projects/llvm7_svf/LLVM-custom/install/bin
+LLVMROOT=/mnt/Projects/LLVM-custom/install/bin
 
-#GGDB=-ggdb 
+GGDB=-ggdb 
 $LLVMROOT/clang -O0 -c $GGDB  -emit-llvm $file.c  -S -o $file.ll
 if [ $? -ne 0 ]
 then

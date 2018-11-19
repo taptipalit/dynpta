@@ -102,7 +102,7 @@ public:
     }
     //virtual bool runOnModule(llvm::Module& svfModule);
     /// Andersen analysis
-    void analyze(SVFModule svfModule);
+    virtual void analyze(SVFModule svfModule);
     //void analyze(llvm::Module& svfModule);
 
     void collectGlobalSensitiveAnnotations(llvm::Module& module);
@@ -196,7 +196,7 @@ protected:
     /// Override WPASolver function in order to use the default solver
     virtual void processNode(NodeID nodeId);
 
-    void preprocessAllAddr();
+    
     /// handling various constraints
     //@{
     void processAllAddr();
@@ -272,6 +272,31 @@ protected:
     /// add type for newly created GepObjNode
     virtual void addTypeForGepObjNode(NodeID id, const NormalGepCGEdge* normalGepEdge) {
         return;
+    }
+};
+
+/*
+ * Demand-driven Andersen Analysis
+ */
+class AndersenDD : public Andersen {
+private:
+    static AndersenDD* ddAndersen; // static instance
+
+protected:
+    void preprocessAllAddr();
+
+public:
+    AndersenDD(PTATY type = AndersenDD_WPA) : Andersen(type) {}
+
+    virtual void processNode(NodeID nodeId);
+    virtual void analyze(SVFModule svfModule);
+
+    static AndersenDD* createAndersenDD(SVFModule svfModule) {
+        if (ddAndersen==NULL) {
+            ddAndersen = new AndersenDD();
+            ddAndersen->analyze(svfModule);
+            return ddAndersen;
+        }
     }
 };
 

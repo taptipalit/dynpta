@@ -52,7 +52,7 @@ public:
     typedef FIFOWorkList<NodeID> WorkList;
 
 protected:
-    bool cfgOnly;
+    bool sensitiveOnly;
 
     /// Constructor
     WPASolver(): _graph(NULL),scc(NULL)
@@ -103,7 +103,7 @@ protected:
         while (!nodeStack.empty()) {
             NodeID nodeId = nodeStack.top();
             nodeStack.pop();
-            if (!cfgOnly) {
+            if (!sensitiveOnly) {
                 if (isSensitiveObj(nodeId)) { // Start only with the sensitive nodes
                     processNode(nodeId);
                 }

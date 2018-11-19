@@ -150,10 +150,8 @@ void PointerAnalysis::initialize(SVFModule svfModule) {
         } else {
             PAGBuilder builder;
             if (CFGOnly) {
-                cfgOnlyFlag = true;
                 pag = builder.build(svfModule, PAGBuilder::CFG_ONLY);
             } else {
-                cfgOnlyFlag = false;
                 // TODO, modify things
                 pag = builder.build(svfModule, PAGBuilder::FULL);
             }
@@ -311,7 +309,7 @@ void PointerAnalysis::dumpAllTypes()
  * Constructor
  */
 BVDataPTAImpl::BVDataPTAImpl(PointerAnalysis::PTATY type) : PointerAnalysis(type) {
-    if(type == Andersen_WPA || type == AndersenWave_WPA || type == AndersenLCD_WPA) {
+    if(type == Andersen_WPA || type == AndersenWave_WPA || type == AndersenLCD_WPA || type == AndersenDD_WPA) {
         ptD = new PTDataTy();
     }
     else if (type == AndersenWaveDiff_WPA || type == AndersenWaveDiffWithType_WPA) {

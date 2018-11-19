@@ -1,4 +1,4 @@
-//===- Andersen.cpp -- Field-sensitive Andersen's analysis-------------------//
+//===- AndersenDD.cpp -- Demand driven, field-sensitive Andersen's analysis-------------------//
 //
 //                     SVF: Static Value-Flow Analysis
 //
@@ -21,10 +21,10 @@
 //===----------------------------------------------------------------------===//
 
 /*
- * Andersen.cpp
+ * AndersenDD.cpp
  *
- *  Created on: Nov 12, 2013
- *      Author: Yulei Sui
+ *  Created on: Nov 11, 2018
+ *      Author: Tapti Palit
  */
 
 #include "llvm/Analysis/SVF/MemoryModel/PAG.h"
@@ -37,251 +37,50 @@ using namespace llvm;
 using namespace analysisUtil;
 
 
-Size_t Andersen::numOfProcessedAddr = 0;
-Size_t Andersen::numOfProcessedCopy = 0;
-Size_t Andersen::numOfProcessedGep = 0;
-Size_t Andersen::numOfProcessedLoad = 0;
-Size_t Andersen::numOfProcessedStore = 0;
+#define DEBUG_TYPE "andersendd"
 
-Size_t Andersen::numOfSensitiveCopy = 0;
-
-Size_t Andersen::numOfSCCDetection = 0;
-double Andersen::timeOfSCCDetection = 0;
-double Andersen::timeOfSCCMerges = 0;
-double Andersen::timeOfCollapse = 0;
-
-Size_t Andersen::AveragePointsToSetSize = 0;
-Size_t Andersen::MaxPointsToSetSize = 0;
-double Andersen::timeOfProcessCopyGep = 0;
-double Andersen::timeOfProcessLoadStore = 0;
-double Andersen::timeOfUpdateCallGraph = 0;
-
-
-static cl::opt<string> WriteAnder("write-ander",  cl::init(""),
-                                  cl::desc("Write Andersen's analysis results to a file"));
-static cl::opt<string> ReadAnder("read-ander",  cl::init(""),
-                                 cl::desc("Read Andersen's analysis results from a file"));
-
-#define DEBUG_TYPE "andersen"
-
-void Andersen::collectGlobalSensitiveAnnotations(Module &M) {
-    std::vector<StringRef> GlobalSensitiveNameList;
-
-    // Get the names of the global variables that are sensitive
-    if(GlobalVariable* GA = M.getGlobalVariable("llvm.global.annotations")) {
-        for (Value *AOp : GA->operands()) {
-            if (ConstantArray *CA = dyn_cast<ConstantArray>(AOp)) {
-                for (Value *CAOp : CA->operands()) {
-                    if (ConstantStruct *CS = dyn_cast<ConstantStruct>(CAOp)) {
-                        if (CS->getNumOperands() < 4) {
-                            LLVM_DEBUG(dbgs() << "Unexpected number of operands found. Skipping annotation. \n");
-                            break;
-                        }
-
-                        Value *CValue = CS->getOperand(0);
-                        if (ConstantExpr *Cons = dyn_cast<ConstantExpr>(CValue)) {
-                            GlobalSensitiveNameList.push_back(Cons->getOperand(0)->getName());
-                        }
-                    }
-                }
-            }
-        }
-    }
-    // Add the global variables which are sensitive to the list
-    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
-        if (I->getName() != "llvm.global.annotations") {
-            GlobalVariable* GV = llvm::cast<GlobalVariable>(I);
-            if (std::find(GlobalSensitiveNameList.begin(), GlobalSensitiveNameList.end(), GV->getName()) != GlobalSensitiveNameList.end()) {
-                // It might be an object or a pointer, we'll deal with these guys later
-                if (pag->hasObjectNode(GV)) {
-                    NodeID objID = pag->getObjectNode(GV);
-                    SensitiveObjList.set(objID);
-                    //PAGNode* objNode = pag->getPAGNode(objID);
-                    //SensitiveObjList.push_back(objNode);
-                    // Find all Field-edges and corresponding field nodes
-                    NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
-                    for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
-                        SensitiveObjList.set(*fIt);
-                        //PAGNode* fldNode = pag->getPAGNode(*fIt);
-                        //SensitiveObjList.push_back(fldNode);
-                    }
-                    //SensitiveObjList.push_back(objNode);
-                } 
-                if (pag->hasValueNode(GV)) {
-                    NodeID valID = pag->getValueNode(GV);
-                    SensitiveObjList.set(valID);
-                    //SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(GV)));
-                }
-            }
-        }
-    }
-}
-
-
-void Andersen::collectLocalSensitiveAnnotations(Module& M) {
-	// Do one pass around the program to gather all sensitive values
-
-	// For each function ... 
-	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
-		if (auto *F = dyn_cast<Function>(MIterator)) {
-			// Get the local sensitive values
-			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
-				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
-					//outs() << "Basic block found, name : " << BB->getName() << "\n";
-					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-							// Check if it's an annotation
-							if (isa<CallInst>(Inst)) {
-								CallInst* CInst = dyn_cast<CallInst>(Inst);
-								// CallInst->getCalledValue() gives us a pointer to the Function
-								if (CInst->getCalledValue()->getName().equals("llvm.var.annotation")) {
-									Value* SV = CInst->getArgOperand(0);
-									for (Value::use_iterator useItr = SV->use_begin(), useEnd = SV->use_end(); useItr != useEnd; useItr++) {
-										Value* UseValue = dyn_cast<Value>(*useItr);
-                                        if (pag->hasObjectNode(UseValue)) {
-                                            NodeID objID = pag->getObjectNode(UseValue);
-                                            SensitiveObjList.set(objID);
-                                            //PAGNode* objNode = pag->getPAGNode(objID);
-                                            //SensitiveObjList.push_back(objNode);
-                                            // Find all Field-edges and corresponding field nodes
-                                            NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
-                                            for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
-                                                SensitiveObjList.set(*fIt);
-                                                //PAGNode* fldNode = pag->getPAGNode(*fIt);
-                                                //SensitiveObjList.push_back(fldNode);
-                                            }
-                                            //SensitiveObjList.set(*fIt);
-                                            //SensitiveObjList.push_back(objNode);
-                                        } 
-                                        if (pag->hasValueNode(UseValue)) {
-                                            NodeID valID = pag->getValueNode(UseValue);
-                                            SensitiveObjList.set(valID);
-										    //SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(UseValue)));
-                                        }
-									}
-								}
-							}	
-						}
-					}
-				}
-			}
-
-			// Check for bitcast versions. This is needed because annotation function calls seem to take 8bit arguments only.
-			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
-				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
-					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-							if (isa<BitCastInst>(Inst)) {
-								BitCastInst* BCInst = dyn_cast<BitCastInst>(Inst);
-								Value* RetVal = llvm::cast<Value>(Inst);
-								if (isSensitiveObj(pag->getValueNode(RetVal))) { // A CastInst is a Value not Obj
-									// The bitcasted version of this variable was used in the annotation call,
-									// So add this variable too to the encrypted list
-                                    Value* val = BCInst->getOperand(0);
-                                    if (pag->hasObjectNode(val)) {
-                                        NodeID objID = pag->getObjectNode(val);
-                                        SensitiveObjList.set(objID);
-                                        //PAGNode* objNode = pag->getPAGNode(objID);
-                                        //SensitiveObjList.push_back(objNode);
-                                        // Find all Field-edges and corresponding field nodes
-                                        NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
-                                        for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
-                                            SensitiveObjList.set(*fIt);
-                                            //PAGNode* fldNode = pag->getPAGNode(*fIt);
-                                            //SensitiveObjList.push_back(fldNode);
-                                        }
-                                        //SensitiveObjList.push_back(objNode);
-                                    } 
-                                    if (pag->hasValueNode(val)) {
-                                        NodeID valID = pag->getValueNode(val);
-                                        SensitiveObjList.set(valID);
-									    //SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(val)));
-                                    }
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-
-/*
-bool Andersen::runOnModule(llvm::Module& module) {
-	analyze(module);
-	return false;
-}*/
-/*!
- * Andersen analysis
- */
-void Andersen::analyze(SVFModule svfModule) {
-//void Andersen::analyze(llvm::Module& svfModule) {
+void AndersenDD::analyze(SVFModule svfModule) {
     Size_t prevIterationSensitiveCopyEdges = 0;
     /// Initialization for the Solver
     initialize(svfModule);
-    cfgOnly = cfgOnlyFlag;
+    sensitiveOnly = false;
 
 
-    bool readResultsFromFile = false;
-    if(!ReadAnder.empty())
-        readResultsFromFile = this->readFromFile(ReadAnder);
+    DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Start Solving Constraints\n"));
 
-    if(!readResultsFromFile) {
-        DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Start Solving Constraints\n"));
+    preprocessAllAddr();
 
-        if (cfgOnly) {
-            // If we're doing demand driven, we don't add the nodes to the worklist
-            processAllAddr();
-        } else {
-            preprocessAllAddr();
+    do {
+        numOfIteration++;
+
+        if(0 == numOfIteration % OnTheFlyIterBudgetForStat) {
+            dumpStat();
         }
 
-        do {
-            numOfIteration++;
+        reanalyze = false;
 
-            if(0 == numOfIteration % OnTheFlyIterBudgetForStat) {
-                dumpStat();
-            }
+        /// Start solving constraints
+        solve();
 
-            reanalyze = false;
+        double cgUpdateStart = stat->getClk();
+        if (updateCallGraph(getIndirectCallsites()))
+            reanalyze = true;
+        double cgUpdateEnd = stat->getClk();
+        timeOfUpdateCallGraph += (cgUpdateEnd - cgUpdateStart) / TIMEINTERVAL;
 
-            errs() << "Running one iteration:\n";
-            errs() << "Calling solve ... \n";
-            /// Start solving constraints
-            solve();
+    } while (reanalyze);
 
-            if (numOfSensitiveCopy > prevIterationSensitiveCopyEdges) {
-                errs() << "Useful iteration" << "\n";
-            } else {
-                errs() << "Useless iteration" << "\n";
-            }
-            prevIterationSensitiveCopyEdges = numOfSensitiveCopy;
+    DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Finish Solving Constraints\n"));
 
-            double cgUpdateStart = stat->getClk();
-            if (updateCallGraph(getIndirectCallsites()))
-                reanalyze = true;
-            double cgUpdateEnd = stat->getClk();
-            timeOfUpdateCallGraph += (cgUpdateEnd - cgUpdateStart) / TIMEINTERVAL;
-
-        } while (reanalyze);
-
-        DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Finish Solving Constraints\n"));
-
-        /// finalize the analysis
-        finalize();
-    }
-
-    if(!WriteAnder.empty())
-        this->writeToFile(WriteAnder);
+    /// finalize the analysis
+    finalize();
 }
 
 
 /*!
  * Start constraint solving
  */
-void Andersen::processNode(NodeID nodeId) {
+void AndersenDD::processNode(NodeID nodeId) {
 
     numOfIteration++;
     if (0 == numOfIteration % OnTheFlyIterBudgetForStat) {
@@ -295,50 +94,46 @@ void Andersen::processNode(NodeID nodeId) {
         processAddr(cast<AddrCGEdge>(*it));
     }
 
-    if (!cfgOnly) {
-        // Demand driven 
-        // If we're storing something to another location
-        // We need to process the other location as well
-        for (ConstraintNode::const_iterator it = node->outgoingStoresBegin(),
-                eit = node->outgoingStoresEnd(); it != eit; ++it) {
-            NodeID src = nodeId;
-            NodeID dst = (*it)->getDstID();
-            ConstraintNode* dstNode = consCG->getConstraintNode(dst);
-            /*
-            // We could be doing either of two things -- storing to a Value Node 
-            // In that case, we need to figure out what it could point to
-            for (PointsTo::iterator piter = getPts(dst).begin(), epiter = 
-                    getPts(dst).end(); piter != epiter; ++piter) {
-                NodeID ptd = *piter;
-                errs() << "SRC = " << src << " DST = " << dst << " PTD = " << ptd << "\n";
-                if (processStore(ptd, *it)) {
-                    pushIntoWorklist(dst);
-                }
-            }
-            */
-            // We need to process this node too
-            // If this is a GepObjPN, then find it's original FI node
-            /*
-            PAGNode* pagNode = pag->getPAGNode(dst);
-            if (GepObjPN* gepObjPN = dyn_cast<GepObjPN>(pagNode)) {
-                NodeID fiObjID = getFIObjNode(dst);
-                pushIntoWorklist(fiObjID);
-            } else {
-                pushIntoWorklist(dst);
-            }
-            */
-            // Check if this is a constraint node corresponding to a
-            // field-sensitive PAG node
-            bool isGep = false;
-            for (ConstraintNode::const_iterator it = dstNode->directInEdgeBegin(), eit =
-                    dstNode->directInEdgeEnd(); it != eit; ++it) {
-                if (GepCGEdge* gepEdge = llvm::dyn_cast<GepCGEdge>(*it)) {
-                    isGep = true;
-                    pushIntoWorklist(gepEdge->getSrcID());
-                }
-            }
-            pushIntoWorklist(dst);
+    // Demand driven 
+    // If we're storing something to another location
+    // We need to process the other location as well
+    for (ConstraintNode::const_iterator it = node->outgoingStoresBegin(),
+            eit = node->outgoingStoresEnd(); it != eit; ++it) {
+        NodeID src = nodeId;
+        NodeID dst = (*it)->getDstID();
+        ConstraintNode* dstNode = consCG->getConstraintNode(dst);
+        /*
+        // We could be doing either of two things -- storing to a Value Node 
+        // In that case, we need to figure out what it could point to
+        for (PointsTo::iterator piter = getPts(dst).begin(), epiter = 
+        getPts(dst).end(); piter != epiter; ++piter) {
+        NodeID ptd = *piter;
+        errs() << "SRC = " << src << " DST = " << dst << " PTD = " << ptd << "\n";
+        if (processStore(ptd, *it)) {
+        pushIntoWorklist(dst);
         }
+        }
+        */
+        // We need to process this node too
+        // If this is a GepObjPN, then find it's original FI node
+        /*
+           PAGNode* pagNode = pag->getPAGNode(dst);
+           if (GepObjPN* gepObjPN = dyn_cast<GepObjPN>(pagNode)) {
+           NodeID fiObjID = getFIObjNode(dst);
+           pushIntoWorklist(fiObjID);
+           } else {
+           pushIntoWorklist(dst);
+           }
+           */
+        // Check if this is a constraint node corresponding to a
+        // field-sensitive PAG node
+        for (ConstraintNode::const_iterator it = dstNode->directInEdgeBegin(), eit =
+                dstNode->directInEdgeEnd(); it != eit; ++it) {
+            if (GepCGEdge* gepEdge = llvm::dyn_cast<GepCGEdge>(*it)) {
+                pushIntoWorklist(gepEdge->getSrcID());
+            }
+        }
+        pushIntoWorklist(dst);
     }
 
     for (PointsTo::iterator piter = getPts(nodeId).begin(), epiter =
@@ -370,20 +165,7 @@ void Andersen::processNode(NodeID nodeId) {
     }
 }
 
-/*!
- * Process address edges
- */
-void Andersen::processAllAddr()
-{
-    for (ConstraintGraph::const_iterator nodeIt = consCG->begin(), nodeEit = consCG->end(); nodeIt != nodeEit; nodeIt++) {
-        ConstraintNode * cgNode = nodeIt->second;
-        for (ConstraintNode::const_iterator it = cgNode->incomingAddrsBegin(), eit = cgNode->incomingAddrsEnd();
-                it != eit; ++it)
-            processAddr(cast<AddrCGEdge>(*it));
-    }
-}
-
-void Andersen::preprocessAllAddr() {
+void AndersenDD::preprocessAllAddr() {
     for (ConstraintGraph::const_iterator nodeIt = consCG->begin(), nodeEit = consCG->end(); nodeIt != nodeEit; nodeIt++) {
         ConstraintNode * cgNode = nodeIt->second;
         for (ConstraintNode::const_iterator it = cgNode->incomingAddrsBegin(), eit = cgNode->incomingAddrsEnd();
@@ -392,361 +174,12 @@ void Andersen::preprocessAllAddr() {
             AddrCGEdge* addr = cast<AddrCGEdge>(*it);
             NodeID dst = addr->getDstID();
             NodeID src = addr->getSrcID();
-            addPts(dst,src);
-        }
-    }
-}
-
-/*!
- * Process address edges
- */
-void Andersen::processAddr(const AddrCGEdge* addr) {
-    numOfProcessedAddr++;
-
-    NodeID dst = addr->getDstID();
-    NodeID src = addr->getSrcID();
-    if(addPts(dst,src))
-        pushIntoWorklist(dst);
-}
-
-/*!
- * Process load edges
- *	src --load--> dst,
- *	node \in pts(src) ==>  node--copy-->dst
- */
-bool Andersen::processLoad(NodeID node, const ConstraintEdge* load) {
-    /// TODO: New copy edges are also added for black hole obj node to
-    ///       make gcc in spec 2000 pass the flow-sensitive analysis.
-    ///       Try to handle black hole obj in an appropiate way.
-//	if (pag->isBlkObjOrConstantObj(node) || isNonPointerObj(node))
-    if (pag->isConstantObj(node) || isNonPointerObj(node))
-        return false;
-
-    numOfProcessedLoad++;
-
-    NodeID dst = load->getDstID();
-    return addCopyEdge(node, dst);
-}
-
-/*!
- * Process store edges
- *	src --store--> dst,
- *	node \in pts(dst) ==>  src--copy-->node
- */
-bool Andersen::processStore(NodeID node, const ConstraintEdge* store) {
-    /// TODO: New copy edges are also added for black hole obj node to
-    ///       make gcc in spec 2000 pass the flow-sensitive analysis.
-    ///       Try to handle black hole obj in an appropiate way
-//	if (pag->isBlkObjOrConstantObj(node) || isNonPointerObj(node))
-    if (pag->isConstantObj(node) || isNonPointerObj(node))
-        return false;
-
-    numOfProcessedStore++;
-
-    NodeID src = store->getSrcID();
-    return addCopyEdge(src, node);
-}
-
-/*!
- * Process copy edges
- *	src --copy--> dst,
- *	union pts(dst) with pts(src)
- */
-bool Andersen::processCopy(NodeID node, const ConstraintEdge* edge) {
-    numOfProcessedCopy++;
-    assert((isa<CopyCGEdge>(edge)) && "not copy/call/ret ??");
-    NodeID dst = edge->getDstID();
-    PointsTo& dstPtsBef = getPts(dst);
-    PointsTo& srcPts = getPts(node);
-    PointsTo& dstPtsAft = getPts(dst);
-    int dstPtsCountBef = getPts(dst).count();
-    bool changed = unionPts(dst,srcPts);
-    int dstPtsCountAft = getPts(dst).count();
-
-    if (changed && isSensitivePointsTo(dstPtsBef)) {
-        numOfSensitiveCopy++;
-        SensitiveObjList |= dstPtsAft;
-    }
-
-    if (changed)
-        pushIntoWorklist(dst);
-
-    return changed;
-}
-
-/*!
- * Process gep edges
- *	src --gep--> dst,
- *	for each srcPtdNode \in pts(src) ==> add fieldSrcPtdNode into tmpDstPts
- *		union pts(dst) with tmpDstPts
- */
-void Andersen::processGep(NodeID node, const GepCGEdge* edge) {
-
-    PointsTo& srcPts = getPts(edge->getSrcID());
-    processGepPts(srcPts, edge);
-}
-
-/*!
- * Compute points-to for gep edges
- */
-void Andersen::processGepPts(PointsTo& pts, const GepCGEdge* edge)
-{
-    numOfProcessedGep++;
-
-    PointsTo tmpDstPts;
-    for (PointsTo::iterator piter = pts.begin(), epiter = pts.end(); piter != epiter; ++piter) {
-        /// get the object
-        NodeID ptd = *piter;
-        /// handle blackhole and constant
-        if (consCG->isBlkObjOrConstantObj(ptd)) {
-            tmpDstPts.set(*piter);
-        } else {
-            /// handle variant gep edge
-            /// If a pointer connected by a variant gep edge,
-            /// then set this memory object to be field insensitive
-            if (isa<VariantGepCGEdge>(edge)) {
-                if (consCG->isFieldInsensitiveObj(ptd) == false) {
-                    consCG->setObjFieldInsensitive(ptd);
-                    consCG->addNodeToBeCollapsed(consCG->getBaseObjNode(ptd));
-                }
-                // add the field-insensitive node into pts.
-                NodeID baseId = consCG->getFIObjNode(ptd);
-                tmpDstPts.set(baseId);
-            }
-            /// Otherwise process invariant (normal) gep
-            // TODO: after the node is set to field insensitive, handling invaraint gep edge may lose precision
-            // because offset here are ignored, and it always return the base obj
-            else if (const NormalGepCGEdge* normalGepEdge = dyn_cast<NormalGepCGEdge>(edge)) {
-                if (!matchType(edge->getSrcID(), ptd, normalGepEdge))
-                    continue;
-                NodeID fieldSrcPtdNode = consCG->getGepObjNode(ptd,	normalGepEdge->getLocationSet());
-                tmpDstPts.set(fieldSrcPtdNode);
-                addTypeForGepObjNode(fieldSrcPtdNode, normalGepEdge);
-                // Any points-to passed to an FIObj also pass to its first field
-                if (normalGepEdge->getLocationSet().getOffset() == 0)
-                    addCopyEdge(getBaseObjNode(fieldSrcPtdNode), fieldSrcPtdNode);
-            }
-            else {
-                assert(false && "new gep edge?");
+            bool updated = addPts(dst,src);
+            if (updated) {
+                if (isSensitiveObj(src) || isSensitiveObj(dst)) {
+                    pushIntoWorklist(dst);
+                } 
             }
         }
     }
-
-    NodeID dstId = edge->getDstID();
-    if (unionPts(dstId, tmpDstPts))
-        pushIntoWorklist(dstId);
-}
-
-/*
- * Merge constraint graph nodes based on SCC cycle detected.
- */
-void Andersen::mergeSccCycle()
-{
-    NodeBS changedRepNodes;
-
-    NodeStack revTopoOrder;
-    NodeStack & topoOrder = getSCCDetector()->topoNodeStack();
-    while (!topoOrder.empty()) {
-        NodeID repNodeId = topoOrder.top();
-        topoOrder.pop();
-        revTopoOrder.push(repNodeId);
-
-        // merge sub nodes to rep node
-        mergeSccNodes(repNodeId, changedRepNodes);
-    }
-
-    // update rep/sub relation in the constraint graph.
-    // each node will have a rep node
-    for(NodeBS::iterator it = changedRepNodes.begin(), eit = changedRepNodes.end(); it!=eit; ++it) {
-        updateNodeRepAndSubs(*it);
-    }
-
-    // restore the topological order for later solving.
-    while (!revTopoOrder.empty()) {
-        NodeID nodeId = revTopoOrder.top();
-        revTopoOrder.pop();
-        topoOrder.push(nodeId);
-    }
-}
-
-
-/**
- * Union points-to of subscc nodes into its rep nodes
- * Move incoming/outgoing direct edges of sub node to rep node
- */
-void Andersen::mergeSccNodes(NodeID repNodeId, NodeBS & chanegdRepNodes)
-{
-    const NodeBS& subNodes = getSCCDetector()->subNodes(repNodeId);
-    for (NodeBS::iterator nodeIt = subNodes.begin(); nodeIt != subNodes.end(); nodeIt++) {
-        NodeID subNodeId = *nodeIt;
-        if (subNodeId != repNodeId) {
-            mergeNodeToRep(subNodeId, repNodeId);
-            chanegdRepNodes.set(subNodeId);
-        }
-    }
-}
-
-/**
- * Collapse node's points-to set. Change all points-to elements into field-insensitive.
- */
-bool Andersen::collapseNodePts(NodeID nodeId)
-{
-    bool changed = false;
-    PointsTo& nodePts = getPts(nodeId);
-    /// Points to set may be changed during collapse, so use a clone instead.
-    PointsTo ptsClone = nodePts;
-    for (PointsTo::iterator ptsIt = ptsClone.begin(), ptsEit = ptsClone.end(); ptsIt != ptsEit; ptsIt++) {
-        if (consCG->isFieldInsensitiveObj(*ptsIt))
-            continue;
-
-        if (collapseField(*ptsIt))
-            changed = true;
-    }
-    return changed;
-}
-
-/**
- * Collapse field. make struct with the same base as nodeId become field-insensitive.
- */
-bool Andersen::collapseField(NodeID nodeId)
-{
-    /// Black hole doesn't have structures, no collapse is needed.
-    /// In later versions, instead of using base node to represent the struct,
-    /// we'll create new field-insensitive node. To avoid creating a new "black hole"
-    /// node, do not collapse field for black hole node.
-    if (consCG->isBlkObjOrConstantObj(nodeId) || consCG->isSingleFieldObj(nodeId))
-        return false;
-
-    bool changed = false;
-
-    double start = stat->getClk();
-
-    // set base node field-insensitive.
-    consCG->setObjFieldInsensitive(nodeId);
-
-    // replace all occurrences of each field with the field-insensitive node
-    NodeID baseId = consCG->getFIObjNode(nodeId);
-    NodeID baseRepNodeId = consCG->sccRepNode(baseId);
-    NodeBS & allFields = consCG->getAllFieldsObjNode(baseId);
-    for (NodeBS::iterator fieldIt = allFields.begin(), fieldEit = allFields.end(); fieldIt != fieldEit; fieldIt++) {
-        NodeID fieldId = *fieldIt;
-        if (fieldId != baseId) {
-            // use the reverse pts of this field node to find all pointers point to it
-            PointsTo & revPts = getRevPts(fieldId);
-            for (PointsTo::iterator ptdIt = revPts.begin(), ptdEit = revPts.end();
-                    ptdIt != ptdEit; ptdIt++) {
-                // change the points-to target from field to base node
-                PointsTo & pts = getPts(*ptdIt);
-                pts.reset(fieldId);
-                pts.set(baseId);
-
-                changed = true;
-            }
-            // merge field node into base node, including edges and pts.
-            NodeID fieldRepNodeId = consCG->sccRepNode(fieldId);
-            if (fieldRepNodeId != baseRepNodeId)
-                mergeNodeToRep(fieldRepNodeId, baseRepNodeId);
-
-            // field's rep node FR has got new rep node BR during mergeNodeToRep(),
-            // update all FR's sub nodes' rep node to BR.
-            updateNodeRepAndSubs(fieldRepNodeId);
-        }
-    }
-
-    if (consCG->isPWCNode(baseRepNodeId))
-        if (collapseNodePts(baseRepNodeId))
-            changed = true;
-
-    double end = stat->getClk();
-    timeOfCollapse += (end - start) / TIMEINTERVAL;
-
-    return changed;
-}
-
-/*!
- * SCC detection on constraint graph
- */
-NodeStack& Andersen::SCCDetect() {
-    numOfSCCDetection++;
-
-    double sccStart = stat->getClk();
-    WPAConstraintSolver::SCCDetect();
-    double sccEnd = stat->getClk();
-
-    timeOfSCCDetection +=  (sccEnd - sccStart)/TIMEINTERVAL;
-
-    double mergeStart = stat->getClk();
-
-    mergeSccCycle();
-
-    double mergeEnd = stat->getClk();
-
-    timeOfSCCMerges +=  (mergeEnd - mergeStart)/TIMEINTERVAL;
-
-    return getSCCDetector()->topoNodeStack();
-}
-
-/// Update call graph for the input indirect callsites
-bool Andersen::updateCallGraph(const CallSiteToFunPtrMap& callsites) {
-    CallEdgeMap newEdges;
-    onTheFlyCallGraphSolve(callsites,newEdges);
-    NodePairSet cpySrcNodes;	/// nodes as a src of a generated new copy edge
-    for(CallEdgeMap::iterator it = newEdges.begin(), eit = newEdges.end(); it!=eit; ++it ) {
-        llvm::CallSite cs = it->first;
-        for(FunctionSet::iterator cit = it->second.begin(), ecit = it->second.end(); cit!=ecit; ++cit) {
-            consCG->connectCaller2CalleeParams(cs,*cit,cpySrcNodes);
-        }
-    }
-    for(NodePairSet::iterator it = cpySrcNodes.begin(), eit = cpySrcNodes.end(); it!=eit; ++it) {
-        pushIntoWorklist(it->first);
-    }
-
-    if(!newEdges.empty())
-        return true;
-    return false;
-}
-
-/*
- * Merge a node to its rep node
- */
-void Andersen::mergeNodeToRep(NodeID nodeId,NodeID newRepId) {
-    if(nodeId==newRepId)
-        return;
-
-    /// union pts of node to rep
-    unionPts(newRepId,nodeId);
-
-    /// move the edges from node to rep, and remove the node
-    ConstraintNode* node = consCG->getConstraintNode(nodeId);
-    bool gepInsideScc = consCG->moveEdgesToRepNode(node, consCG->getConstraintNode(newRepId));
-    /// 1. if find gep edges inside SCC cycle, the rep node will become a PWC node and
-    /// its pts should be collapsed later.
-    /// 2. if the node to be merged is already a PWC node, the rep node will also become
-    /// a PWC node as it will have a self-cycle gep edge.
-    if (gepInsideScc || node->isPWCNode())
-        consCG->setPWCNode(newRepId);
-
-    consCG->removeConstraintNode(node);
-
-    /// set rep and sub relations
-    consCG->setRep(node->getId(),newRepId);
-    NodeBS& newSubs = consCG->sccSubNodes(newRepId);
-    newSubs.set(node->getId());
-}
-
-/*
- * Updates subnodes of its rep, and rep node of its subs
- */
-void Andersen::updateNodeRepAndSubs(NodeID nodeId) {
-    NodeID repId = consCG->sccRepNode(nodeId);
-    NodeBS repSubs;
-    /// update nodeToRepMap, for each subs of current node updates its rep to newRepId
-    //  update nodeToSubsMap, union its subs with its rep Subs
-    NodeBS& nodeSubs = consCG->sccSubNodes(nodeId);
-    for(NodeBS::iterator sit = nodeSubs.begin(), esit = nodeSubs.end(); sit!=esit; ++sit) {
-        NodeID subId = *sit;
-        consCG->setRep(subId,repId);
-    }
-    repSubs |= nodeSubs;
-    consCG->setSubs(repId,repSubs);
 }

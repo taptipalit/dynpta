@@ -221,7 +221,7 @@ void Andersen::analyze(SVFModule svfModule) {
     Size_t prevIterationSensitiveCopyEdges = 0;
     /// Initialization for the Solver
     initialize(svfModule);
-    cfgOnly = cfgOnlyFlag;
+    sensitiveOnly = true;
 
 
     bool readResultsFromFile = false;
@@ -231,13 +231,7 @@ void Andersen::analyze(SVFModule svfModule) {
     if(!readResultsFromFile) {
         DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Start Solving Constraints\n"));
 
-        if (cfgOnly) {
-            // If we're doing demand driven, we don't add the nodes to the worklist
-            processAllAddr();
-        } else {
-            preprocessAllAddr();
-        }
-
+        processAllAddr();
         do {
             numOfIteration++;
 
@@ -295,52 +289,6 @@ void Andersen::processNode(NodeID nodeId) {
         processAddr(cast<AddrCGEdge>(*it));
     }
 
-    if (!cfgOnly) {
-        // Demand driven 
-        // If we're storing something to another location
-        // We need to process the other location as well
-        for (ConstraintNode::const_iterator it = node->outgoingStoresBegin(),
-                eit = node->outgoingStoresEnd(); it != eit; ++it) {
-            NodeID src = nodeId;
-            NodeID dst = (*it)->getDstID();
-            ConstraintNode* dstNode = consCG->getConstraintNode(dst);
-            /*
-            // We could be doing either of two things -- storing to a Value Node 
-            // In that case, we need to figure out what it could point to
-            for (PointsTo::iterator piter = getPts(dst).begin(), epiter = 
-                    getPts(dst).end(); piter != epiter; ++piter) {
-                NodeID ptd = *piter;
-                errs() << "SRC = " << src << " DST = " << dst << " PTD = " << ptd << "\n";
-                if (processStore(ptd, *it)) {
-                    pushIntoWorklist(dst);
-                }
-            }
-            */
-            // We need to process this node too
-            // If this is a GepObjPN, then find it's original FI node
-            /*
-            PAGNode* pagNode = pag->getPAGNode(dst);
-            if (GepObjPN* gepObjPN = dyn_cast<GepObjPN>(pagNode)) {
-                NodeID fiObjID = getFIObjNode(dst);
-                pushIntoWorklist(fiObjID);
-            } else {
-                pushIntoWorklist(dst);
-            }
-            */
-            // Check if this is a constraint node corresponding to a
-            // field-sensitive PAG node
-            bool isGep = false;
-            for (ConstraintNode::const_iterator it = dstNode->directInEdgeBegin(), eit =
-                    dstNode->directInEdgeEnd(); it != eit; ++it) {
-                if (GepCGEdge* gepEdge = llvm::dyn_cast<GepCGEdge>(*it)) {
-                    isGep = true;
-                    pushIntoWorklist(gepEdge->getSrcID());
-                }
-            }
-            pushIntoWorklist(dst);
-        }
-    }
-
     for (PointsTo::iterator piter = getPts(nodeId).begin(), epiter =
                 getPts(nodeId).end(); piter != epiter; ++piter) {
         NodeID ptd = *piter;
@@ -380,20 +328,6 @@ void Andersen::processAllAddr()
         for (ConstraintNode::const_iterator it = cgNode->incomingAddrsBegin(), eit = cgNode->incomingAddrsEnd();
                 it != eit; ++it)
             processAddr(cast<AddrCGEdge>(*it));
-    }
-}
-
-void Andersen::preprocessAllAddr() {
-    for (ConstraintGraph::const_iterator nodeIt = consCG->begin(), nodeEit = consCG->end(); nodeIt != nodeEit; nodeIt++) {
-        ConstraintNode * cgNode = nodeIt->second;
-        for (ConstraintNode::const_iterator it = cgNode->incomingAddrsBegin(), eit = cgNode->incomingAddrsEnd();
-                it != eit; ++it) {
-            numOfProcessedAddr++;
-            AddrCGEdge* addr = cast<AddrCGEdge>(*it);
-            NodeID dst = addr->getDstID();
-            NodeID src = addr->getSrcID();
-            addPts(dst,src);
-        }
     }
 }
 

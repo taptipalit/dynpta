@@ -10,14 +10,14 @@ typedef struct T {
 int val1 = 200;
 int val2 = 300;
 
-void f(int a) {
+void func(int a) {
     int k = 10;
     int d = 100;
     int res = a + k + d;
     printf("%d\n", res);
 }
 
-void g(int a) {
+void gunc(int a) {
     int k = 10;
     int d = 200;
     int res = d - k - a;
@@ -32,18 +32,18 @@ int main(void) {
     T t;
     t.id = 100;
     void (*fptr) (int);
-    int *ptr;
-    SENSITIVE int k = 0;
+    SENSITIVE int *ptr;
+    int k = 0;
     int j = k + 10;
     printf("%d %d", k, j);
     if ( j < 100) {
-        //fptr = f;
+        fptr = func;
         ptr = &val1;
-        t.funcptr = g;
+        t.funcptr = gunc;
     } else {
-        //fptr = g;
+        fptr = gunc;
         ptr = &val2;
-        t.funcptr = f;
+        t.funcptr = func;
     }
     //(*fptr)(*ptr);
     dosomething(&t);

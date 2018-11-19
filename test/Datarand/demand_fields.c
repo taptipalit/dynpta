@@ -10,6 +10,7 @@ typedef struct Student {
 int main(void) {
     SENSITIVE int a = 10;
     Student stud;
+    int* localpointer;
     stud.pointer = &a;
     stud.id = 20;
     Student* sptr;
@@ -22,5 +23,7 @@ int main(void) {
     printf("%d\n", *p2);
     printf("%d\n", *(sptr->pointer));
     printf("%d\n", stud.id);
+    localpointer = sptr->pointer;
+    printf("%d\n", localpointer);
     return 0;
 }

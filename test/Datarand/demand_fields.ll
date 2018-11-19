@@ -15,6 +15,7 @@ entry:
   %retval = alloca i32, align 4
   %a = alloca i32, align 4
   %stud = alloca %struct.Student, align 8
+  %localpointer = alloca i32*, align 8
   %sptr = alloca %struct.Student*, align 8
   %b = alloca i32, align 4
   %p1 = alloca i32*, align 8
@@ -45,6 +46,12 @@ entry:
   %id5 = getelementptr inbounds %struct.Student, %struct.Student* %stud, i32 0, i32 1
   %7 = load i32, i32* %id5, align 8
   %call6 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str.2, i32 0, i32 0), i32 %7)
+  %8 = load %struct.Student*, %struct.Student** %sptr, align 8
+  %pointer7 = getelementptr inbounds %struct.Student, %struct.Student* %8, i32 0, i32 0
+  %9 = load i32*, i32** %pointer7, align 8
+  store i32* %9, i32** %localpointer, align 8
+  %10 = load i32*, i32** %localpointer, align 8
+  %call8 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str.2, i32 0, i32 0), i32* %10)
   ret i32 0
 }
 

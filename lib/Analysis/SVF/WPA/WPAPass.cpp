@@ -101,7 +101,7 @@ void WPAPass::runOnModule(SVFModule svfModule) {
     }*/
 	//cout << "WPA\n";
 	//_pta = new AndersenWaveDiff();
-    _pta = new Andersen();
+    _pta = new AndersenDD();
 	//_pta = new FlowSensitive();
 	_pta->analyze(svfModule);
 	//return false;

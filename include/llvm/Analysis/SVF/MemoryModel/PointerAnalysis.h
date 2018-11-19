@@ -63,6 +63,7 @@ public:
     enum PTATY {
         // Whole program analysis
         Andersen_WPA,		///< Andersen PTA
+        AndersenDD_WPA,        ///< Andersen Demand Driven
         AndersenLCD_WPA,	///< Lazy cycle detection andersen-style WPA
         AndersenWave_WPA,	///< Wave propagation andersen-style WPA
         AndersenWaveDiff_WPA,	///< Diff wave propagation andersen-style WPA
@@ -108,7 +109,6 @@ private:
 
 protected:
 
-    bool cfgOnlyFlag;
     /// User input flags
     //@{
     /// Flag for printing the statistic results

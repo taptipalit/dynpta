@@ -1,9 +1,16 @@
 digraph "Call Graph" {
 	label="Call Graph";
 
-	Node0x7019f20 [shape=record,shape=circle,label="{main}"];
-	Node0x7019f20 -> Node0x701a7c0[color=black];
-	Node0x7019f20 -> Node0x701a840[color=black];
-	Node0x701a840 [shape=record,shape=Mrecord,label="{printf}"];
-	Node0x701a7c0 [shape=record,shape=Mrecord,label="{llvm.var.annotation}"];
+	Node0x7423e60 [shape=record,shape=circle,label="{func}"];
+	Node0x7423e60 -> Node0x7424780[color=black];
+	Node0x7424780 [shape=record,shape=Mrecord,label="{printf}"];
+	Node0x7424880 [shape=record,shape=circle,label="{dosomething}"];
+	Node0x7424980 [shape=record,shape=Mrecord,label="{llvm.var.annotation}"];
+	Node0x7424700 [shape=record,shape=Mrecord,label="{llvm.dbg.declare}"];
+	Node0x7424800 [shape=record,shape=circle,label="{gunc}"];
+	Node0x7424800 -> Node0x7424780[color=black];
+	Node0x7424900 [shape=record,shape=circle,label="{main}"];
+	Node0x7424900 -> Node0x7424780[color=black];
+	Node0x7424900 -> Node0x7424880[color=black];
+	Node0x7424900 -> Node0x7424980[color=black];
 }
