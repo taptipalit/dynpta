@@ -43,6 +43,7 @@ void AndersenDD::analyze(SVFModule svfModule) {
     Size_t prevIterationSensitiveCopyEdges = 0;
     /// Initialization for the Solver
     initialize(svfModule);
+    updateCallGraph(*(getCallSiteToFunPtrMap()));
     sensitiveOnly = false;
 
 

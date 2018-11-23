@@ -101,9 +101,16 @@ void WPAPass::runOnModule(SVFModule svfModule) {
     }*/
 	//cout << "WPA\n";
 	//_pta = new AndersenWaveDiff();
-    _pta = new AndersenDD();
+    AndersenCFG* awcfg = new AndersenCFG();
+    _pta = awcfg;
+    awcfg->analyze(svfModule);
+    PAG::CallSiteToFunPtrMap& callSiteToFunPtrMap = const_cast<PAG::CallSiteToFunPtrMap&>(awcfg->getIndirectCallsites());
+    
+    AndersenDD* anderdd = new AndersenDD();
+    _pta = anderdd;
+    anderdd->setCallSiteToFunPtrMap(&callSiteToFunPtrMap);
 	//_pta = new FlowSensitive();
-	_pta->analyze(svfModule);
+	anderdd->analyze(svfModule);
 	//return false;
 }
 

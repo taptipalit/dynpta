@@ -63,6 +63,7 @@ public:
     enum PTATY {
         // Whole program analysis
         Andersen_WPA,		///< Andersen PTA
+        AndersenCFG_WPA,
         AndersenDD_WPA,        ///< Andersen Demand Driven
         AndersenLCD_WPA,	///< Lazy cycle detection andersen-style WPA
         AndersenWave_WPA,	///< Wave propagation andersen-style WPA
@@ -136,6 +137,10 @@ protected:
     TypeSystem *typeSystem;
 
 public:
+    /// Return all indirect callsites
+    inline const CallSiteToFunPtrMap& getIndirectCallsites() const {
+        return pag->getIndirectCallsites();
+    }
     /// Return number of resolved indirect call edges
     inline Size_t getNumOfResolvedIndCallEdge() const {
         return getPTACallGraph()->getNumOfResolvedIndCallEdge();
@@ -207,10 +212,7 @@ public:
     virtual llvm::AliasResult alias(NodeID node1, NodeID node2) = 0;
 
 protected:
-    /// Return all indirect callsites
-    inline const CallSiteToFunPtrMap& getIndirectCallsites() const {
-        return pag->getIndirectCallsites();
-    }
+
     /// Return function pointer PAGNode at a callsite cs
     inline NodeID getFunPtr(const llvm::CallSite& cs) const {
         return pag->getFunPtr(cs);

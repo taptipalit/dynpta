@@ -34,6 +34,7 @@
 #include "llvm/Analysis/SVF/WPA/WPAStat.h"
 #include "llvm/Analysis/SVF/WPA/WPASolver.h"
 #include "llvm/Analysis/SVF/MemoryModel/ConsG.h"
+#include "llvm/Analysis/SVF/Util/SensitiveDataHelper.h"
 #include <llvm/PassAnalysisSupport.h>	// analysis usage
 #include <llvm/Support/Debug.h>		// DEBUG TYPE
 
@@ -275,17 +276,46 @@ protected:
     }
 };
 
+/* 
+ * CFG Only Andersen Analysis
+ *
+ */
+class AndersenCFG : public Andersen {
+private:
+    static AndersenCFG* cfgAndersen; // static instance
+    SensitiveDataHelper* sensitiveHelper;
+
+public:
+    AndersenCFG(PTATY type = AndersenCFG_WPA) : Andersen(type) {
+        sensitiveHelper = new SensitiveDataHelper();
+    }
+
+protected:
+    static void processAllAddr();
+
+};
+
 /*
  * Demand-driven Andersen Analysis
  */
 class AndersenDD : public Andersen {
 private:
     static AndersenDD* ddAndersen; // static instance
+    PAG::CallSiteToFunPtrMap* callSiteToFunPtrMap;
 
 protected:
     void preprocessAllAddr();
 
 public:
+
+    void setCallSiteToFunPtrMap(PAG::CallSiteToFunPtrMap* callSiteToFunPtrMap) {
+        this->callSiteToFunPtrMap = callSiteToFunPtrMap;
+    }
+
+    PAG::CallSiteToFunPtrMap* getCallSiteToFunPtrMap() {
+        return this->callSiteToFunPtrMap;
+    }
+
     AndersenDD(PTATY type = AndersenDD_WPA) : Andersen(type) {}
 
     virtual void processNode(NodeID nodeId);
