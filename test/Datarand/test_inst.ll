@@ -88,7 +88,7 @@ entry:
   %retval = alloca i32, align 4
   %t = alloca %struct.T, align 8
   %fptr = alloca void (i32)*, align 8
-  %ptr = alloca i32*, align 8
+  %iptr = alloca i32*, align 8
   %k = alloca i32, align 4
   %j = alloca i32, align 4
   store i32 0, i32* %retval, align 4
@@ -96,11 +96,11 @@ entry:
   %id = getelementptr inbounds %struct.T, %struct.T* %t, i32 0, i32 0, !dbg !70
   store i32 100, i32* %id, align 8, !dbg !71
   call void @llvm.dbg.declare(metadata void (i32)** %fptr, metadata !72, metadata !DIExpression()), !dbg !73
-  call void @llvm.dbg.declare(metadata i32** %ptr, metadata !74, metadata !DIExpression()), !dbg !76
-  %ptr1 = bitcast i32** %ptr to i8*, !dbg !77
+  call void @llvm.dbg.declare(metadata i32** %iptr, metadata !74, metadata !DIExpression()), !dbg !76
+  %iptr1 = bitcast i32** %iptr to i8*, !dbg !77
   %0 = getelementptr [10 x i8], [10 x i8]* @.str.1, i32 0, i32 0
   %1 = getelementptr [7 x i8], [7 x i8]* @.str.2, i32 0, i32 0
-  call void @llvm.var.annotation(i8* %ptr1, i8* %0, i8* %1, i32 35), !dbg !77
+  call void @llvm.var.annotation(i8* %iptr1, i8* %0, i8* %1, i32 35), !dbg !77
   call void @llvm.dbg.declare(metadata i32* %k, metadata !78, metadata !DIExpression()), !dbg !79
   store i32 0, i32* %k, align 4, !dbg !79
   call void @llvm.dbg.declare(metadata i32* %j, metadata !80, metadata !DIExpression()), !dbg !81
@@ -117,14 +117,14 @@ entry:
 
 if.then:                                          ; preds = %entry
   store void (i32)* @func, void (i32)** %fptr, align 8, !dbg !91
-  store i32* @val1, i32** %ptr, align 8, !dbg !93
+  store i32* @val1, i32** %iptr, align 8, !dbg !93
   %funcptr = getelementptr inbounds %struct.T, %struct.T* %t, i32 0, i32 1, !dbg !94
   store void (i32)* @gunc, void (i32)** %funcptr, align 8, !dbg !95
   br label %if.end, !dbg !96
 
 if.else:                                          ; preds = %entry
   store void (i32)* @gunc, void (i32)** %fptr, align 8, !dbg !97
-  store i32* @val2, i32** %ptr, align 8, !dbg !99
+  store i32* @val2, i32** %iptr, align 8, !dbg !99
   %funcptr2 = getelementptr inbounds %struct.T, %struct.T* %t, i32 0, i32 1, !dbg !100
   store void (i32)* @func, void (i32)** %funcptr2, align 8, !dbg !101
   br label %if.end
@@ -223,7 +223,7 @@ attributes #3 = { nounwind }
 !71 = !DILocation(line: 33, column: 10, scope: !65)
 !72 = !DILocalVariable(name: "fptr", scope: !65, file: !3, line: 34, type: !58)
 !73 = !DILocation(line: 34, column: 12, scope: !65)
-!74 = !DILocalVariable(name: "ptr", scope: !65, file: !3, line: 35, type: !75)
+!74 = !DILocalVariable(name: "iptr", scope: !65, file: !3, line: 35, type: !75)
 !75 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !8, size: 64)
 !76 = !DILocation(line: 35, column: 20, scope: !65)
 !77 = !DILocation(line: 35, column: 5, scope: !65)
@@ -242,13 +242,13 @@ attributes #3 = { nounwind }
 !90 = !DILocation(line: 39, column: 10, scope: !65)
 !91 = !DILocation(line: 40, column: 14, scope: !92)
 !92 = distinct !DILexicalBlock(scope: !88, file: !3, line: 39, column: 19)
-!93 = !DILocation(line: 41, column: 13, scope: !92)
+!93 = !DILocation(line: 41, column: 14, scope: !92)
 !94 = !DILocation(line: 42, column: 11, scope: !92)
 !95 = !DILocation(line: 42, column: 19, scope: !92)
 !96 = !DILocation(line: 43, column: 5, scope: !92)
 !97 = !DILocation(line: 44, column: 14, scope: !98)
 !98 = distinct !DILexicalBlock(scope: !88, file: !3, line: 43, column: 12)
-!99 = !DILocation(line: 45, column: 13, scope: !98)
+!99 = !DILocation(line: 45, column: 14, scope: !98)
 !100 = !DILocation(line: 46, column: 11, scope: !98)
 !101 = !DILocation(line: 46, column: 19, scope: !98)
 !102 = !DILocation(line: 49, column: 5, scope: !65)

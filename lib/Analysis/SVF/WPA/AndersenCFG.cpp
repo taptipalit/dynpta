@@ -40,6 +40,7 @@ using namespace analysisUtil;
 #define DEBUG_TYPE "andersencfg"
 
 void AndersenCFG::processAllAddr() {
+    errs() << "AndersenCFG\n";
     for (ConstraintGraph::const_iterator nodeIt = consCG->begin(), nodeEit = consCG->end(); nodeIt != nodeEit; nodeIt++) {
         ConstraintNode * cgNode = nodeIt->second;
         for (ConstraintNode::const_iterator it = cgNode->incomingAddrsBegin(), eit = cgNode->incomingAddrsEnd();
@@ -52,15 +53,19 @@ void AndersenCFG::processAllAddr() {
             if (updated) {
                 PAGNode* srcNode = pag->getPAGNode(src);
                 PAGNode* dstNode = pag->getPAGNode(dst);
-                Value* srcValue = srcNode->getValue();
-                Value* dstValue = dstNode->getValue();
-                Type* srcType = srcValue->getType();
-                Type* dstType = dstValue->getType();
-                //if (isSensitiveObj(src) || isSensitiveObj(dst)) {
-                if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(srcType)) 
-                        || sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(dstType)))
+                if (srcNode->hasValue() && dstNode->hasValue()) {
+                    Value* srcValue = const_cast<Value*>(srcNode->getValue());
+                    Value* dstValue = const_cast<Value*>(dstNode->getValue());
+                    Type* srcType = srcValue->getType();
+                    Type* dstType = dstValue->getType();
+                    //if (isSensitiveObj(src) || isSensitiveObj(dst)) {
+                    if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(srcType)) 
+                            || sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(dstType))) {
+                        pushIntoWorklist(dst);
+                    } 
+                } else {
                     pushIntoWorklist(dst);
-                } 
+                }
             }
         }
     }

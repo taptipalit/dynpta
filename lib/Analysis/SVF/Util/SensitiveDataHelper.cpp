@@ -8,6 +8,8 @@
 using namespace std;
 using namespace llvm;
 
+SensitiveDataHelper* SensitiveDataHelper::helper = nullptr;
+
 bool SensitiveDataHelper::isFunctionPtrType(PointerType* ptrType) {
     Type* baseType = ptrType->getPointerElementType();
     while (PointerType* basePtrType = dyn_cast<PointerType>(baseType)) {

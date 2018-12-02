@@ -95,12 +95,6 @@ WPAPass::~WPAPass() {
     //virtual bool runOnModule(llvm::Module& module) {
     //void runOnModule(SVFModule svfModule);
 void WPAPass::runOnModule(SVFModule svfModule) {
- /*   for (u32_t i = 0; i< PointerAnalysis::Default_PTA; i++) {
-        if (PASelected.isSet(i))
-            runPointerAnalysis(svfModule, i);
-    }*/
-	//cout << "WPA\n";
-	//_pta = new AndersenWaveDiff();
     AndersenCFG* awcfg = new AndersenCFG();
     _pta = awcfg;
     awcfg->analyze(svfModule);
@@ -109,9 +103,7 @@ void WPAPass::runOnModule(SVFModule svfModule) {
     AndersenDD* anderdd = new AndersenDD();
     _pta = anderdd;
     anderdd->setCallSiteToFunPtrMap(&callSiteToFunPtrMap);
-	//_pta = new FlowSensitive();
 	anderdd->analyze(svfModule);
-	//return false;
 }
 
 bool WPAPass::runOnModule(llvm::Module& module) {

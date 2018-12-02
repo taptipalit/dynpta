@@ -26,25 +26,23 @@ private:
     std::vector<llvm::Type*> functionPtrTypes;
     bool processSequentialTypes(llvm::SequentialType*);
     bool processStructTypes(llvm::StructType*);
+    SensitiveDataHelper() {
+    };
+
 
    
-    //static SensitiveDataHelper* helper;
 
 public:
     void collectFuncPtrTypes(llvm::Module&);
     bool isFunctionPtrType(llvm::PointerType*);
     
-    SensitiveDataHelper() {
-    };
-
-    /*
+    static SensitiveDataHelper* helper;
     static SensitiveDataHelper* getSensitiveDataHelper() {
-        if (helper == NULL) {
+        if (helper == nullptr) {
             helper = new SensitiveDataHelper();
         }
         return helper;
     };
-    */
 };
 
 #endif /* SEN_DATA_HLP_H_ */

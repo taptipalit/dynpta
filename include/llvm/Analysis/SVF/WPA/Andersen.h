@@ -200,7 +200,7 @@ protected:
     
     /// handling various constraints
     //@{
-    void processAllAddr();
+    virtual void processAllAddr();
 
     virtual bool processLoad(NodeID node, const ConstraintEdge* load);
 
@@ -287,11 +287,11 @@ private:
 
 public:
     AndersenCFG(PTATY type = AndersenCFG_WPA) : Andersen(type) {
-        sensitiveHelper = new SensitiveDataHelper();
+        sensitiveHelper = SensitiveDataHelper::getSensitiveDataHelper();
     }
 
 protected:
-    static void processAllAddr();
+    void processAllAddr();
 
 };
 

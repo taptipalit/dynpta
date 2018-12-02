@@ -32,17 +32,17 @@ int main(void) {
     T t;
     t.id = 100;
     void (*fptr) (int);
-    SENSITIVE int *ptr;
+    SENSITIVE int *iptr;
     int k = 0;
     int j = k + 10;
     printf("%d %d", k, j);
     if ( j < 100) {
         fptr = func;
-        ptr = &val1;
+        iptr = &val1;
         t.funcptr = gunc;
     } else {
         fptr = gunc;
-        ptr = &val2;
+        iptr = &val2;
         t.funcptr = func;
     }
     //(*fptr)(*ptr);

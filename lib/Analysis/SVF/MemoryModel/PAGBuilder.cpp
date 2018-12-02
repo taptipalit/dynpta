@@ -49,7 +49,7 @@ using namespace analysisUtil;
 PAG* PAGBuilder::build(SVFModule svfModule, Mode mode) {
     svfMod = svfModule;
     svfMode = mode;
-    sensitiveHelper = new SensitiveDataHelper();// SensitiveDataHelper::getSensitiveDataHelper();
+    sensitiveHelper = SensitiveDataHelper::getSensitiveDataHelper();
     sensitiveHelper->collectFuncPtrTypes(svfModule.getModuleRef(0));
     /// initial external library information
     /// initial PAG nodes
