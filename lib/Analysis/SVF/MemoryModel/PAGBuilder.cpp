@@ -46,9 +46,8 @@ using namespace analysisUtil;
 /*!
  * Start building PAG here
  */
-PAG* PAGBuilder::build(SVFModule svfModule, Mode mode) {
+PAG* PAGBuilder::build(SVFModule svfModule) {
     svfMod = svfModule;
-    svfMode = mode;
     sensitiveHelper = SensitiveDataHelper::getSensitiveDataHelper();
     sensitiveHelper->collectFuncPtrTypes(svfModule.getModuleRef(0));
     /// initial external library information
@@ -360,13 +359,8 @@ void PAGBuilder::visitAllocaInst(AllocaInst &inst) {
 
     NodeID src = getObjectNode(&inst);
 
-    if (svfMode == FULL) {
-        pag->addAddrEdge(src, dst);
-    } else {
-        if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(inst.getType()))) {
-            pag->addAddrEdge(src, dst);
-        }
-    }
+    pag->addAddrEdge(src, dst);
+
 }
 
 /*!
@@ -383,15 +377,9 @@ void PAGBuilder::visitPHINode(PHINode &inst) {
         for (Size_t i = 0; i < inst.getNumIncomingValues(); ++i) {
             NodeID src = getValueNode(inst.getIncomingValue(i));
             const BasicBlock* bb = inst.getIncomingBlock(i);
-            if (svfMode == FULL) {
-                pag->addCopyEdge(src, dst);
-                pag->addPhiNode(pag->getPAGNode(dst),pag->getPAGNode(src),bb);
-            } else {
-                if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(inst.getType()))) {
-                    pag->addCopyEdge(src, dst);
-                    pag->addPhiNode(pag->getPAGNode(dst),pag->getPAGNode(src),bb);
-                }
-            }
+            pag->addCopyEdge(src, dst);
+            pag->addPhiNode(pag->getPAGNode(dst),pag->getPAGNode(src),bb);
+
         }
     }
 }
@@ -408,13 +396,8 @@ void PAGBuilder::visitLoadInst(LoadInst &inst) {
 
         NodeID src = getValueNode(inst.getPointerOperand());
 
-        if (svfMode == FULL) {
-            pag->addLoadEdge(src, dst);
-        } else {
-            if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(inst.getType()))) {
-                pag->addLoadEdge(src, dst);
-            }
-        }
+        pag->addLoadEdge(src, dst);
+        
     }
 }
 
@@ -434,13 +417,8 @@ void PAGBuilder::visitStoreInst(StoreInst &inst) {
 
         NodeID src = getValueNode(inst.getValueOperand());
 
-        if (svfMode == FULL) {
-            pag->addStoreEdge(src, dst);
-        } else {
-            if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(inst.getValueOperand()->getType()))) {
-                pag->addStoreEdge(src, dst);
-            }
-        }
+        pag->addStoreEdge(src, dst);
+        
     }
 }
 
@@ -465,13 +443,8 @@ void PAGBuilder::visitGetElementPtrInst(GetElementPtrInst &inst) {
     LocationSet ls;
     bool constGep = computeGepOffset(&inst, ls);
     
-    if (svfMode == FULL) {
-        pag->addGepEdge(src, dst, ls, constGep);
-    } else {
-        if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(inst.getType()))) {
-            pag->addGepEdge(src, dst, ls, constGep);
-        }
-    }
+    pag->addGepEdge(src, dst, ls, constGep);
+    
 }
 
 /*!
@@ -500,13 +473,8 @@ void PAGBuilder::visitCastInst(CastInst &inst) {
 
         if (isa<PointerType>(opnd->getType())) {
             NodeID src = getValueNode(opnd);
-            if (svfMode == FULL) {
-                pag->addCopyEdge(src, dst);
-            } else {
-                if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(opnd->getType()))) {
-                    pag->addCopyEdge(src, dst);
-                }
-            }
+            pag->addCopyEdge(src, dst);
+            
         }
         else {
             assert(isa<IntToPtrInst>(&inst) && "what else do we have??");
@@ -528,21 +496,12 @@ void PAGBuilder::visitSelectInst(SelectInst &inst) {
         NodeID dst = getValueNode(&inst);
         NodeID src1 = getValueNode(inst.getTrueValue());
         NodeID src2 = getValueNode(inst.getFalseValue());
-        if (svfMode == FULL) {
-            pag->addCopyEdge(src1, dst);
-            pag->addCopyEdge(src2, dst);
-            /// Two operands have same incoming basic block, both are the current BB
-            pag->addPhiNode(pag->getPAGNode(dst),pag->getPAGNode(src1),inst.getParent());
-            pag->addPhiNode(pag->getPAGNode(dst),pag->getPAGNode(src2),inst.getParent());
-        } else {
-            if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(inst.getType()))) {
-                pag->addCopyEdge(src1, dst);
-                pag->addCopyEdge(src2, dst);
-                /// Two operands have same incoming basic block, both are the current BB
-                pag->addPhiNode(pag->getPAGNode(dst), pag->getPAGNode(src1),inst.getParent());
-                pag->addPhiNode(pag->getPAGNode(dst), pag->getPAGNode(src2),inst.getParent());
-            }
-        }
+        pag->addCopyEdge(src1, dst);
+        pag->addCopyEdge(src2, dst);
+        /// Two operands have same incoming basic block, both are the current BB
+        pag->addPhiNode(pag->getPAGNode(dst),pag->getPAGNode(src1),inst.getParent());
+        pag->addPhiNode(pag->getPAGNode(dst),pag->getPAGNode(src2),inst.getParent());
+
     }
 }
 
@@ -602,14 +561,7 @@ void PAGBuilder::visitReturnInst(ReturnInst &inst) {
         NodeID rnF = getReturnNode(F);
         NodeID vnS = getValueNode(src);
         //vnS may be null if src is a null ptr
-        if (svfMode == FULL) {
-            pag->addCopyEdge(vnS, rnF);
-        } else {
-            if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(inst.getOperand(0)->getType()))) {
-                pag->addCopyEdge(vnS, rnF);
-            }
-        }
-
+        pag->addCopyEdge(vnS, rnF);
     }
 }
 
@@ -661,13 +613,8 @@ void PAGBuilder::handleDirectCall(CallSite cs, const Function *F) {
         //Does it actually return a ptr?
         if (isa<PointerType>(F->getReturnType())) {
             NodeID srcret = getReturnNode(F);
-            if (svfMode == FULL) {
-                pag->addRetEdge(srcret, dstrec, cs.getInstruction());
-            } else {
-                if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(F->getReturnType()))) {
-                    pag->addRetEdge(srcret, dstrec, cs.getInstruction());
-                }
-            }
+            pag->addRetEdge(srcret, dstrec, cs.getInstruction());
+            
         } else {
             // This is a int2ptr cast during parameter passing
             pag->addBlackHoleAddrEdge(dstrec);
@@ -697,13 +644,8 @@ void PAGBuilder::handleDirectCall(CallSite cs, const Function *F) {
         NodeID dstFA = getValueNode(FA);
         if (isa<PointerType>(AA->getType())) {
             NodeID srcAA = getValueNode(AA);
-            if (svfMode == FULL) {
-                pag->addRetEdge(srcAA, dstFA, cs.getInstruction());
-            } else {
-                if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(AA->getType()))) {
-                    pag->addCallEdge(srcAA, dstFA, cs.getInstruction());
-                }
-            }
+            pag->addRetEdge(srcAA, dstFA, cs.getInstruction());
+            
         } else {
             // This is a int2ptr cast during parameter passing
             pag->addFormalParamBlackHoleAddrEdge(dstFA, &*itF);
@@ -717,13 +659,7 @@ void PAGBuilder::handleDirectCall(CallSite cs, const Function *F) {
             Value *AA = *itA;
             if (isa<PointerType>(AA->getType())) {
                 NodeID vnAA = getValueNode(AA);
-                if (svfMode == FULL) {
-                    pag->addCallEdge(vnAA,vaF, cs.getInstruction());
-                } else {
-                    if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(AA->getType()))) {
-                        pag->addCallEdge(vnAA, vaF, cs.getInstruction());
-                    }
-                }
+                pag->addCallEdge(vnAA,vaF, cs.getInstruction());
             } else {
                 // This is a int2ptr cast during parameter passing
                 // pag->addBlackHoleAddrEdge(vaF);

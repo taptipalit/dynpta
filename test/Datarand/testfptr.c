@@ -27,9 +27,13 @@ void gunc(int a) {
 int main(void) {
     St st;
     Bt bt;
+    int *unknownptr;
+    int k = 100;
     st.funcptr = gunc;
     (*(st.funcptr))(23);
     bt.guncptr = st.funcptr;
     (*(bt.guncptr))(100);
+    unknownptr = &k;
+    printf("%d\n", *unknownptr);
     return 0;
 }

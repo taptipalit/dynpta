@@ -82,6 +82,7 @@ void AndersenDD::analyze(SVFModule svfModule) {
  * Start constraint solving
  */
 void AndersenDD::processNode(NodeID nodeId) {
+    errs() << "Processing node: " << nodeId << "\n";
 
     numOfIteration++;
     if (0 == numOfIteration % OnTheFlyIterBudgetForStat) {
@@ -103,29 +104,6 @@ void AndersenDD::processNode(NodeID nodeId) {
         NodeID src = nodeId;
         NodeID dst = (*it)->getDstID();
         ConstraintNode* dstNode = consCG->getConstraintNode(dst);
-        /*
-        // We could be doing either of two things -- storing to a Value Node 
-        // In that case, we need to figure out what it could point to
-        for (PointsTo::iterator piter = getPts(dst).begin(), epiter = 
-        getPts(dst).end(); piter != epiter; ++piter) {
-        NodeID ptd = *piter;
-        errs() << "SRC = " << src << " DST = " << dst << " PTD = " << ptd << "\n";
-        if (processStore(ptd, *it)) {
-        pushIntoWorklist(dst);
-        }
-        }
-        */
-        // We need to process this node too
-        // If this is a GepObjPN, then find it's original FI node
-        /*
-           PAGNode* pagNode = pag->getPAGNode(dst);
-           if (GepObjPN* gepObjPN = dyn_cast<GepObjPN>(pagNode)) {
-           NodeID fiObjID = getFIObjNode(dst);
-           pushIntoWorklist(fiObjID);
-           } else {
-           pushIntoWorklist(dst);
-           }
-           */
         // Check if this is a constraint node corresponding to a
         // field-sensitive PAG node
         for (ConstraintNode::const_iterator it = dstNode->directInEdgeBegin(), eit =
@@ -136,6 +114,27 @@ void AndersenDD::processNode(NodeID nodeId) {
         }
         pushIntoWorklist(dst);
     }
+
+    /*
+    // If we're loading from somewhere else
+
+    for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
+            eit = node->incomingStoresEnd(); it != eit; ++it) {
+        NodeID src = (*it)->getSrcID();
+        NodeID dst = (*it)->getDstID();
+        ConstraintNode* srcNode = consCG->getConstraintNode(src);
+        ConstraintNode* dstNode = consCG->getConstraintNode(dst);
+        // Check if this is a constraint node corresponding to a
+        // field-sensitive PAG node
+        for (ConstraintNode::const_iterator it = dstNode->directInEdgeBegin(), eit =
+                dstNode->directInEdgeEnd(); it != eit; ++it) {
+            if (GepCGEdge* gepEdge = llvm::dyn_cast<GepCGEdge>(*it)) {
+                pushIntoWorklist(gepEdge->getSrcID());
+            }
+        }
+        pushIntoWorklist(dst);
+    }
+    */
 
     for (PointsTo::iterator piter = getPts(nodeId).begin(), epiter =
                 getPts(nodeId).end(); piter != epiter; ++piter) {

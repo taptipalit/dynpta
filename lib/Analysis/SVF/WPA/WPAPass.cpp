@@ -71,6 +71,8 @@ static cl::bits<WPAPass::AliasCheckRule> AliasRule(cl::desc("Select alias check 
 cl::opt<bool> anderSVFG("svfg", cl::init(false),
                         cl::desc("Generate SVFG after Andersen's Analysis"));
 
+cl::opt<bool> fullAnders("fullanders", cl::init(false), cl::desc("Perform the full Anderson's analysis"));
+
 /// Constructor
 //WPAPass::WPAPass() : llvm::ModulePass(ID) {
 
@@ -95,15 +97,20 @@ WPAPass::~WPAPass() {
     //virtual bool runOnModule(llvm::Module& module) {
     //void runOnModule(SVFModule svfModule);
 void WPAPass::runOnModule(SVFModule svfModule) {
-    AndersenCFG* awcfg = new AndersenCFG();
-    _pta = awcfg;
-    awcfg->analyze(svfModule);
-    PAG::CallSiteToFunPtrMap& callSiteToFunPtrMap = const_cast<PAG::CallSiteToFunPtrMap&>(awcfg->getIndirectCallsites());
-    
-    AndersenDD* anderdd = new AndersenDD();
-    _pta = anderdd;
-    anderdd->setCallSiteToFunPtrMap(&callSiteToFunPtrMap);
-	anderdd->analyze(svfModule);
+    if (fullAnders) {
+        _pta = new Andersen();
+        _pta->analyze(svfModule);
+    } else {
+        AndersenCFG* awcfg = new AndersenCFG();
+        _pta = awcfg;
+        awcfg->analyze(svfModule);
+        PAG::CallSiteToFunPtrMap& callSiteToFunPtrMap = const_cast<PAG::CallSiteToFunPtrMap&>(awcfg->getIndirectCallsites());
+
+        AndersenDD* anderdd = new AndersenDD();
+        _pta = anderdd;
+        anderdd->setCallSiteToFunPtrMap(&callSiteToFunPtrMap);
+        anderdd->analyze(svfModule);
+    }
 }
 
 bool WPAPass::runOnModule(llvm::Module& module) {

@@ -47,7 +47,6 @@ public:
 private:
     PAG* pag;
     SVFModule svfMod;
-    Mode svfMode;
     SensitiveDataHelper* sensitiveHelper;
 public:
     /// Constructor
@@ -58,7 +57,7 @@ public:
     }
 
     /// Start building PAG here
-    PAG* build(SVFModule svfModule, Mode mode);
+    PAG* build(SVFModule svfModule);
 
     /// Return PAG
     PAG* getPAG() const {

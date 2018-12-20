@@ -7,8 +7,18 @@ typedef struct T {
     void (*funcptr)(int);
 } T;
 
+typedef struct Student {
+    int id;
+    char name[100];
+} Student;
+
 int val1 = 200;
 int val2 = 300;
+
+void printStudent(Student* sptr) {
+    printf("id = %d\n", sptr->id);
+    printf("name = %s\n", sptr->name);
+}
 
 void func(int a) {
     int k = 10;
@@ -31,10 +41,12 @@ void dosomething(T* tptr) {
 int main(void) {
     T t;
     t.id = 100;
+    Student stud;
     void (*fptr) (int);
     SENSITIVE int *iptr;
     int k = 0;
     int j = k + 10;
+    printStudent(&stud);
     printf("%d %d", k, j);
     if ( j < 100) {
         fptr = func;

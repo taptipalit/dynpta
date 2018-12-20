@@ -8,341 +8,54 @@ Ptr 0 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 29 fl: testfptr.c
-Ptr 90 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<func> Source Loc: in line: 13 file: testfptr.c
-Ptr 7 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<funcptr2> Source Loc: ln: 32 fl: testfptr.c
-Ptr 97 		PointsTo: { 106 }
-
-!!Target NodeID 106	 [<st> Field sensitive object found ... 
-Offset ... 0
-Source Loc: ln: 28 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<d> Source Loc: ln: 15 fl: testfptr.c
-Ptr 14 		PointsTo: { 15 }
-
-!!Target NodeID 15	 [<d> Source Loc: ln: 15 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 34 fl: testfptr.c
-Ptr 104 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 14 fl: testfptr.c
-Ptr 21 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 16 fl: testfptr.c
-Ptr 28 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<call> Source Loc: ln: 17 fl: testfptr.c
-Ptr 35 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: 0th arg llvm.dbg.declare 
-Ptr 42 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<gunc> Source Loc: in line: 20 file: testfptr.c
-Ptr 49 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<d> Source Loc: ln: 22 fl: testfptr.c
-Ptr 56 		PointsTo: { 57 }
-
-!!Target NodeID 57	 [<d> Source Loc: ln: 22 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 21 fl: testfptr.c
-Ptr 63 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<sub> Source Loc: ln: 23 fl: testfptr.c
-Ptr 70 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 25 fl: testfptr.c
-Ptr 77 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<st> Source Loc: ln: 28 fl: testfptr.c
-Ptr 84 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<Dummy Obj > id:1
-Ptr 1 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<funcptr> Source Loc: ln: 30 fl: testfptr.c
-Ptr 91 		PointsTo: { 106 }
-
-!!Target NodeID 106	 [<st> Field sensitive object found ... 
-Offset ... 0
-Source Loc: ln: 28 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<func> Source Loc: in line: 13 file: testfptr.c
-Ptr 8 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 32 fl: testfptr.c
-Ptr 98 		PointsTo: { 49 }
-
-!!Target NodeID 49	 [<gunc> Source Loc: in line: 20 file: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<d> Source Loc: ln: 15 fl: testfptr.c
-Ptr 15 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<bt> Source Loc: ln: 29 fl: testfptr.cField sensitive object found ... 
-Offset ... 0
-
-Ptr 105 		PointsTo: { 49 }
-
-!!Target NodeID 49	 [<gunc> Source Loc: in line: 20 file: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: Can only get source location for instruction, argument, global var or function.
-Ptr 22 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<add> Source Loc: ln: 16 fl: testfptr.c
-Ptr 29 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<printf> Source Loc: 
-Ptr 36 		PointsTo: { 37 }
-
-!!Target NodeID 37	 [<printf> Source Loc: ] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: 1st arg llvm.dbg.declare 
-Ptr 43 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<gunc> Source Loc: in line: 20 file: testfptr.c
-Ptr 50 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<d> Source Loc: ln: 22 fl: testfptr.c
-Ptr 57 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 22 fl: testfptr.c
-Ptr 64 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 23 fl: testfptr.c
-Ptr 71 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<main> Source Loc: in line: 27 file: testfptr.c
-Ptr 78 		PointsTo: { 79 }
-
-!!Target NodeID 79	 [<main> Source Loc: in line: 27 file: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<bt> Source Loc: ln: 29 fl: testfptr.c
-Ptr 85 		PointsTo: { 86 }
-
-!!Target NodeID 86	 [<bt> Source Loc: ln: 29 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-
-Ptr 2 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 30 fl: testfptr.c
-Ptr 92 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<a> Source Loc: 0th arg func in line: 13 file: testfptr.c
-Ptr 9 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<guncptr> Source Loc: ln: 32 fl: testfptr.c
-Ptr 99 		PointsTo: { 105 }
-
-!!Target NodeID 105	 [<bt> Field sensitive object found ... 
-Offset ... 0
-Source Loc: ln: 29 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<res> Source Loc: ln: 16 fl: testfptr.c
-Ptr 16 		PointsTo: { 17 }
-
-!!Target NodeID 17	 [<res> Source Loc: ln: 16 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<st> Source Loc: ln: 28 fl: testfptr.cField sensitive object found ... 
-Offset ... 0
-
-Ptr 106 		PointsTo: { 49 }
-
-!!Target NodeID 49	 [<gunc> Source Loc: in line: 20 file: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 15 fl: testfptr.c
-Ptr 23 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 16 fl: testfptr.c
-Ptr 30 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<printf> Source Loc: 
-Ptr 37 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: 2nd arg llvm.dbg.declare 
-Ptr 44 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<a> Source Loc: 0th arg gunc in line: 20 file: testfptr.c
-Ptr 51 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<res> Source Loc: ln: 23 fl: testfptr.c
-Ptr 58 		PointsTo: { 59 }
-
-!!Target NodeID 59	 [<res> Source Loc: ln: 23 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 22 fl: testfptr.c
-Ptr 65 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<sub1> Source Loc: ln: 23 fl: testfptr.c
-Ptr 72 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<main> Source Loc: in line: 27 file: testfptr.c
-Ptr 79 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<bt> Source Loc: ln: 29 fl: testfptr.c
-Ptr 86 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-
-Ptr 3 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<funcptr1> Source Loc: ln: 31 fl: testfptr.c
-Ptr 93 		PointsTo: { 106 }
-
-!!Target NodeID 106	 [<st> Field sensitive object found ... 
-Offset ... 0
-Source Loc: ln: 28 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<a.addr> Source Loc: ln: 13 fl: testfptr.c
-Ptr 10 		PointsTo: { 11 }
-
-!!Target NodeID 11	 [<a.addr> Source Loc: ln: 13 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 32 fl: testfptr.c
-Ptr 100 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<res> Source Loc: ln: 16 fl: testfptr.c
-Ptr 17 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 15 fl: testfptr.c
-Ptr 24 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<add1> Source Loc: ln: 16 fl: testfptr.c
-Ptr 31 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 18 fl: testfptr.c
-Ptr 38 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<printf> Source Loc: 
+##<call> Source Loc: ln: 10 fl: testptr.c
 Ptr 45 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<a.addr> Source Loc: ln: 20 fl: testfptr.c
-Ptr 52 		PointsTo: { 53 }
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 7 		PointsTo: {empty}
 
-!!Target NodeID 53	 [<a.addr> Source Loc: ln: 20 fl: testfptr.c] 
 ----------------------------------------------
 ----------------------------------------------
-##<res> Source Loc: ln: 23 fl: testfptr.c
+##<> Source Loc: ln: 12 fl: testptr.c
+Ptr 52 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<retval> Source Loc: 
+Ptr 14 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> Source Loc: 
 Ptr 59 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+##<p2> Source Loc: ln: 8 fl: testptr.c
+Ptr 21 		PointsTo: { 22 }
+
+!!Target NodeID 22	 [<p2> Source Loc: ln: 8 fl: testptr.c] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 0th arg printf 
 Ptr 66 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 23 fl: testfptr.c
-Ptr 73 		PointsTo: {empty}
+##<> Source Loc: ln: 6 fl: testptr.c
+Ptr 28 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<main> Source Loc: in line: 27 file: testfptr.c
-Ptr 80 		PointsTo: {empty}
+##<> Source Loc: ln: 7 fl: testptr.c
+Ptr 35 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: 
-Ptr 87 		PointsTo: {empty}
+##<> Source Loc: ln: 10 fl: testptr.c
+Ptr 42 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
@@ -352,79 +65,97 @@ Ptr 4 		PointsTo: { 1 }
 !!Target NodeID 1	 [Dummy Obj id: 1]
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 31 fl: testfptr.c
-Ptr 94 		PointsTo: { 49 }
+##<> Source Loc: ln: 11 fl: testptr.c
+Ptr 49 		PointsTo: {empty}
 
-!!Target NodeID 49	 [<gunc> Source Loc: in line: 20 file: testfptr.c] 
 ----------------------------------------------
 ----------------------------------------------
-##<a.addr> Source Loc: ln: 13 fl: testfptr.c
+##<main> Source Loc: in line: 4 file: testptr.c
 Ptr 11 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<guncptr3> Source Loc: ln: 33 fl: testfptr.c
-Ptr 101 		PointsTo: { 105 }
+##<> Source Loc: 0th arg llvm.dbg.declare 
+Ptr 56 		PointsTo: {empty}
 
-!!Target NodeID 105	 [<bt> Field sensitive object found ... 
-Offset ... 0
-Source Loc: ln: 29 fl: testfptr.c] 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: 
+##<b> Source Loc: ln: 6 fl: testptr.c
 Ptr 18 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+##<> Source Loc: 3rd arg llvm.var.annotation 
+Ptr 63 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 5 fl: testptr.c
 Ptr 25 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 16 fl: testfptr.c
+##<p11> Source Loc: ln: 7 fl: testptr.c
 Ptr 32 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<llvm.dbg.declare> Source Loc: 
-Ptr 39 		PointsTo: { 40 }
+##<> Source Loc: ln: 7 fl: testptr.c
+Ptr 39 		PointsTo: {empty}
 
-!!Target NodeID 40	 [<llvm.dbg.declare> Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<Dummy Obj > id:1
+Ptr 1 		PointsTo: {empty}
+
 ----------------------------------------------
 ----------------------------------------------
 ##<printf> Source Loc: 
-Ptr 46 		PointsTo: {empty}
+Ptr 46 		PointsTo: { 47 }
 
+!!Target NodeID 47	 [<printf> Source Loc: ] 
 ----------------------------------------------
 ----------------------------------------------
-##<a.addr> Source Loc: ln: 20 fl: testfptr.c
-Ptr 53 		PointsTo: {empty}
+##<.str.2> Source Loc: Glob 
+Ptr 8 		PointsTo: { 1 }
 
+!!Target NodeID 1	 [Dummy Obj id: 1]
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: 
+##<llvm.dbg.declare> Source Loc: 
+Ptr 53 		PointsTo: { 54 }
+
+!!Target NodeID 54	 [<llvm.dbg.declare> Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<a> Source Loc: ln: 5 fl: testptr.c
+Ptr 15 		PointsTo: { 16 }
+
+!!Target NodeID 16	 [<a> Source Loc: ln: 5 fl: testptr.c] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 0th arg llvm.var.annotation 
 Ptr 60 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 23 fl: testfptr.c
-Ptr 67 		PointsTo: {empty}
+##<p2> Source Loc: ln: 8 fl: testptr.c
+Ptr 22 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 24 fl: testfptr.c
-Ptr 74 		PointsTo: {empty}
+##<> Source Loc: ln: 6 fl: testptr.c
+Ptr 29 		PointsTo: {empty}
 
-----------------------------------------------
-----------------------------------------------
-##<retval> Source Loc: 
-Ptr 81 		PointsTo: { 82 }
-
-!!Target NodeID 82	 [<retval> Source Loc: ] 
 ----------------------------------------------
 ----------------------------------------------
 ##<> Source Loc: Can only get source location for instruction, argument, global var or function.
-Ptr 88 		PointsTo: {empty}
+Ptr 36 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 10 fl: testptr.c
+Ptr 43 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
@@ -433,107 +164,134 @@ Ptr 5 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 31 fl: testfptr.c
-Ptr 95 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<k> Source Loc: ln: 14 fl: testfptr.c
-Ptr 12 		PointsTo: { 13 }
-
-!!Target NodeID 13	 [<k> Source Loc: ln: 14 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 33 fl: testfptr.c
-Ptr 102 		PointsTo: { 49 }
-
-!!Target NodeID 49	 [<gunc> Source Loc: in line: 20 file: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 13 fl: testfptr.c
-Ptr 19 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 16 fl: testfptr.c
-Ptr 26 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 17 fl: testfptr.c
-Ptr 33 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<llvm.dbg.declare> Source Loc: 
-Ptr 40 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: 0th arg printf 
-Ptr 47 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<k> Source Loc: ln: 21 fl: testfptr.c
-Ptr 54 		PointsTo: { 55 }
-
-!!Target NodeID 55	 [<k> Source Loc: ln: 21 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 20 fl: testfptr.c
-Ptr 61 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 23 fl: testfptr.c
-Ptr 68 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
 ##<> Source Loc: 
-Ptr 75 		PointsTo: { 1 }
+Ptr 50 		PointsTo: { 1 }
 
 !!Target NodeID 1	 [Dummy Obj id: 1]
 ----------------------------------------------
 ----------------------------------------------
-##<retval> Source Loc: 
-Ptr 82 		PointsTo: {empty}
+##<main> Source Loc: in line: 4 file: testptr.c
+Ptr 12 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 28 fl: testfptr.c
-Ptr 89 		PointsTo: {empty}
+##<> Source Loc: 1st arg llvm.dbg.declare 
+Ptr 57 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<func> Source Loc: in line: 13 file: testfptr.c
-Ptr 6 		PointsTo: { 7 }
+##<p1> Source Loc: ln: 7 fl: testptr.c
+Ptr 19 		PointsTo: { 20 }
 
-!!Target NodeID 7	 [<func> Source Loc: in line: 13 file: testfptr.c] 
+!!Target NodeID 20	 [<p1> Source Loc: ln: 7 fl: testptr.c] 
+----------------------------------------------
+----------------------------------------------
+##<printf> Source Loc: 
+Ptr 64 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 5 fl: testptr.c
+Ptr 26 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 33 		PointsTo: { 1 }
+
+!!Target NodeID 1	 [Dummy Obj id: 1]
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 8 fl: testptr.c
+Ptr 40 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+
+Ptr 2 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<printf> Source Loc: 
+Ptr 47 		PointsTo: {empty}
+
 ----------------------------------------------
 ----------------------------------------------
 ##<> Source Loc: Can only get source location for instruction, argument, global var or function.
-Ptr 96 		PointsTo: {empty}
+Ptr 9 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<k> Source Loc: ln: 14 fl: testfptr.c
-Ptr 13 		PointsTo: {empty}
+##<llvm.dbg.declare> Source Loc: 
+Ptr 54 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 33 fl: testfptr.c
-Ptr 103 		PointsTo: {empty}
+##<a> Source Loc: ln: 5 fl: testptr.c
+Ptr 16 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 14 fl: testfptr.c
+##<> Source Loc: 1st arg llvm.var.annotation 
+Ptr 61 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 23 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 30 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> Source Loc: 
+Ptr 37 		PointsTo: { 38 }
+
+!!Target NodeID 38	 [<llvm.var.annotation> Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 44 		PointsTo: { 1 }
+
+!!Target NodeID 1	 [Dummy Obj id: 1]
+----------------------------------------------
+----------------------------------------------
+##<.str.1> Source Loc: Glob 
+Ptr 6 		PointsTo: { 1 }
+
+!!Target NodeID 1	 [Dummy Obj id: 1]
+----------------------------------------------
+----------------------------------------------
+##<call2> Source Loc: ln: 11 fl: testptr.c
+Ptr 51 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<retval> Source Loc: 
+Ptr 13 		PointsTo: { 14 }
+
+!!Target NodeID 14	 [<retval> Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 2nd arg llvm.dbg.declare 
+Ptr 58 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<p1> Source Loc: ln: 7 fl: testptr.c
 Ptr 20 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 16 fl: testfptr.c
+##<printf> Source Loc: 
+Ptr 65 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
 Ptr 27 		PointsTo: {empty}
 
 ----------------------------------------------
@@ -544,41 +302,56 @@ Ptr 34 		PointsTo: { 1 }
 !!Target NodeID 1	 [Dummy Obj id: 1]
 ----------------------------------------------
 ----------------------------------------------
-##<llvm.dbg.declare> Source Loc: 
+##<> Source Loc: ln: 8 fl: testptr.c
 Ptr 41 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<gunc> Source Loc: in line: 20 file: testfptr.c
-Ptr 48 		PointsTo: { 49 }
 
-!!Target NodeID 49	 [<gunc> Source Loc: in line: 20 file: testfptr.c] 
+Ptr 3 		PointsTo: {empty}
+
 ----------------------------------------------
 ----------------------------------------------
-##<k> Source Loc: ln: 21 fl: testfptr.c
+##<> Source Loc: ln: 11 fl: testptr.c
+Ptr 48 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<main> Source Loc: in line: 4 file: testptr.c
+Ptr 10 		PointsTo: { 11 }
+
+!!Target NodeID 11	 [<main> Source Loc: in line: 4 file: testptr.c] 
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> Source Loc: 
 Ptr 55 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 21 fl: testfptr.c
+##<b> Source Loc: ln: 6 fl: testptr.c
+Ptr 17 		PointsTo: { 18 }
+
+!!Target NodeID 18	 [<b> Source Loc: ln: 6 fl: testptr.c] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 2nd arg llvm.var.annotation 
 Ptr 62 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 23 fl: testfptr.c
-Ptr 69 		PointsTo: {empty}
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 24 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<call> Source Loc: ln: 24 fl: testfptr.c
-Ptr 76 		PointsTo: {empty}
+##<> Source Loc: ln: 7 fl: testptr.c
+Ptr 31 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<st> Source Loc: ln: 28 fl: testfptr.c
-Ptr 83 		PointsTo: { 84 }
+##<llvm.var.annotation> Source Loc: 
+Ptr 38 		PointsTo: {empty}
 
-!!Target NodeID 84	 [<st> Source Loc: ln: 28 fl: testfptr.c] 
 ----------------------------------------------
 Writing 'callgraph_final.dot'...
 Writing 'callgraph_initial.dot'...
@@ -590,327 +363,56 @@ Ptr 0 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 29 fl: testfptr.c
-Ptr 90 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<func> Source Loc: in line: 13 file: testfptr.c
-Ptr 7 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<funcptr2> Source Loc: ln: 32 fl: testfptr.c
-Ptr 97 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<d> Source Loc: ln: 15 fl: testfptr.c
-Ptr 14 		PointsTo: { 15 }
-
-!!Target NodeID 15	 [<d> Source Loc: ln: 15 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 34 fl: testfptr.c
-Ptr 104 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 14 fl: testfptr.c
-Ptr 21 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 16 fl: testfptr.c
-Ptr 28 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<call> Source Loc: ln: 17 fl: testfptr.c
-Ptr 35 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: 0th arg llvm.dbg.declare 
-Ptr 42 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<gunc> Source Loc: in line: 20 file: testfptr.c
-Ptr 49 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<d> Source Loc: ln: 22 fl: testfptr.c
-Ptr 56 		PointsTo: { 57 }
-
-!!Target NodeID 57	 [<d> Source Loc: ln: 22 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 21 fl: testfptr.c
-Ptr 63 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<sub> Source Loc: ln: 23 fl: testfptr.c
-Ptr 70 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 25 fl: testfptr.c
-Ptr 77 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<st> Source Loc: ln: 28 fl: testfptr.c
-Ptr 84 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<Dummy Obj > id:1
-Ptr 1 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<funcptr> Source Loc: ln: 30 fl: testfptr.c
-Ptr 91 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<func> Source Loc: in line: 13 file: testfptr.c
-Ptr 8 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 32 fl: testfptr.c
-Ptr 98 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<d> Source Loc: ln: 15 fl: testfptr.c
-Ptr 15 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<bt> Source Loc: ln: 29 fl: testfptr.cField sensitive object found ... 
-Offset ... 0
-
-Ptr 105 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: Can only get source location for instruction, argument, global var or function.
-Ptr 22 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<add> Source Loc: ln: 16 fl: testfptr.c
-Ptr 29 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<printf> Source Loc: 
-Ptr 36 		PointsTo: { 37 }
-
-!!Target NodeID 37	 [<printf> Source Loc: ] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: 1st arg llvm.dbg.declare 
-Ptr 43 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<gunc> Source Loc: in line: 20 file: testfptr.c
-Ptr 50 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<d> Source Loc: ln: 22 fl: testfptr.c
-Ptr 57 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 22 fl: testfptr.c
-Ptr 64 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 23 fl: testfptr.c
-Ptr 71 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<main> Source Loc: in line: 27 file: testfptr.c
-Ptr 78 		PointsTo: { 79 }
-
-!!Target NodeID 79	 [<main> Source Loc: in line: 27 file: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<bt> Source Loc: ln: 29 fl: testfptr.c
-Ptr 85 		PointsTo: { 86 }
-
-!!Target NodeID 86	 [<bt> Source Loc: ln: 29 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-
-Ptr 2 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 30 fl: testfptr.c
-Ptr 92 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<a> Source Loc: 0th arg func in line: 13 file: testfptr.c
-Ptr 9 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<guncptr> Source Loc: ln: 32 fl: testfptr.c
-Ptr 99 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<res> Source Loc: ln: 16 fl: testfptr.c
-Ptr 16 		PointsTo: { 17 }
-
-!!Target NodeID 17	 [<res> Source Loc: ln: 16 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<st> Source Loc: ln: 28 fl: testfptr.cField sensitive object found ... 
-Offset ... 0
-
-Ptr 106 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 15 fl: testfptr.c
-Ptr 23 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 16 fl: testfptr.c
-Ptr 30 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<printf> Source Loc: 
-Ptr 37 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: 2nd arg llvm.dbg.declare 
-Ptr 44 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<a> Source Loc: 0th arg gunc in line: 20 file: testfptr.c
-Ptr 51 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<res> Source Loc: ln: 23 fl: testfptr.c
-Ptr 58 		PointsTo: { 59 }
-
-!!Target NodeID 59	 [<res> Source Loc: ln: 23 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 22 fl: testfptr.c
-Ptr 65 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<sub1> Source Loc: ln: 23 fl: testfptr.c
-Ptr 72 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<main> Source Loc: in line: 27 file: testfptr.c
-Ptr 79 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<bt> Source Loc: ln: 29 fl: testfptr.c
-Ptr 86 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-
-Ptr 3 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<funcptr1> Source Loc: ln: 31 fl: testfptr.c
-Ptr 93 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<a.addr> Source Loc: ln: 13 fl: testfptr.c
-Ptr 10 		PointsTo: { 11 }
-
-!!Target NodeID 11	 [<a.addr> Source Loc: ln: 13 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 32 fl: testfptr.c
-Ptr 100 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<res> Source Loc: ln: 16 fl: testfptr.c
-Ptr 17 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 15 fl: testfptr.c
-Ptr 24 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<add1> Source Loc: ln: 16 fl: testfptr.c
-Ptr 31 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 18 fl: testfptr.c
-Ptr 38 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<printf> Source Loc: 
+##<call> Source Loc: ln: 10 fl: testptr.c
 Ptr 45 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<a.addr> Source Loc: ln: 20 fl: testfptr.c
-Ptr 52 		PointsTo: { 53 }
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 7 		PointsTo: {empty}
 
-!!Target NodeID 53	 [<a.addr> Source Loc: ln: 20 fl: testfptr.c] 
 ----------------------------------------------
 ----------------------------------------------
-##<res> Source Loc: ln: 23 fl: testfptr.c
+##<> Source Loc: ln: 12 fl: testptr.c
+Ptr 52 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<retval> Source Loc: 
+Ptr 14 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> Source Loc: 
 Ptr 59 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+##<p2> Source Loc: ln: 8 fl: testptr.c
+Ptr 21 		PointsTo: { 22 }
+
+!!Target NodeID 22	 [<p2> Source Loc: ln: 8 fl: testptr.c] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 0th arg printf 
 Ptr 66 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 23 fl: testfptr.c
-Ptr 73 		PointsTo: {empty}
+##<> Source Loc: ln: 6 fl: testptr.c
+Ptr 28 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<main> Source Loc: in line: 27 file: testfptr.c
-Ptr 80 		PointsTo: {empty}
+##<> Source Loc: ln: 7 fl: testptr.c
+Ptr 35 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: 
-Ptr 87 		PointsTo: {empty}
+##<> Source Loc: ln: 10 fl: testptr.c
+Ptr 42 		PointsTo: { 16 }
 
+!!Target NodeID 16	 [<a> Source Loc: ln: 5 fl: testptr.c] 
 ----------------------------------------------
 ----------------------------------------------
 ##<.str> Source Loc: Glob 
@@ -919,75 +421,98 @@ Ptr 4 		PointsTo: { 1 }
 !!Target NodeID 1	 [Dummy Obj id: 1]
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 31 fl: testfptr.c
-Ptr 94 		PointsTo: {empty}
+##<> Source Loc: ln: 11 fl: testptr.c
+Ptr 49 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<a.addr> Source Loc: ln: 13 fl: testfptr.c
+##<main> Source Loc: in line: 4 file: testptr.c
 Ptr 11 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<guncptr3> Source Loc: ln: 33 fl: testfptr.c
-Ptr 101 		PointsTo: {empty}
+##<> Source Loc: 0th arg llvm.dbg.declare 
+Ptr 56 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: 
+##<b> Source Loc: ln: 6 fl: testptr.c
 Ptr 18 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+##<> Source Loc: 3rd arg llvm.var.annotation 
+Ptr 63 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 5 fl: testptr.c
 Ptr 25 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 16 fl: testfptr.c
-Ptr 32 		PointsTo: {empty}
+##<p11> Source Loc: ln: 7 fl: testptr.c
+Ptr 32 		PointsTo: { 20 }
+
+!!Target NodeID 20	 [<p1> Source Loc: ln: 7 fl: testptr.c] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 7 fl: testptr.c
+Ptr 39 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<llvm.dbg.declare> Source Loc: 
-Ptr 39 		PointsTo: { 40 }
+##<Dummy Obj > id:1
+Ptr 1 		PointsTo: {empty}
 
-!!Target NodeID 40	 [<llvm.dbg.declare> Source Loc: ] 
 ----------------------------------------------
 ----------------------------------------------
 ##<printf> Source Loc: 
-Ptr 46 		PointsTo: {empty}
+Ptr 46 		PointsTo: { 47 }
 
+!!Target NodeID 47	 [<printf> Source Loc: ] 
 ----------------------------------------------
 ----------------------------------------------
-##<a.addr> Source Loc: ln: 20 fl: testfptr.c
-Ptr 53 		PointsTo: {empty}
+##<.str.2> Source Loc: Glob 
+Ptr 8 		PointsTo: { 1 }
 
+!!Target NodeID 1	 [Dummy Obj id: 1]
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: 
+##<llvm.dbg.declare> Source Loc: 
+Ptr 53 		PointsTo: { 54 }
+
+!!Target NodeID 54	 [<llvm.dbg.declare> Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<a> Source Loc: ln: 5 fl: testptr.c
+Ptr 15 		PointsTo: { 16 }
+
+!!Target NodeID 16	 [<a> Source Loc: ln: 5 fl: testptr.c] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 0th arg llvm.var.annotation 
 Ptr 60 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 23 fl: testfptr.c
-Ptr 67 		PointsTo: {empty}
+##<p2> Source Loc: ln: 8 fl: testptr.c
+Ptr 22 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 24 fl: testfptr.c
-Ptr 74 		PointsTo: {empty}
+##<> Source Loc: ln: 6 fl: testptr.c
+Ptr 29 		PointsTo: {empty}
 
-----------------------------------------------
-----------------------------------------------
-##<retval> Source Loc: 
-Ptr 81 		PointsTo: { 82 }
-
-!!Target NodeID 82	 [<retval> Source Loc: ] 
 ----------------------------------------------
 ----------------------------------------------
 ##<> Source Loc: Can only get source location for instruction, argument, global var or function.
-Ptr 88 		PointsTo: {empty}
+Ptr 36 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 10 fl: testptr.c
+Ptr 43 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
@@ -996,105 +521,132 @@ Ptr 5 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 31 fl: testfptr.c
-Ptr 95 		PointsTo: {empty}
+##<> Source Loc: 
+Ptr 50 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<k> Source Loc: ln: 14 fl: testfptr.c
-Ptr 12 		PointsTo: { 13 }
-
-!!Target NodeID 13	 [<k> Source Loc: ln: 14 fl: testfptr.c] 
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 33 fl: testfptr.c
-Ptr 102 		PointsTo: {empty}
+##<main> Source Loc: in line: 4 file: testptr.c
+Ptr 12 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 13 fl: testfptr.c
-Ptr 19 		PointsTo: {empty}
+##<> Source Loc: 1st arg llvm.dbg.declare 
+Ptr 57 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 16 fl: testfptr.c
+##<p1> Source Loc: ln: 7 fl: testptr.c
+Ptr 19 		PointsTo: { 20 }
+
+!!Target NodeID 20	 [<p1> Source Loc: ln: 7 fl: testptr.c] 
+----------------------------------------------
+----------------------------------------------
+##<printf> Source Loc: 
+Ptr 64 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 5 fl: testptr.c
 Ptr 26 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 17 fl: testfptr.c
+##<> Source Loc: 
 Ptr 33 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<llvm.dbg.declare> Source Loc: 
+##<> Source Loc: ln: 8 fl: testptr.c
 Ptr 40 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: 0th arg printf 
+
+Ptr 2 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<printf> Source Loc: 
 Ptr 47 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<k> Source Loc: ln: 21 fl: testfptr.c
-Ptr 54 		PointsTo: { 55 }
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 9 		PointsTo: {empty}
 
-!!Target NodeID 55	 [<k> Source Loc: ln: 21 fl: testfptr.c] 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 20 fl: testfptr.c
+##<llvm.dbg.declare> Source Loc: 
+Ptr 54 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<a> Source Loc: ln: 5 fl: testptr.c
+Ptr 16 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 1st arg llvm.var.annotation 
 Ptr 61 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 23 fl: testfptr.c
-Ptr 68 		PointsTo: {empty}
+##<> Source Loc: 
+Ptr 23 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 30 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> Source Loc: 
+Ptr 37 		PointsTo: { 38 }
+
+!!Target NodeID 38	 [<llvm.var.annotation> Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
 ##<> Source Loc: 
-Ptr 75 		PointsTo: {empty}
+Ptr 44 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.1> Source Loc: Glob 
+Ptr 6 		PointsTo: { 1 }
+
+!!Target NodeID 1	 [Dummy Obj id: 1]
+----------------------------------------------
+----------------------------------------------
+##<call2> Source Loc: ln: 11 fl: testptr.c
+Ptr 51 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
 ##<retval> Source Loc: 
-Ptr 82 		PointsTo: {empty}
+Ptr 13 		PointsTo: { 14 }
+
+!!Target NodeID 14	 [<retval> Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 2nd arg llvm.dbg.declare 
+Ptr 58 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 28 fl: testfptr.c
-Ptr 89 		PointsTo: {empty}
+##<p1> Source Loc: ln: 7 fl: testptr.c
+Ptr 20 		PointsTo: { 16 }
 
+!!Target NodeID 16	 [<a> Source Loc: ln: 5 fl: testptr.c] 
 ----------------------------------------------
 ----------------------------------------------
-##<func> Source Loc: in line: 13 file: testfptr.c
-Ptr 6 		PointsTo: { 7 }
+##<printf> Source Loc: 
+Ptr 65 		PointsTo: {empty}
 
-!!Target NodeID 7	 [<func> Source Loc: in line: 13 file: testfptr.c] 
 ----------------------------------------------
 ----------------------------------------------
 ##<> Source Loc: Can only get source location for instruction, argument, global var or function.
-Ptr 96 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<k> Source Loc: ln: 14 fl: testfptr.c
-Ptr 13 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 33 fl: testfptr.c
-Ptr 103 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 14 fl: testfptr.c
-Ptr 20 		PointsTo: {empty}
-
-----------------------------------------------
-----------------------------------------------
-##<> Source Loc: ln: 16 fl: testfptr.c
 Ptr 27 		PointsTo: {empty}
 
 ----------------------------------------------
@@ -1104,40 +656,55 @@ Ptr 34 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<llvm.dbg.declare> Source Loc: 
+##<> Source Loc: ln: 8 fl: testptr.c
 Ptr 41 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<gunc> Source Loc: in line: 20 file: testfptr.c
-Ptr 48 		PointsTo: { 49 }
 
-!!Target NodeID 49	 [<gunc> Source Loc: in line: 20 file: testfptr.c] 
+Ptr 3 		PointsTo: {empty}
+
 ----------------------------------------------
 ----------------------------------------------
-##<k> Source Loc: ln: 21 fl: testfptr.c
+##<> Source Loc: ln: 11 fl: testptr.c
+Ptr 48 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<main> Source Loc: in line: 4 file: testptr.c
+Ptr 10 		PointsTo: { 11 }
+
+!!Target NodeID 11	 [<main> Source Loc: in line: 4 file: testptr.c] 
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> Source Loc: 
 Ptr 55 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 21 fl: testfptr.c
+##<b> Source Loc: ln: 6 fl: testptr.c
+Ptr 17 		PointsTo: { 18 }
+
+!!Target NodeID 18	 [<b> Source Loc: ln: 6 fl: testptr.c] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 2nd arg llvm.var.annotation 
 Ptr 62 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<> Source Loc: ln: 23 fl: testfptr.c
-Ptr 69 		PointsTo: {empty}
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 24 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<call> Source Loc: ln: 24 fl: testfptr.c
-Ptr 76 		PointsTo: {empty}
+##<> Source Loc: ln: 7 fl: testptr.c
+Ptr 31 		PointsTo: {empty}
 
 ----------------------------------------------
 ----------------------------------------------
-##<st> Source Loc: ln: 28 fl: testfptr.c
-Ptr 83 		PointsTo: { 84 }
+##<llvm.var.annotation> Source Loc: 
+Ptr 38 		PointsTo: {empty}
 
-!!Target NodeID 84	 [<st> Source Loc: ln: 28 fl: testfptr.c] 
 ----------------------------------------------
 Writing 'callgraph_final.dot'...

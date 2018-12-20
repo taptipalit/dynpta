@@ -47,8 +47,10 @@ using namespace cppUtil;
 static cl::opt<bool> TYPEPrint("print-type", cl::init(false),
                                cl::desc("Print type"));
 
-static cl::opt<bool> CFGOnly("cfg-only", cl::init(true), 
+/*
+static cl::opt<bool> CFGOnly("cfg-only", cl::init(false), 
         cl::desc("Perform points-to analysis to resolve cfg only"));
+        */
 
 static cl::opt<bool> FuncPointerPrint("print-fp", cl::init(false),
                                       cl::desc("Print targets of indirect call site"));
@@ -149,12 +151,15 @@ void PointerAnalysis::initialize(SVFModule svfModule) {
 
         } else {
             PAGBuilder builder;
+            pag = builder.build(svfModule);
+            /*
             if (CFGOnly) {
                 pag = builder.build(svfModule, PAGBuilder::CFG_ONLY);
             } else {
                 // TODO, modify things
                 pag = builder.build(svfModule, PAGBuilder::FULL);
             }
+            */
         }
 
         chgraph = new CHGraph();
