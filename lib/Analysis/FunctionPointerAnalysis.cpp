@@ -5,6 +5,7 @@
 #include "llvm/Pass.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/CallSite.h"
 
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/DebugLoc.h"
@@ -102,22 +103,22 @@ namespace {
             gVar->setSection(".callgraph");
         }
 
-        Value* getCalledFunction(CallInst* value) {
-            if (value->getCalledFunction()) {
-                return value->getCalledFunction();
+        Value* getCalledFunction(CallSite& cs) {
+            if (cs.getCalledFunction()) {
+                return cs.getCalledFunction();
             }
 
-            if (ConstantExpr* consExpr = dyn_cast<ConstantExpr>(value->getCalledValue())) {
+            if (ConstantExpr* consExpr = dyn_cast<ConstantExpr>(cs.getCalledValue())) {
                 return consExpr->getOperand(0);
             }
 
-            if (PointerType* pointerType = dyn_cast<PointerType>(value->getCalledValue()->getType())) {
+            if (PointerType* pointerType = dyn_cast<PointerType>(cs.getCalledValue()->getType())) {
                 if (FunctionType* functionType = dyn_cast<FunctionType>(pointerType->getPointerElementType())) {
                     // Clearly a function pointer, return it
-                    return value->getCalledValue();
+                    return cs.getCalledValue();
                 }
             }
-            errs() << *value << "\n";
+            //errs() << *value << "\n";
 
             assert(false);
             /*
@@ -197,6 +198,9 @@ namespace {
                                 std::string type_str;
                                 llvm::raw_string_ostream rso(type_str);
                                 Ty->print(rso);
+                                if ((rso.str().find("class") != std::string::npos) && (F->arg_size() > 1)) {
+                                    continue;
+                                }
                                 argTypeStr += rso.str();
                             }
                             updateMap(argTypeStr, F);
@@ -215,11 +219,12 @@ namespace {
                         if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
                             //outs() << "Basic block found, name : " << BB->getName() << "\n";
                             for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-                                if (CallInst *CInst = dyn_cast<CallInst>(BBIterator)) {
-                                    if (CInst->getCalledFunction() != nullptr && CInst->getCalledFunction()->getName().equals("llvm.dbg.declare"))
+                                CallSite cs(&*BBIterator);
+                                if (cs.getInstruction()) { // CallInst *CInst = dyn_cast<CallInst>(BBIterator)
+                                    if (cs.getCalledFunction() != nullptr && cs.getCalledFunction()->getName().equals("llvm.dbg.declare"))
                                         continue;
 
-                                    Value* calledFunctionVal = getCalledFunction(CInst); // Handle any casts
+                                    Value* calledFunctionVal = getCalledFunction(cs); // Handle any casts
                                     
                                     if (Function* calledFunc = dyn_cast<Function>(calledFunctionVal)) {
                                         callGraph[&*MIterator].insert(calledFunc);
@@ -232,10 +237,13 @@ namespace {
                                         PAGNode* funPtrNode = pag->getValueNode(funPtrNodeId);
                                         */
                                         std::string argStr = "";
-                                        for (Value* operand: CInst->arg_operands()) {
+                                        for (Value* operand: cs.args()) {
                                             std::string type_str;
                                             llvm::raw_string_ostream rso(type_str);
                                             operand->getType()->print(rso);
+                                            if ((rso.str().find("class") != std::string::npos) && (cs.getNumArgOperands() > 1)) {
+                                                continue;
+                                            }
                                             argStr += rso.str();
                                         }
                                         std::set<Function*>* functionSetPtr = argListFunctionMap[argStr];

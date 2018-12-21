@@ -31,9 +31,13 @@ $_ZN7StudentD2Ev = comdat any
 @_ZStL8__ioinit = internal global %"class.std::ios_base::Init" zeroinitializer, align 1, !dbg !0
 @__dso_handle = external hidden global i8
 @_ZSt4cout = external dso_local global %"class.std::basic_ostream", align 8
-@.str = private unnamed_addr constant [11 x i8] c"Name is : \00", align 1
-@.str.1 = private unnamed_addr constant [9 x i8] c"ID is : \00", align 1
-@.str.2 = private unnamed_addr constant [6 x i8] c"Tapti\00", align 1
+@.str = private unnamed_addr constant [9 x i8] c"Sum is: \00", align 1
+@.str.1 = private unnamed_addr constant [7 x i8] c"Same!\0A\00", align 1
+@.str.2 = private unnamed_addr constant [10 x i8] c"Not same!\00", align 1
+@.str.3 = private unnamed_addr constant [11 x i8] c"Name is : \00", align 1
+@.str.4 = private unnamed_addr constant [9 x i8] c"ID is : \00", align 1
+@.str.5 = private unnamed_addr constant [6 x i8] c"Tapti\00", align 1
+@.str.6 = private unnamed_addr constant [6 x i8] c"Santa\00", align 1
 @llvm.global_ctors = appending global [1 x { i32, void ()*, i8* }] [{ i32, void ()*, i8* } { i32 65535, void ()* @_GLOBAL__sub_I_test.cpp, i8* null }]
 @_GLOBAL__sub_I_test.cpp.1 = internal constant void ()* @_GLOBAL__sub_I_test.cpp, section ".callgraph_ctor_dtor", align 8
 @_GLOBAL__sub_I_test.cpp.2 = internal constant void ()* @_GLOBAL__sub_I_test.cpp, section ".callgraph", align 8
@@ -43,23 +47,33 @@ $_ZN7StudentD2Ev = comdat any
 @__cxx_global_var_init.5 = internal constant void ()* @__cxx_global_var_init, section ".callgraph", align 8
 @len.6 = internal constant i64 0, section ".callgraph", align 8
 @len.7 = internal constant i64 -1, section ".callgraph", align 8
-@_ZN7Student9printNameEv.8 = internal constant void (%class.Student*)* @_ZN7Student9printNameEv, section ".callgraph", align 8
+@_ZN7Student3addEii.8 = internal constant void (%class.Student*, i32, i32)* @_ZN7Student3addEii, section ".callgraph", align 8
 @len.9 = internal constant i64 0, section ".callgraph", align 8
 @len.10 = internal constant i64 -1, section ".callgraph", align 8
-@_ZN7Student7printIdEv.11 = internal constant void (%class.Student*)* @_ZN7Student7printIdEv, section ".callgraph", align 8
+@_ZN7Student4testEPS_.11 = internal constant void (%class.Student*, %class.Student*)* @_ZN7Student4testEPS_, section ".callgraph", align 8
 @len.12 = internal constant i64 0, section ".callgraph", align 8
 @len.13 = internal constant i64 -1, section ".callgraph", align 8
-@main.14 = internal constant i32 ()* @main, section ".callgraph", align 8
-@len.15 = internal constant i64 2, section ".callgraph", align 8
-@_ZN7StudentC2Ev.16 = internal constant void (%class.Student*)* @_ZN7StudentC2Ev, section ".callgraph", align 8
-@_ZN7StudentD2Ev.17 = internal constant void (%class.Student*)* @_ZN7StudentD2Ev, section ".callgraph", align 8
-@len.18 = internal constant i64 -1, section ".callgraph", align 8
-@_ZN7StudentC2Ev.19 = internal constant void (%class.Student*)* @_ZN7StudentC2Ev, section ".callgraph", align 8
-@len.20 = internal constant i64 0, section ".callgraph", align 8
-@len.21 = internal constant i64 -1, section ".callgraph", align 8
-@_ZN7StudentD2Ev.22 = internal constant void (%class.Student*)* @_ZN7StudentD2Ev, section ".callgraph", align 8
-@len.23 = internal constant i64 0, section ".callgraph", align 8
-@len.24 = internal constant i64 -1, section ".callgraph", align 8
+@_ZN7Student9printNameEv.14 = internal constant void (%class.Student*)* @_ZN7Student9printNameEv, section ".callgraph", align 8
+@len.15 = internal constant i64 0, section ".callgraph", align 8
+@len.16 = internal constant i64 -1, section ".callgraph", align 8
+@_ZN7Student7printIdEv.17 = internal constant void (%class.Student*)* @_ZN7Student7printIdEv, section ".callgraph", align 8
+@len.18 = internal constant i64 0, section ".callgraph", align 8
+@len.19 = internal constant i64 -1, section ".callgraph", align 8
+@main.20 = internal constant i32 ()* @main, section ".callgraph", align 8
+@len.21 = internal constant i64 6, section ".callgraph", align 8
+@_ZN7Student3addEii.22 = internal constant void (%class.Student*, i32, i32)* @_ZN7Student3addEii, section ".callgraph", align 8
+@_ZN7Student4testEPS_.23 = internal constant void (%class.Student*, %class.Student*)* @_ZN7Student4testEPS_, section ".callgraph", align 8
+@_ZN7Student9printNameEv.24 = internal constant void (%class.Student*)* @_ZN7Student9printNameEv, section ".callgraph", align 8
+@_ZN7Student7printIdEv.25 = internal constant void (%class.Student*)* @_ZN7Student7printIdEv, section ".callgraph", align 8
+@_ZN7StudentC2Ev.26 = internal constant void (%class.Student*)* @_ZN7StudentC2Ev, section ".callgraph", align 8
+@_ZN7StudentD2Ev.27 = internal constant void (%class.Student*)* @_ZN7StudentD2Ev, section ".callgraph", align 8
+@len.28 = internal constant i64 -1, section ".callgraph", align 8
+@_ZN7StudentC2Ev.29 = internal constant void (%class.Student*)* @_ZN7StudentC2Ev, section ".callgraph", align 8
+@len.30 = internal constant i64 0, section ".callgraph", align 8
+@len.31 = internal constant i64 -1, section ".callgraph", align 8
+@_ZN7StudentD2Ev.32 = internal constant void (%class.Student*)* @_ZN7StudentD2Ev, section ".callgraph", align 8
+@len.33 = internal constant i64 0, section ".callgraph", align 8
+@len.34 = internal constant i64 -1, section ".callgraph", align 8
 
 ; Function Attrs: noinline uwtable
 define internal void @__cxx_global_var_init() #0 section ".text.startup" !dbg !1493 {
@@ -78,121 +92,238 @@ declare dso_local void @_ZNSt8ios_base4InitD1Ev(%"class.std::ios_base::Init"*) u
 declare dso_local i32 @__cxa_atexit(void (i8*)*, i8*, i8*) #3
 
 ; Function Attrs: noinline optnone uwtable
-define dso_local void @_ZN7Student9printNameEv(%class.Student* %this) #4 align 2 !dbg !1496 {
+define dso_local void @_ZN7Student3addEii(%class.Student* %this, i32 %a, i32 %b) #4 align 2 !dbg !1496 {
 entry:
   %this.addr = alloca %class.Student*, align 8
+  %a.addr = alloca i32, align 4
+  %b.addr = alloca i32, align 4
   store %class.Student* %this, %class.Student** %this.addr, align 8
-  call void @llvm.dbg.declare(metadata %class.Student** %this.addr, metadata !1511, metadata !DIExpression()), !dbg !1513
+  call void @llvm.dbg.declare(metadata %class.Student** %this.addr, metadata !1518, metadata !DIExpression()), !dbg !1519
+  store i32 %a, i32* %a.addr, align 4
+  call void @llvm.dbg.declare(metadata i32* %a.addr, metadata !1520, metadata !DIExpression()), !dbg !1521
+  store i32 %b, i32* %b.addr, align 4
+  call void @llvm.dbg.declare(metadata i32* %b.addr, metadata !1522, metadata !DIExpression()), !dbg !1523
   %this1 = load %class.Student*, %class.Student** %this.addr, align 8
-  %call = call dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc(%"class.std::basic_ostream"* dereferenceable(272) @_ZSt4cout, i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str, i32 0, i32 0)), !dbg !1514
-  %name = getelementptr inbounds %class.Student, %class.Student* %this1, i32 0, i32 0, !dbg !1515
-  %call2 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsIcSt11char_traitsIcESaIcEERSt13basic_ostreamIT_T0_ES7_RKNSt7__cxx1112basic_stringIS4_S5_T1_EE(%"class.std::basic_ostream"* dereferenceable(272) %call, %"class.std::__cxx11::basic_string"* dereferenceable(32) %name), !dbg !1516
-  %call3 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEPFRSoS_E(%"class.std::basic_ostream"* %call2, %"class.std::basic_ostream"* (%"class.std::basic_ostream"*)* @_ZSt4endlIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_), !dbg !1517
-  ret void, !dbg !1518
+  %call = call dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc(%"class.std::basic_ostream"* dereferenceable(272) @_ZSt4cout, i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str, i32 0, i32 0)), !dbg !1524
+  %0 = load i32, i32* %a.addr, align 4, !dbg !1525
+  %1 = load i32, i32* %b.addr, align 4, !dbg !1526
+  %add = add nsw i32 %0, %1, !dbg !1527
+  %call2 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEi(%"class.std::basic_ostream"* %call, i32 %add), !dbg !1528
+  %call3 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEPFRSoS_E(%"class.std::basic_ostream"* %call2, %"class.std::basic_ostream"* (%"class.std::basic_ostream"*)* @_ZSt4endlIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_), !dbg !1529
+  ret void, !dbg !1530
 }
 
 ; Function Attrs: nounwind readnone speculatable
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #5
 
-declare dso_local dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsIcSt11char_traitsIcESaIcEERSt13basic_ostreamIT_T0_ES7_RKNSt7__cxx1112basic_stringIS4_S5_T1_EE(%"class.std::basic_ostream"* dereferenceable(272), %"class.std::__cxx11::basic_string"* dereferenceable(32)) #1
-
 declare dso_local dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc(%"class.std::basic_ostream"* dereferenceable(272), i8*) #1
+
+declare dso_local dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEi(%"class.std::basic_ostream"*, i32) #1
 
 declare dso_local dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEPFRSoS_E(%"class.std::basic_ostream"*, %"class.std::basic_ostream"* (%"class.std::basic_ostream"*)*) #1
 
 declare dso_local dereferenceable(272) %"class.std::basic_ostream"* @_ZSt4endlIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_(%"class.std::basic_ostream"* dereferenceable(272)) #1
 
 ; Function Attrs: noinline optnone uwtable
-define dso_local void @_ZN7Student7printIdEv(%class.Student* %this) #4 align 2 !dbg !1519 {
+define dso_local void @_ZN7Student4testEPS_(%class.Student* %this, %class.Student* %studptr) #4 align 2 !dbg !1531 {
+entry:
+  %this.addr = alloca %class.Student*, align 8
+  %studptr.addr = alloca %class.Student*, align 8
+  store %class.Student* %this, %class.Student** %this.addr, align 8
+  call void @llvm.dbg.declare(metadata %class.Student** %this.addr, metadata !1532, metadata !DIExpression()), !dbg !1533
+  store %class.Student* %studptr, %class.Student** %studptr.addr, align 8
+  call void @llvm.dbg.declare(metadata %class.Student** %studptr.addr, metadata !1534, metadata !DIExpression()), !dbg !1535
+  %this1 = load %class.Student*, %class.Student** %this.addr, align 8
+  %0 = load %class.Student*, %class.Student** %studptr.addr, align 8, !dbg !1536
+  %id = getelementptr inbounds %class.Student, %class.Student* %0, i32 0, i32 1, !dbg !1538
+  %1 = load i32, i32* %id, align 8, !dbg !1538
+  %id2 = getelementptr inbounds %class.Student, %class.Student* %this1, i32 0, i32 1, !dbg !1539
+  %2 = load i32, i32* %id2, align 8, !dbg !1539
+  %cmp = icmp eq i32 %1, %2, !dbg !1540
+  br i1 %cmp, label %if.then, label %if.else, !dbg !1541
+
+if.then:                                          ; preds = %entry
+  %call = call dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc(%"class.std::basic_ostream"* dereferenceable(272) @_ZSt4cout, i8* getelementptr inbounds ([7 x i8], [7 x i8]* @.str.1, i32 0, i32 0)), !dbg !1542
+  %call3 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEPFRSoS_E(%"class.std::basic_ostream"* %call, %"class.std::basic_ostream"* (%"class.std::basic_ostream"*)* @_ZSt4endlIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_), !dbg !1544
+  br label %if.end, !dbg !1545
+
+if.else:                                          ; preds = %entry
+  %call4 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc(%"class.std::basic_ostream"* dereferenceable(272) @_ZSt4cout, i8* getelementptr inbounds ([10 x i8], [10 x i8]* @.str.2, i32 0, i32 0)), !dbg !1546
+  %call5 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEPFRSoS_E(%"class.std::basic_ostream"* %call4, %"class.std::basic_ostream"* (%"class.std::basic_ostream"*)* @_ZSt4endlIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_), !dbg !1548
+  br label %if.end
+
+if.end:                                           ; preds = %if.else, %if.then
+  ret void, !dbg !1549
+}
+
+; Function Attrs: noinline optnone uwtable
+define dso_local void @_ZN7Student9printNameEv(%class.Student* %this) #4 align 2 !dbg !1550 {
 entry:
   %this.addr = alloca %class.Student*, align 8
   store %class.Student* %this, %class.Student** %this.addr, align 8
-  call void @llvm.dbg.declare(metadata %class.Student** %this.addr, metadata !1520, metadata !DIExpression()), !dbg !1521
+  call void @llvm.dbg.declare(metadata %class.Student** %this.addr, metadata !1551, metadata !DIExpression()), !dbg !1552
   %this1 = load %class.Student*, %class.Student** %this.addr, align 8
-  %call = call dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc(%"class.std::basic_ostream"* dereferenceable(272) @_ZSt4cout, i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str.1, i32 0, i32 0)), !dbg !1522
-  %id = getelementptr inbounds %class.Student, %class.Student* %this1, i32 0, i32 1, !dbg !1523
-  %0 = load i32, i32* %id, align 8, !dbg !1523
-  %call2 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEi(%"class.std::basic_ostream"* %call, i32 %0), !dbg !1524
-  %call3 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEPFRSoS_E(%"class.std::basic_ostream"* %call2, %"class.std::basic_ostream"* (%"class.std::basic_ostream"*)* @_ZSt4endlIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_), !dbg !1525
-  ret void, !dbg !1526
+  %call = call dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc(%"class.std::basic_ostream"* dereferenceable(272) @_ZSt4cout, i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str.3, i32 0, i32 0)), !dbg !1553
+  %name = getelementptr inbounds %class.Student, %class.Student* %this1, i32 0, i32 0, !dbg !1554
+  %call2 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsIcSt11char_traitsIcESaIcEERSt13basic_ostreamIT_T0_ES7_RKNSt7__cxx1112basic_stringIS4_S5_T1_EE(%"class.std::basic_ostream"* dereferenceable(272) %call, %"class.std::__cxx11::basic_string"* dereferenceable(32) %name), !dbg !1555
+  %call3 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEPFRSoS_E(%"class.std::basic_ostream"* %call2, %"class.std::basic_ostream"* (%"class.std::basic_ostream"*)* @_ZSt4endlIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_), !dbg !1556
+  ret void, !dbg !1557
 }
 
-declare dso_local dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEi(%"class.std::basic_ostream"*, i32) #1
+declare dso_local dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsIcSt11char_traitsIcESaIcEERSt13basic_ostreamIT_T0_ES7_RKNSt7__cxx1112basic_stringIS4_S5_T1_EE(%"class.std::basic_ostream"* dereferenceable(272), %"class.std::__cxx11::basic_string"* dereferenceable(32)) #1
+
+; Function Attrs: noinline optnone uwtable
+define dso_local void @_ZN7Student7printIdEv(%class.Student* %this) #4 align 2 !dbg !1558 {
+entry:
+  %this.addr = alloca %class.Student*, align 8
+  store %class.Student* %this, %class.Student** %this.addr, align 8
+  call void @llvm.dbg.declare(metadata %class.Student** %this.addr, metadata !1559, metadata !DIExpression()), !dbg !1560
+  %this1 = load %class.Student*, %class.Student** %this.addr, align 8
+  %call = call dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc(%"class.std::basic_ostream"* dereferenceable(272) @_ZSt4cout, i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str.4, i32 0, i32 0)), !dbg !1561
+  %id = getelementptr inbounds %class.Student, %class.Student* %this1, i32 0, i32 1, !dbg !1562
+  %0 = load i32, i32* %id, align 8, !dbg !1562
+  %call2 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEi(%"class.std::basic_ostream"* %call, i32 %0), !dbg !1563
+  %call3 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEPFRSoS_E(%"class.std::basic_ostream"* %call2, %"class.std::basic_ostream"* (%"class.std::basic_ostream"*)* @_ZSt4endlIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_), !dbg !1564
+  ret void, !dbg !1565
+}
 
 ; Function Attrs: noinline norecurse optnone uwtable
-define dso_local i32 @main() #6 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) !dbg !1527 {
+define dso_local i32 @main() #6 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) !dbg !1566 {
 entry:
   %retval = alloca i32, align 4
   %student = alloca %class.Student, align 8
   %exn.slot = alloca i8*
   %ehselector.slot = alloca i32
+  %sptr = alloca %class.Student*, align 8
+  %funcPtr = alloca { i64, i64 }, align 8
   store i32 0, i32* %retval, align 4
-  call void @llvm.dbg.declare(metadata %class.Student* %student, metadata !1528, metadata !DIExpression()), !dbg !1529
-  call void @_ZN7StudentC2Ev(%class.Student* %student) #3, !dbg !1529
-  %id = getelementptr inbounds %class.Student, %class.Student* %student, i32 0, i32 1, !dbg !1530
-  store i32 1000, i32* %id, align 8, !dbg !1531
-  %name = getelementptr inbounds %class.Student, %class.Student* %student, i32 0, i32 0, !dbg !1532
-  %call = invoke dereferenceable(32) %"class.std::__cxx11::basic_string"* @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEaSEPKc(%"class.std::__cxx11::basic_string"* %name, i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str.2, i32 0, i32 0))
-          to label %invoke.cont unwind label %lpad, !dbg !1533
+  call void @llvm.dbg.declare(metadata %class.Student* %student, metadata !1567, metadata !DIExpression()), !dbg !1568
+  call void @_ZN7StudentC2Ev(%class.Student* %student) #3, !dbg !1568
+  %id = getelementptr inbounds %class.Student, %class.Student* %student, i32 0, i32 1, !dbg !1569
+  store i32 1000, i32* %id, align 8, !dbg !1570
+  %name = getelementptr inbounds %class.Student, %class.Student* %student, i32 0, i32 0, !dbg !1571
+  %call = invoke dereferenceable(32) %"class.std::__cxx11::basic_string"* @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEaSEPKc(%"class.std::__cxx11::basic_string"* %name, i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str.5, i32 0, i32 0))
+          to label %invoke.cont unwind label %lpad, !dbg !1572
 
 invoke.cont:                                      ; preds = %entry
   invoke void @_ZN7Student9printNameEv(%class.Student* %student)
-          to label %invoke.cont1 unwind label %lpad, !dbg !1534
+          to label %invoke.cont1 unwind label %lpad, !dbg !1573
 
 invoke.cont1:                                     ; preds = %invoke.cont
   invoke void @_ZN7Student7printIdEv(%class.Student* %student)
-          to label %invoke.cont2 unwind label %lpad, !dbg !1535
+          to label %invoke.cont2 unwind label %lpad, !dbg !1574
 
 invoke.cont2:                                     ; preds = %invoke.cont1
-  store i32 0, i32* %retval, align 4, !dbg !1536
-  call void @_ZN7StudentD2Ev(%class.Student* %student) #3, !dbg !1537
-  %0 = load i32, i32* %retval, align 4, !dbg !1537
-  ret i32 %0, !dbg !1537
+  call void @llvm.dbg.declare(metadata %class.Student** %sptr, metadata !1575, metadata !DIExpression()), !dbg !1576
+  %call4 = invoke i8* @_Znwm(i64 40) #10
+          to label %invoke.cont3 unwind label %lpad, !dbg !1577
 
-lpad:                                             ; preds = %invoke.cont1, %invoke.cont, %entry
-  %1 = landingpad { i8*, i32 }
-          cleanup, !dbg !1537
-  %2 = extractvalue { i8*, i32 } %1, 0, !dbg !1537
-  store i8* %2, i8** %exn.slot, align 8, !dbg !1537
-  %3 = extractvalue { i8*, i32 } %1, 1, !dbg !1537
-  store i32 %3, i32* %ehselector.slot, align 4, !dbg !1537
-  call void @_ZN7StudentD2Ev(%class.Student* %student) #3, !dbg !1537
-  br label %eh.resume, !dbg !1537
+invoke.cont3:                                     ; preds = %invoke.cont2
+  %0 = bitcast i8* %call4 to %class.Student*, !dbg !1577
+  %1 = bitcast %class.Student* %0 to i8*, !dbg !1578
+  call void @llvm.memset.p0i8.i64(i8* align 16 %1, i8 0, i64 40, i1 false), !dbg !1578
+  call void @_ZN7StudentC2Ev(%class.Student* %0) #3, !dbg !1578
+  store %class.Student* %0, %class.Student** %sptr, align 8, !dbg !1576
+  %2 = load %class.Student*, %class.Student** %sptr, align 8, !dbg !1579
+  %id5 = getelementptr inbounds %class.Student, %class.Student* %2, i32 0, i32 1, !dbg !1580
+  store i32 1000, i32* %id5, align 8, !dbg !1581
+  %3 = load %class.Student*, %class.Student** %sptr, align 8, !dbg !1582
+  %name6 = getelementptr inbounds %class.Student, %class.Student* %3, i32 0, i32 0, !dbg !1583
+  %call8 = invoke dereferenceable(32) %"class.std::__cxx11::basic_string"* @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEaSEPKc(%"class.std::__cxx11::basic_string"* %name6, i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str.6, i32 0, i32 0))
+          to label %invoke.cont7 unwind label %lpad, !dbg !1584
+
+invoke.cont7:                                     ; preds = %invoke.cont3
+  %4 = load %class.Student*, %class.Student** %sptr, align 8, !dbg !1585
+  invoke void @_ZN7Student4testEPS_(%class.Student* %student, %class.Student* %4)
+          to label %invoke.cont9 unwind label %lpad, !dbg !1586
+
+invoke.cont9:                                     ; preds = %invoke.cont7
+  call void @llvm.dbg.declare(metadata { i64, i64 }* %funcPtr, metadata !1587, metadata !DIExpression()), !dbg !1589
+  store { i64, i64 } { i64 ptrtoint (void (%class.Student*, i32, i32)* @_ZN7Student3addEii to i64), i64 0 }, { i64, i64 }* %funcPtr, align 8, !dbg !1589
+  %5 = load { i64, i64 }, { i64, i64 }* %funcPtr, align 8, !dbg !1590
+  %memptr.adj = extractvalue { i64, i64 } %5, 1, !dbg !1591
+  %6 = bitcast %class.Student* %student to i8*, !dbg !1591
+  %7 = getelementptr inbounds i8, i8* %6, i64 %memptr.adj, !dbg !1591
+  %this.adjusted = bitcast i8* %7 to %class.Student*, !dbg !1591
+  %memptr.ptr = extractvalue { i64, i64 } %5, 0, !dbg !1591
+  %8 = and i64 %memptr.ptr, 1, !dbg !1591
+  %memptr.isvirtual = icmp ne i64 %8, 0, !dbg !1591
+  br i1 %memptr.isvirtual, label %memptr.virtual, label %memptr.nonvirtual, !dbg !1591
+
+memptr.virtual:                                   ; preds = %invoke.cont9
+  %9 = bitcast %class.Student* %this.adjusted to i8**, !dbg !1591
+  %vtable = load i8*, i8** %9, align 8, !dbg !1591
+  %10 = sub i64 %memptr.ptr, 1, !dbg !1591
+  %11 = getelementptr i8, i8* %vtable, i64 %10, !dbg !1591
+  %12 = bitcast i8* %11 to void (%class.Student*, i32, i32)**, !dbg !1591
+  %memptr.virtualfn = load void (%class.Student*, i32, i32)*, void (%class.Student*, i32, i32)** %12, align 8, !dbg !1591
+  br label %memptr.end, !dbg !1591
+
+lpad:                                             ; preds = %memptr.end, %invoke.cont7, %invoke.cont3, %invoke.cont2, %invoke.cont1, %invoke.cont, %entry
+  %13 = landingpad { i8*, i32 }
+          cleanup, !dbg !1592
+  %14 = extractvalue { i8*, i32 } %13, 0, !dbg !1592
+  store i8* %14, i8** %exn.slot, align 8, !dbg !1592
+  %15 = extractvalue { i8*, i32 } %13, 1, !dbg !1592
+  store i32 %15, i32* %ehselector.slot, align 4, !dbg !1592
+  call void @_ZN7StudentD2Ev(%class.Student* %student) #3, !dbg !1592
+  br label %eh.resume, !dbg !1592
+
+memptr.nonvirtual:                                ; preds = %invoke.cont9
+  %memptr.nonvirtualfn = inttoptr i64 %memptr.ptr to void (%class.Student*, i32, i32)*, !dbg !1591
+  br label %memptr.end, !dbg !1591
+
+memptr.end:                                       ; preds = %memptr.nonvirtual, %memptr.virtual
+  %16 = phi void (%class.Student*, i32, i32)* [ %memptr.virtualfn, %memptr.virtual ], [ %memptr.nonvirtualfn, %memptr.nonvirtual ], !dbg !1591
+  invoke void %16(%class.Student* %this.adjusted, i32 3, i32 4)
+          to label %invoke.cont10 unwind label %lpad, !dbg !1591
+
+invoke.cont10:                                    ; preds = %memptr.end
+  store i32 0, i32* %retval, align 4, !dbg !1593
+  call void @_ZN7StudentD2Ev(%class.Student* %student) #3, !dbg !1592
+  %17 = load i32, i32* %retval, align 4, !dbg !1592
+  ret i32 %17, !dbg !1592
 
 eh.resume:                                        ; preds = %lpad
-  %exn = load i8*, i8** %exn.slot, align 8, !dbg !1537
-  %sel = load i32, i32* %ehselector.slot, align 4, !dbg !1537
-  %lpad.val = insertvalue { i8*, i32 } undef, i8* %exn, 0, !dbg !1537
-  %lpad.val3 = insertvalue { i8*, i32 } %lpad.val, i32 %sel, 1, !dbg !1537
-  resume { i8*, i32 } %lpad.val3, !dbg !1537
+  %exn = load i8*, i8** %exn.slot, align 8, !dbg !1592
+  %sel = load i32, i32* %ehselector.slot, align 4, !dbg !1592
+  %lpad.val = insertvalue { i8*, i32 } undef, i8* %exn, 0, !dbg !1592
+  %lpad.val11 = insertvalue { i8*, i32 } %lpad.val, i32 %sel, 1, !dbg !1592
+  resume { i8*, i32 } %lpad.val11, !dbg !1592
 }
 
 ; Function Attrs: noinline nounwind optnone uwtable
-define linkonce_odr dso_local void @_ZN7StudentC2Ev(%class.Student* %this) unnamed_addr #7 comdat align 2 !dbg !1538 {
+define linkonce_odr dso_local void @_ZN7StudentC2Ev(%class.Student* %this) unnamed_addr #7 comdat align 2 !dbg !1594 {
 entry:
   %this.addr = alloca %class.Student*, align 8
   store %class.Student* %this, %class.Student** %this.addr, align 8
-  call void @llvm.dbg.declare(metadata %class.Student** %this.addr, metadata !1540, metadata !DIExpression()), !dbg !1541
+  call void @llvm.dbg.declare(metadata %class.Student** %this.addr, metadata !1596, metadata !DIExpression()), !dbg !1597
   %this1 = load %class.Student*, %class.Student** %this.addr, align 8
-  %name = getelementptr inbounds %class.Student, %class.Student* %this1, i32 0, i32 0, !dbg !1542
-  call void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC1Ev(%"class.std::__cxx11::basic_string"* %name) #3, !dbg !1542
-  ret void, !dbg !1542
+  %name = getelementptr inbounds %class.Student, %class.Student* %this1, i32 0, i32 0, !dbg !1598
+  call void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC1Ev(%"class.std::__cxx11::basic_string"* %name) #3, !dbg !1598
+  ret void, !dbg !1598
 }
 
 declare dso_local dereferenceable(32) %"class.std::__cxx11::basic_string"* @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEaSEPKc(%"class.std::__cxx11::basic_string"*, i8*) #1
 
 declare dso_local i32 @__gxx_personality_v0(...)
 
+; Function Attrs: nobuiltin
+declare dso_local noalias i8* @_Znwm(i64) #8
+
+; Function Attrs: argmemonly nounwind
+declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1) #9
+
 ; Function Attrs: noinline nounwind optnone uwtable
-define linkonce_odr dso_local void @_ZN7StudentD2Ev(%class.Student* %this) unnamed_addr #7 comdat align 2 !dbg !1543 {
+define linkonce_odr dso_local void @_ZN7StudentD2Ev(%class.Student* %this) unnamed_addr #7 comdat align 2 !dbg !1599 {
 entry:
   %this.addr = alloca %class.Student*, align 8
   store %class.Student* %this, %class.Student** %this.addr, align 8
-  call void @llvm.dbg.declare(metadata %class.Student** %this.addr, metadata !1545, metadata !DIExpression()), !dbg !1546
+  call void @llvm.dbg.declare(metadata %class.Student** %this.addr, metadata !1601, metadata !DIExpression()), !dbg !1602
   %this1 = load %class.Student*, %class.Student** %this.addr, align 8
-  %name = getelementptr inbounds %class.Student, %class.Student* %this1, i32 0, i32 0, !dbg !1547
-  call void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev(%"class.std::__cxx11::basic_string"* %name) #3, !dbg !1547
-  ret void, !dbg !1549
+  %name = getelementptr inbounds %class.Student, %class.Student* %this1, i32 0, i32 0, !dbg !1603
+  call void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev(%"class.std::__cxx11::basic_string"* %name) #3, !dbg !1603
+  ret void, !dbg !1605
 }
 
 ; Function Attrs: nounwind
@@ -202,9 +333,9 @@ declare dso_local void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC1E
 declare dso_local void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev(%"class.std::__cxx11::basic_string"*) unnamed_addr #2
 
 ; Function Attrs: noinline uwtable
-define internal void @_GLOBAL__sub_I_test.cpp() #0 section ".text.startup" !dbg !1550 {
+define internal void @_GLOBAL__sub_I_test.cpp() #0 section ".text.startup" !dbg !1606 {
 entry:
-  call void @__cxx_global_var_init(), !dbg !1552
+  call void @__cxx_global_var_init(), !dbg !1608
   ret void
 }
 
@@ -216,6 +347,9 @@ attributes #4 = { noinline optnone uwtable "correctly-rounded-divide-sqrt-fp-mat
 attributes #5 = { nounwind readnone speculatable }
 attributes #6 = { noinline norecurse optnone uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #7 = { noinline nounwind optnone uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #8 = { nobuiltin "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #9 = { argmemonly nounwind }
+attributes #10 = { builtin }
 
 !llvm.dbg.cu = !{!19}
 !llvm.module.flags = !{!1489, !1490, !1491}
@@ -1717,9 +1851,9 @@ attributes #7 = { noinline nounwind optnone uwtable "correctly-rounded-divide-sq
 !1493 = distinct !DISubprogram(name: "__cxx_global_var_init", scope: !3, file: !3, line: 74, type: !512, isLocal: true, isDefinition: true, scopeLine: 74, flags: DIFlagPrototyped, isOptimized: false, unit: !19, retainedNodes: !1494)
 !1494 = !{}
 !1495 = !DILocation(line: 74, column: 25, scope: !1493)
-!1496 = distinct !DISubprogram(name: "printName", linkageName: "_ZN7Student9printNameEv", scope: !1497, file: !20, line: 14, type: !1507, isLocal: false, isDefinition: true, scopeLine: 14, flags: DIFlagPrototyped, isOptimized: false, unit: !19, declaration: !1506, retainedNodes: !1494)
+!1496 = distinct !DISubprogram(name: "add", linkageName: "_ZN7Student3addEii", scope: !1497, file: !20, line: 18, type: !1516, isLocal: false, isDefinition: true, scopeLine: 18, flags: DIFlagPrototyped, isOptimized: false, unit: !19, declaration: !1515, retainedNodes: !1494)
 !1497 = distinct !DICompositeType(tag: DW_TAG_class_type, name: "Student", file: !20, line: 4, size: 320, flags: DIFlagTypePassByReference, elements: !1498, identifier: "_ZTS7Student")
-!1498 = !{!1499, !1505, !1506, !1510}
+!1498 = !{!1499, !1505, !1506, !1510, !1511, !1515}
 !1499 = !DIDerivedType(tag: DW_TAG_member, name: "name", scope: !1497, file: !20, line: 6, baseType: !1500, size: 256, flags: DIFlagPublic)
 !1500 = !DIDerivedType(tag: DW_TAG_typedef, name: "string", scope: !1502, file: !1501, line: 74, baseType: !1503)
 !1501 = !DIFile(filename: "/usr/lib/gcc/x86_64-linux-gnu/5.4.0/../../../../include/c++/5.4.0/bits/stringfwd.h", directory: "/mnt/Projects/LLVM-custom/test/Datarand")
@@ -1732,45 +1866,101 @@ attributes #7 = { noinline nounwind optnone uwtable "correctly-rounded-divide-sq
 !1508 = !{null, !1509}
 !1509 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1497, size: 64, flags: DIFlagArtificial | DIFlagObjectPointer)
 !1510 = !DISubprogram(name: "printId", linkageName: "_ZN7Student7printIdEv", scope: !1497, file: !20, line: 11, type: !1507, isLocal: false, isDefinition: false, scopeLine: 11, flags: DIFlagPublic | DIFlagPrototyped, isOptimized: false)
-!1511 = !DILocalVariable(name: "this", arg: 1, scope: !1496, type: !1512, flags: DIFlagArtificial | DIFlagObjectPointer)
-!1512 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1497, size: 64)
-!1513 = !DILocation(line: 0, scope: !1496)
-!1514 = !DILocation(line: 15, column: 14, scope: !1496)
-!1515 = !DILocation(line: 15, column: 33, scope: !1496)
-!1516 = !DILocation(line: 15, column: 30, scope: !1496)
-!1517 = !DILocation(line: 15, column: 38, scope: !1496)
-!1518 = !DILocation(line: 16, column: 1, scope: !1496)
-!1519 = distinct !DISubprogram(name: "printId", linkageName: "_ZN7Student7printIdEv", scope: !1497, file: !20, line: 18, type: !1507, isLocal: false, isDefinition: true, scopeLine: 18, flags: DIFlagPrototyped, isOptimized: false, unit: !19, declaration: !1510, retainedNodes: !1494)
-!1520 = !DILocalVariable(name: "this", arg: 1, scope: !1519, type: !1512, flags: DIFlagArtificial | DIFlagObjectPointer)
-!1521 = !DILocation(line: 0, scope: !1519)
-!1522 = !DILocation(line: 19, column: 15, scope: !1519)
-!1523 = !DILocation(line: 19, column: 32, scope: !1519)
-!1524 = !DILocation(line: 19, column: 29, scope: !1519)
-!1525 = !DILocation(line: 19, column: 35, scope: !1519)
-!1526 = !DILocation(line: 20, column: 1, scope: !1519)
-!1527 = distinct !DISubprogram(name: "main", scope: !20, file: !20, line: 22, type: !597, isLocal: false, isDefinition: true, scopeLine: 22, flags: DIFlagPrototyped, isOptimized: false, unit: !19, retainedNodes: !1494)
-!1528 = !DILocalVariable(name: "student", scope: !1527, file: !20, line: 23, type: !1497)
-!1529 = !DILocation(line: 23, column: 13, scope: !1527)
-!1530 = !DILocation(line: 24, column: 13, scope: !1527)
-!1531 = !DILocation(line: 24, column: 16, scope: !1527)
-!1532 = !DILocation(line: 25, column: 13, scope: !1527)
-!1533 = !DILocation(line: 25, column: 18, scope: !1527)
-!1534 = !DILocation(line: 26, column: 13, scope: !1527)
-!1535 = !DILocation(line: 27, column: 13, scope: !1527)
-!1536 = !DILocation(line: 28, column: 5, scope: !1527)
-!1537 = !DILocation(line: 29, column: 1, scope: !1527)
-!1538 = distinct !DISubprogram(name: "Student", linkageName: "_ZN7StudentC2Ev", scope: !1497, file: !20, line: 4, type: !1507, isLocal: false, isDefinition: true, scopeLine: 4, flags: DIFlagArtificial | DIFlagPrototyped, isOptimized: false, unit: !19, declaration: !1539, retainedNodes: !1494)
-!1539 = !DISubprogram(name: "Student", scope: !1497, type: !1507, isLocal: false, isDefinition: false, flags: DIFlagPublic | DIFlagArtificial | DIFlagPrototyped, isOptimized: false)
-!1540 = !DILocalVariable(name: "this", arg: 1, scope: !1538, type: !1512, flags: DIFlagArtificial | DIFlagObjectPointer)
-!1541 = !DILocation(line: 0, scope: !1538)
-!1542 = !DILocation(line: 4, column: 7, scope: !1538)
-!1543 = distinct !DISubprogram(name: "~Student", linkageName: "_ZN7StudentD2Ev", scope: !1497, file: !20, line: 4, type: !1507, isLocal: false, isDefinition: true, scopeLine: 4, flags: DIFlagArtificial | DIFlagPrototyped, isOptimized: false, unit: !19, declaration: !1544, retainedNodes: !1494)
-!1544 = !DISubprogram(name: "~Student", scope: !1497, type: !1507, isLocal: false, isDefinition: false, flags: DIFlagPublic | DIFlagArtificial | DIFlagPrototyped, isOptimized: false)
-!1545 = !DILocalVariable(name: "this", arg: 1, scope: !1543, type: !1512, flags: DIFlagArtificial | DIFlagObjectPointer)
-!1546 = !DILocation(line: 0, scope: !1543)
-!1547 = !DILocation(line: 4, column: 7, scope: !1548)
-!1548 = distinct !DILexicalBlock(scope: !1543, file: !20, line: 4, column: 7)
-!1549 = !DILocation(line: 4, column: 7, scope: !1543)
-!1550 = distinct !DISubprogram(linkageName: "_GLOBAL__sub_I_test.cpp", scope: !20, file: !20, type: !1551, isLocal: true, isDefinition: true, flags: DIFlagArtificial, isOptimized: false, unit: !19, retainedNodes: !1494)
-!1551 = !DISubroutineType(types: !1494)
+!1511 = !DISubprogram(name: "test", linkageName: "_ZN7Student4testEPS_", scope: !1497, file: !20, line: 13, type: !1512, isLocal: false, isDefinition: false, scopeLine: 13, flags: DIFlagPublic | DIFlagPrototyped, isOptimized: false)
+!1512 = !DISubroutineType(types: !1513)
+!1513 = !{null, !1509, !1514}
+!1514 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1497, size: 64)
+!1515 = !DISubprogram(name: "add", linkageName: "_ZN7Student3addEii", scope: !1497, file: !20, line: 15, type: !1516, isLocal: false, isDefinition: false, scopeLine: 15, flags: DIFlagPublic | DIFlagPrototyped, isOptimized: false)
+!1516 = !DISubroutineType(types: !1517)
+!1517 = !{null, !1509, !11, !11}
+!1518 = !DILocalVariable(name: "this", arg: 1, scope: !1496, type: !1514, flags: DIFlagArtificial | DIFlagObjectPointer)
+!1519 = !DILocation(line: 0, scope: !1496)
+!1520 = !DILocalVariable(name: "a", arg: 2, scope: !1496, file: !20, line: 18, type: !11)
+!1521 = !DILocation(line: 18, column: 23, scope: !1496)
+!1522 = !DILocalVariable(name: "b", arg: 3, scope: !1496, file: !20, line: 18, type: !11)
+!1523 = !DILocation(line: 18, column: 30, scope: !1496)
+!1524 = !DILocation(line: 19, column: 15, scope: !1496)
+!1525 = !DILocation(line: 19, column: 33, scope: !1496)
+!1526 = !DILocation(line: 19, column: 35, scope: !1496)
+!1527 = !DILocation(line: 19, column: 34, scope: !1496)
+!1528 = !DILocation(line: 19, column: 29, scope: !1496)
+!1529 = !DILocation(line: 19, column: 38, scope: !1496)
+!1530 = !DILocation(line: 20, column: 1, scope: !1496)
+!1531 = distinct !DISubprogram(name: "test", linkageName: "_ZN7Student4testEPS_", scope: !1497, file: !20, line: 22, type: !1512, isLocal: false, isDefinition: true, scopeLine: 22, flags: DIFlagPrototyped, isOptimized: false, unit: !19, declaration: !1511, retainedNodes: !1494)
+!1532 = !DILocalVariable(name: "this", arg: 1, scope: !1531, type: !1514, flags: DIFlagArtificial | DIFlagObjectPointer)
+!1533 = !DILocation(line: 0, scope: !1531)
+!1534 = !DILocalVariable(name: "studptr", arg: 2, scope: !1531, file: !20, line: 22, type: !1514)
+!1535 = !DILocation(line: 22, column: 29, scope: !1531)
+!1536 = !DILocation(line: 23, column: 9, scope: !1537)
+!1537 = distinct !DILexicalBlock(scope: !1531, file: !20, line: 23, column: 9)
+!1538 = !DILocation(line: 23, column: 18, scope: !1537)
+!1539 = !DILocation(line: 23, column: 30, scope: !1537)
+!1540 = !DILocation(line: 23, column: 21, scope: !1537)
+!1541 = !DILocation(line: 23, column: 9, scope: !1531)
+!1542 = !DILocation(line: 24, column: 19, scope: !1543)
+!1543 = distinct !DILexicalBlock(scope: !1537, file: !20, line: 23, column: 34)
+!1544 = !DILocation(line: 24, column: 32, scope: !1543)
+!1545 = !DILocation(line: 25, column: 5, scope: !1543)
+!1546 = !DILocation(line: 26, column: 19, scope: !1547)
+!1547 = distinct !DILexicalBlock(scope: !1537, file: !20, line: 25, column: 12)
+!1548 = !DILocation(line: 26, column: 34, scope: !1547)
+!1549 = !DILocation(line: 28, column: 1, scope: !1531)
+!1550 = distinct !DISubprogram(name: "printName", linkageName: "_ZN7Student9printNameEv", scope: !1497, file: !20, line: 30, type: !1507, isLocal: false, isDefinition: true, scopeLine: 30, flags: DIFlagPrototyped, isOptimized: false, unit: !19, declaration: !1506, retainedNodes: !1494)
+!1551 = !DILocalVariable(name: "this", arg: 1, scope: !1550, type: !1514, flags: DIFlagArtificial | DIFlagObjectPointer)
 !1552 = !DILocation(line: 0, scope: !1550)
+!1553 = !DILocation(line: 31, column: 14, scope: !1550)
+!1554 = !DILocation(line: 31, column: 33, scope: !1550)
+!1555 = !DILocation(line: 31, column: 30, scope: !1550)
+!1556 = !DILocation(line: 31, column: 38, scope: !1550)
+!1557 = !DILocation(line: 32, column: 1, scope: !1550)
+!1558 = distinct !DISubprogram(name: "printId", linkageName: "_ZN7Student7printIdEv", scope: !1497, file: !20, line: 34, type: !1507, isLocal: false, isDefinition: true, scopeLine: 34, flags: DIFlagPrototyped, isOptimized: false, unit: !19, declaration: !1510, retainedNodes: !1494)
+!1559 = !DILocalVariable(name: "this", arg: 1, scope: !1558, type: !1514, flags: DIFlagArtificial | DIFlagObjectPointer)
+!1560 = !DILocation(line: 0, scope: !1558)
+!1561 = !DILocation(line: 35, column: 15, scope: !1558)
+!1562 = !DILocation(line: 35, column: 32, scope: !1558)
+!1563 = !DILocation(line: 35, column: 29, scope: !1558)
+!1564 = !DILocation(line: 35, column: 35, scope: !1558)
+!1565 = !DILocation(line: 36, column: 1, scope: !1558)
+!1566 = distinct !DISubprogram(name: "main", scope: !20, file: !20, line: 38, type: !597, isLocal: false, isDefinition: true, scopeLine: 38, flags: DIFlagPrototyped, isOptimized: false, unit: !19, retainedNodes: !1494)
+!1567 = !DILocalVariable(name: "student", scope: !1566, file: !20, line: 39, type: !1497)
+!1568 = !DILocation(line: 39, column: 13, scope: !1566)
+!1569 = !DILocation(line: 40, column: 13, scope: !1566)
+!1570 = !DILocation(line: 40, column: 16, scope: !1566)
+!1571 = !DILocation(line: 41, column: 13, scope: !1566)
+!1572 = !DILocation(line: 41, column: 18, scope: !1566)
+!1573 = !DILocation(line: 42, column: 13, scope: !1566)
+!1574 = !DILocation(line: 43, column: 13, scope: !1566)
+!1575 = !DILocalVariable(name: "sptr", scope: !1566, file: !20, line: 45, type: !1514)
+!1576 = !DILocation(line: 45, column: 14, scope: !1566)
+!1577 = !DILocation(line: 45, column: 21, scope: !1566)
+!1578 = !DILocation(line: 45, column: 25, scope: !1566)
+!1579 = !DILocation(line: 46, column: 5, scope: !1566)
+!1580 = !DILocation(line: 46, column: 11, scope: !1566)
+!1581 = !DILocation(line: 46, column: 14, scope: !1566)
+!1582 = !DILocation(line: 47, column: 5, scope: !1566)
+!1583 = !DILocation(line: 47, column: 11, scope: !1566)
+!1584 = !DILocation(line: 47, column: 16, scope: !1566)
+!1585 = !DILocation(line: 48, column: 18, scope: !1566)
+!1586 = !DILocation(line: 48, column: 13, scope: !1566)
+!1587 = !DILocalVariable(name: "funcPtr", scope: !1566, file: !20, line: 50, type: !1588)
+!1588 = !DIDerivedType(tag: DW_TAG_ptr_to_member_type, baseType: !1516, size: 128, extraData: !1497)
+!1589 = !DILocation(line: 50, column: 21, scope: !1566)
+!1590 = !DILocation(line: 52, column: 15, scope: !1566)
+!1591 = !DILocation(line: 52, column: 5, scope: !1566)
+!1592 = !DILocation(line: 54, column: 1, scope: !1566)
+!1593 = !DILocation(line: 53, column: 5, scope: !1566)
+!1594 = distinct !DISubprogram(name: "Student", linkageName: "_ZN7StudentC2Ev", scope: !1497, file: !20, line: 4, type: !1507, isLocal: false, isDefinition: true, scopeLine: 4, flags: DIFlagArtificial | DIFlagPrototyped, isOptimized: false, unit: !19, declaration: !1595, retainedNodes: !1494)
+!1595 = !DISubprogram(name: "Student", scope: !1497, type: !1507, isLocal: false, isDefinition: false, flags: DIFlagPublic | DIFlagArtificial | DIFlagPrototyped, isOptimized: false)
+!1596 = !DILocalVariable(name: "this", arg: 1, scope: !1594, type: !1514, flags: DIFlagArtificial | DIFlagObjectPointer)
+!1597 = !DILocation(line: 0, scope: !1594)
+!1598 = !DILocation(line: 4, column: 7, scope: !1594)
+!1599 = distinct !DISubprogram(name: "~Student", linkageName: "_ZN7StudentD2Ev", scope: !1497, file: !20, line: 4, type: !1507, isLocal: false, isDefinition: true, scopeLine: 4, flags: DIFlagArtificial | DIFlagPrototyped, isOptimized: false, unit: !19, declaration: !1600, retainedNodes: !1494)
+!1600 = !DISubprogram(name: "~Student", scope: !1497, type: !1507, isLocal: false, isDefinition: false, flags: DIFlagPublic | DIFlagArtificial | DIFlagPrototyped, isOptimized: false)
+!1601 = !DILocalVariable(name: "this", arg: 1, scope: !1599, type: !1514, flags: DIFlagArtificial | DIFlagObjectPointer)
+!1602 = !DILocation(line: 0, scope: !1599)
+!1603 = !DILocation(line: 4, column: 7, scope: !1604)
+!1604 = distinct !DILexicalBlock(scope: !1599, file: !20, line: 4, column: 7)
+!1605 = !DILocation(line: 4, column: 7, scope: !1599)
+!1606 = distinct !DISubprogram(linkageName: "_GLOBAL__sub_I_test.cpp", scope: !20, file: !20, type: !1607, isLocal: true, isDefinition: true, flags: DIFlagArtificial, isOptimized: false, unit: !19, retainedNodes: !1494)
+!1607 = !DISubroutineType(types: !1494)
+!1608 = !DILocation(line: 0, scope: !1606)
