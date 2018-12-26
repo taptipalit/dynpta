@@ -1,7 +1,8 @@
 test.o
--r=test.o,f,pl
+-r=test.o,printStudent,pl
 -r=test.o,printf,
--r=test.o,g,pl
+-r=test.o,func,pl
+-r=test.o,gunc,pl
 -r=test.o,dosomething,pl
 -r=test.o,main,plx
 -r=test.o,val1,pl

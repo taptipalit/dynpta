@@ -453,7 +453,7 @@ void PassManagerBuilder::populateModulePassManager(
     addExtensionsToPM(EP_EnabledOnOptLevel0, MPM);
 
   //MPM.add(createLibcTransformPass());
-  //MPM.add(createFunctionPointerAnalysisPass());
+    //MPM.add(createFunctionPointerAnalysisPass());
   //MPM.add(createWPAPass());
     // Rename anon globals to be able to export them in the summary.
     // This has to be done after we add the extensions to the pass manager
@@ -926,9 +926,8 @@ void PassManagerBuilder::populateThinLTOPassManager(
 
 void PassManagerBuilder::populateLTOPassManager(legacy::PassManagerBase &PM) {
   //PM.add(createLibcTransformPass());
-  //PM.add(createFunctionPointerAnalysisPass());
-  PM.add(createWPAPass());
-  dbgs() << "SUP\n";
+  PM.add(createFunctionPointerAnalysisPass());
+  //PM.add(createWPAPass());
   if (LibraryInfo)
     PM.add(new TargetLibraryInfoWrapperPass(*LibraryInfo));
 
