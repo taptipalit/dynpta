@@ -123,6 +123,14 @@ public:
         return false;
     }
 
+    PAG* getPAG() {
+        return this->pag;
+    }
+
+    void setPAG(PAG* p) {
+        this->pag = p;
+    }
+
     ///Add a PAG edge into Edge map
     //@{
     /// Add Address edge

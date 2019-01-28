@@ -221,7 +221,6 @@ void Andersen::analyze(SVFModule svfModule) {
     Size_t prevIterationSensitiveCopyEdges = 0;
     /// Initialization for the Solver
     initialize(svfModule);
-    sensitiveOnly = true;
 
 
     bool readResultsFromFile = false;

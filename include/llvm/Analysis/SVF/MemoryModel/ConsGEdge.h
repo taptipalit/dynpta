@@ -56,6 +56,7 @@ public:
     };
 private:
     EdgeID edgeId;
+    bool isSensitive;
 public:
     /// Constructor
     ConstraintEdge(ConstraintNode* s, ConstraintNode* d, ConstraintEdgeK k, EdgeID id = 0) : GenericConsEdgeTy(s,d,k),edgeId(id) {

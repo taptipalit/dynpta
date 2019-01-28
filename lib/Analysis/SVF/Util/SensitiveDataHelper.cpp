@@ -11,6 +11,8 @@ using namespace llvm;
 SensitiveDataHelper* SensitiveDataHelper::helper = nullptr;
 
 bool SensitiveDataHelper::isFunctionPtrType(PointerType* ptrType) {
+    if (!ptrType)
+        return false;
     Type* baseType = ptrType->getPointerElementType();
     while (PointerType* basePtrType = dyn_cast<PointerType>(baseType)) {
         baseType = basePtrType->getPointerElementType();

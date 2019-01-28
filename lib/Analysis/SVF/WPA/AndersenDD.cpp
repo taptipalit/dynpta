@@ -39,18 +39,53 @@ using namespace analysisUtil;
 
 #define DEBUG_TYPE "andersendd"
 
+bool AndersenDD::updateCallGraph(const CallSiteToFunPtrMap& callsites) {
+    CallEdgeMap newEdges;
+    onTheFlyCallGraphSolve(callsites,newEdges);
+    NodePairSet cpySrcNodes;	/// nodes as a src of a generated new copy edge
+    for(CallEdgeMap::iterator it = newEdges.begin(), eit = newEdges.end(); it!=eit; ++it ) {
+        llvm::CallSite cs = it->first;
+        for(FunctionSet::iterator cit = it->second.begin(), ecit = it->second.end(); cit!=ecit; ++cit) {
+            consCG->connectCaller2CalleeParams(cs,*cit,cpySrcNodes);
+        }
+    }
+
+    // We're not doing this on-the-fly, so this should be okay here
+    /*
+    for(NodePairSet::iterator it = cpySrcNodes.begin(), eit = cpySrcNodes.end(); it!=eit; ++it) {
+        pushIntoWorklist(it->first);
+    }
+    */
+
+    if(!newEdges.empty())
+        return true;
+    return false;
+
+}
+
+ConstraintGraph*  AndersenDD::findSensitiveSubGraph(ConstraintGraph* fullGraph) {
+    ConstraintGraph* sensitiveSubGraph = new ConstraintGraph(fullGraph->getPAG());
+    // TODO
+    return sensitiveSubGraph;
+
+}
+
 void AndersenDD::analyze(SVFModule svfModule) {
     Size_t prevIterationSensitiveCopyEdges = 0;
     /// Initialization for the Solver
     initialize(svfModule);
-    updateCallGraph(*(getCallSiteToFunPtrMap()));
-    sensitiveOnly = false;
-
+    // AnderDD depends on the resolution of the function pointers from the
+    // AnderCFG
+    assert(callSiteToFunPtrMap && "AnderCFG should have resolved the function pointers");
+    updateCallGraph(*callSiteToFunPtrMap);
+    //sensitiveOnly = false;
 
     DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Start Solving Constraints\n"));
 
     preprocessAllAddr();
 
+    solve();
+    /*
     do {
         numOfIteration++;
 
@@ -70,6 +105,7 @@ void AndersenDD::analyze(SVFModule svfModule) {
         timeOfUpdateCallGraph += (cgUpdateEnd - cgUpdateStart) / TIMEINTERVAL;
 
     } while (reanalyze);
+    */
 
     DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Finish Solving Constraints\n"));
 

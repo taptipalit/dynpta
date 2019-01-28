@@ -104,12 +104,20 @@ void WPAPass::runOnModule(SVFModule svfModule) {
         AndersenCFG* awcfg = new AndersenCFG();
         _pta = awcfg;
         awcfg->analyze(svfModule);
-        PAG::CallSiteToFunPtrMap& callSiteToFunPtrMap = const_cast<PAG::CallSiteToFunPtrMap&>(awcfg->getIndirectCallsites());
 
+        /*
+        PAG::CallSiteToFunPtrMap& callSiteToFunPtrMap = const_cast<PAG::CallSiteToFunPtrMap&>(awcfg->getIndirectCallsites());
         AndersenDD* anderdd = new AndersenDD();
         _pta = anderdd;
+        // Glue start
+        // The constraint Graph supplied by AndersenCFG has the complete CFG
+        anderdd->setConstraintGraph(awcfg->getConstraintGraph());
+        anderdd->setPAG(awcfg->getPAG());
         anderdd->setCallSiteToFunPtrMap(&callSiteToFunPtrMap);
+        //anderdd->updateCallGraph(callSiteToFunPtrMap);
+        // Glue end
         anderdd->analyze(svfModule);
+        */
     }
 }
 

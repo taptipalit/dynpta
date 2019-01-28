@@ -125,8 +125,8 @@ public:
         assert(svfModule.getModuleNum() == 1 && "More than one module, don't know what to do with this");
         /// Build PAG
         PointerAnalysis::initialize(svfModule);
-        collectGlobalSensitiveAnnotations(svfModule.getModuleRef(0));
-        collectLocalSensitiveAnnotations(svfModule.getModuleRef(0));
+        //collectGlobalSensitiveAnnotations(svfModule.getModuleRef(0));
+        //collectLocalSensitiveAnnotations(svfModule.getModuleRef(0));
         /// Build Constraint Graph
         consCG = new ConstraintGraph(pag);
         setGraph(consCG);
@@ -188,6 +188,11 @@ public:
     /// Get constraint graph
     ConstraintGraph* getConstraintGraph() {
         return consCG;
+    }
+
+    void setConstraintGraph(ConstraintGraph* consCG) {
+        this->consCG = consCG;
+        setGraph(consCG);
     }
 
 protected:
@@ -291,7 +296,12 @@ public:
     }
 
 protected:
-    void processAllAddr();
+    virtual void processNode(NodeID nodeId);
+
+    virtual void processAllAddr();
+
+     /// Update call graph for the input indirect callsites
+    virtual bool updateCallGraph(const CallSiteToFunPtrMap& callsites);
 
 };
 
@@ -320,6 +330,34 @@ public:
 
     virtual void processNode(NodeID nodeId);
     virtual void analyze(SVFModule svfModule);
+    virtual bool updateCallGraph(const CallSiteToFunPtrMap& callsites);
+
+    ConstraintGraph* findSensitiveSubGraph(ConstraintGraph*);
+
+    /// Initialize analysis
+    virtual inline void initialize(SVFModule svfModule) {
+    //virtual inline void initialize(llvm::Module& svfModule) {
+        resetData();
+        assert(svfModule.getModuleNum() == 1 && "More than one module, don't know what to do with this");
+        /// Build PAG
+        PointerAnalysis::initialize(svfModule);
+        collectGlobalSensitiveAnnotations(svfModule.getModuleRef(0));
+        collectLocalSensitiveAnnotations(svfModule.getModuleRef(0));
+        // Verify that we already have the constraint graph from the
+        // AndersenCFG fed into this
+        assert(consCG && "AndersenDD is dependent on AndersenCFG. The constraint graph of AndersenCFG is fed into this analysis.");
+        /// Build Constraint Graph
+        //consCG = new ConstraintGraph(pag);
+        //setGraph(consCG);
+        
+        // Now, we build the sensitive sub-graph
+        ConstraintGraph* sensitiveSubGraph = findSensitiveSubGraph(consCG);
+
+        /// Create statistic class
+        stat = new AndersenStat(this);
+
+    }
+
 
     static AndersenDD* createAndersenDD(SVFModule svfModule) {
         if (ddAndersen==NULL) {

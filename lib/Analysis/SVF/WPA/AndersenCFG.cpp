@@ -39,6 +39,60 @@ using namespace analysisUtil;
 
 #define DEBUG_TYPE "andersencfg"
 
+void AndersenCFG::processNode(NodeID nodeId) {
+    // Filter out stuff that isn't a function pointer
+    //
+    PAGNode* pagNode = pag->getPAGNode(nodeId);
+    if (!pagNode->hasValue())
+        return;
+    Value* value = const_cast<Value*>(pagNode->getValue());
+    Type* type = value->getType();
+
+    if (!sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(type)))
+        return;
+
+    numOfIteration++;
+    if (0 == numOfIteration % OnTheFlyIterBudgetForStat) {
+        dumpStat();
+    }
+
+    ConstraintNode* node = consCG->getConstraintNode(nodeId);
+
+    for (ConstraintNode::const_iterator it = node->outgoingAddrsBegin(), eit =
+                node->outgoingAddrsEnd(); it != eit; ++it) {
+        processAddr(cast<AddrCGEdge>(*it));
+    }
+
+    for (PointsTo::iterator piter = getPts(nodeId).begin(), epiter =
+                getPts(nodeId).end(); piter != epiter; ++piter) {
+        NodeID ptd = *piter;
+        // handle load
+        for (ConstraintNode::const_iterator it = node->outgoingLoadsBegin(),
+                eit = node->outgoingLoadsEnd(); it != eit; ++it) {
+            if (processLoad(ptd, *it))
+                pushIntoWorklist(ptd);
+        }
+
+        // handle store
+        for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
+                eit = node->incomingStoresEnd(); it != eit; ++it) {
+            if (processStore(ptd, *it))
+                pushIntoWorklist((*it)->getSrcID());
+        }
+    }
+
+    // handle copy, call, return, gep
+    for (ConstraintNode::const_iterator it = node->directOutEdgeBegin(), eit =
+                node->directOutEdgeEnd(); it != eit; ++it) {
+        if (GepCGEdge* gepEdge = llvm::dyn_cast<GepCGEdge>(*it))
+            processGep(nodeId, gepEdge);
+        else
+
+            processCopy(nodeId, *it);
+    }
+
+}
+
 void AndersenCFG::processAllAddr() {
     errs() << "AndersenCFG\n";
     for (ConstraintGraph::const_iterator nodeIt = consCG->begin(), nodeEit = consCG->end(); nodeIt != nodeEit; nodeIt++) {
@@ -61,12 +115,38 @@ void AndersenCFG::processAllAddr() {
                     //if (isSensitiveObj(src) || isSensitiveObj(dst)) {
                     if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(srcType)) 
                             || sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(dstType))) {
+                        errs() << "Pushed " << dst << " to work list at processAllAddr\n";
                         pushIntoWorklist(dst);
                     } 
-                } else {
+                } /*else {
                     pushIntoWorklist(dst);
-                }
+                }*/
             }
         }
     }
+}
+
+bool AndersenCFG::updateCallGraph(const CallSiteToFunPtrMap& callsites) {
+    CallEdgeMap newEdges;
+    onTheFlyCallGraphSolve(callsites,newEdges);
+    NodePairSet cpySrcNodes;	/// nodes as a src of a generated new copy edge
+    for(CallEdgeMap::iterator it = newEdges.begin(), eit = newEdges.end(); it!=eit; ++it ) {
+        llvm::CallSite cs = it->first;
+        for(FunctionSet::iterator cit = it->second.begin(), ecit = it->second.end(); cit!=ecit; ++cit) {
+            consCG->connectCaller2CalleeParams(cs,*cit,cpySrcNodes);
+        }
+    }
+    for(NodePairSet::iterator it = cpySrcNodes.begin(), eit = cpySrcNodes.end(); it!=eit; ++it) {
+        // Only process these if these are potentially function pointer types
+        PAGNode* srcNode = pag->getPAGNode(it->first);
+        Value* srcValue = const_cast<Value*>(srcNode->getValue());
+        Type* srcType = srcValue->getType();
+        if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(srcType))) {
+            pushIntoWorklist(it->first);
+        }
+    }
+    if(!newEdges.empty())
+        return true;
+    return false;
+
 }
