@@ -64,8 +64,20 @@ bool AndersenDD::updateCallGraph(const CallSiteToFunPtrMap& callsites) {
 }
 
 ConstraintGraph*  AndersenDD::findSensitiveSubGraph(ConstraintGraph* fullGraph) {
-    ConstraintGraph* sensitiveSubGraph = new ConstraintGraph(fullGraph->getPAG());
-    // TODO
+    ConstraintGraph* sensitiveSubGraph = new ConstraintGraph(fullGraph->getPAG(), true);
+    NodeStack& nodeStack = SCCDetect();
+
+    WorkList sensitiveWork;
+    // Find the sensitive nodes
+    while (!nodeStack.empty()) {
+        NodeID nodeId = nodeStack.top();
+        nodeStack.pop();
+        if (isSensitiveObj(nodeId)) {
+            sensitiveWork.push(nodeId);
+        }
+    }
+
+    sensitiveSubGraph->createSubGraphReachableFrom(fullGraph, sensitiveWork);
     return sensitiveSubGraph;
 
 }
@@ -85,28 +97,7 @@ void AndersenDD::analyze(SVFModule svfModule) {
     preprocessAllAddr();
 
     solve();
-    /*
-    do {
-        numOfIteration++;
-
-        if(0 == numOfIteration % OnTheFlyIterBudgetForStat) {
-            dumpStat();
-        }
-
-        reanalyze = false;
-
-        /// Start solving constraints
-        solve();
-
-        double cgUpdateStart = stat->getClk();
-        if (updateCallGraph(getIndirectCallsites()))
-            reanalyze = true;
-        double cgUpdateEnd = stat->getClk();
-        timeOfUpdateCallGraph += (cgUpdateEnd - cgUpdateStart) / TIMEINTERVAL;
-
-    } while (reanalyze);
-    */
-
+    
     DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Finish Solving Constraints\n"));
 
     /// finalize the analysis

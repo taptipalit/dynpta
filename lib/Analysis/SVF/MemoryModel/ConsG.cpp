@@ -30,6 +30,7 @@
 #include "llvm/Analysis/SVF/MemoryModel/ConsG.h"
 #include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
 #include "llvm/Analysis/SVF/Util/GraphUtil.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 using namespace analysisUtil;
@@ -37,6 +38,120 @@ using namespace analysisUtil;
 static cl::opt<bool> ConsCGDotGraph("dump-consG", cl::init(false),
                                     cl::desc("Dump dot graph of Constraint Graph"));
 
+
+void ConstraintGraph::cloneAddrEdge(ConstraintEdge* edge) {
+    NodeID srcID = edge->getSrcID();
+    NodeID dstID = edge->getDstID();
+    addAddrCGEdge(srcID, dstID);
+    errs() << "Cloning addr edge: " << srcID << " --> " << dstID << "\n";
+}
+
+void ConstraintGraph::cloneStoreEdge(ConstraintEdge* edge) {
+    NodeID srcID = edge->getSrcID();
+    NodeID dstID = edge->getDstID();
+    addStoreCGEdge(srcID, dstID);
+    errs() << "Cloning store edge: " << srcID << " --> " << dstID << "\n";
+}
+
+void ConstraintGraph::cloneLoadEdge(ConstraintEdge* edge) {
+    NodeID srcID = edge->getSrcID();
+    NodeID dstID = edge->getDstID();
+    addLoadCGEdge(srcID, dstID);
+    errs() << "Cloning load edge: " << srcID << " --> " << dstID << "\n";
+}
+
+void ConstraintGraph::cloneDirectEdge(ConstraintEdge* edge) {
+    NodeID srcID = edge->getSrcID();
+    NodeID dstID = edge->getDstID();
+    if (VariantGepCGEdge* vgepCGEdge = dyn_cast<VariantGepCGEdge>(edge)) {
+        addVariantGepCGEdge(srcID, dstID);
+        errs() << "Cloning vgep edge: " << srcID << " --> " << dstID << "\n";
+    } else if (NormalGepCGEdge* ngepCGEdge = dyn_cast<NormalGepCGEdge>(edge)) {
+        addNormalGepCGEdge(srcID, dstID, ngepCGEdge->getLocationSet());
+        errs() << "Cloning ngep edge: " << srcID << " --> " << dstID << "\n";
+    } else {
+        addCopyCGEdge(srcID, dstID);
+        errs() << "Cloning copy edge: " << srcID << " --> " << dstID << "\n";
+    }
+}
+
+void ConstraintGraph::testAndAddNode(NodeID nodeID, llvm::SparseBitVector<>& addedNodes) {
+    if (!addedNodes.test(nodeID)) {
+        addConstraintNode(new ConstraintNode(nodeID), nodeID);
+        addedNodes.set(nodeID);
+        errs() << "Cloning node: " << nodeID << "\n";
+    }
+}
+
+void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkList& workList) {
+    llvm::SparseBitVector<> addedConsNodeList;          // Nodes which are just added to the constraint graph
+    llvm::SparseBitVector<> fullyProcessedConsNodeList; // Nodes whose edges are fully processed
+    while (!workList.empty()) {
+        NodeID nodeId = workList.pop();
+        ConstraintNode* node = oldCG->getConstraintNode(nodeId);
+        if (!fullyProcessedConsNodeList.test(nodeId)) {
+            testAndAddNode(nodeId, addedConsNodeList);
+            // Find all incoming edges for this node
+            for (ConstraintNode::const_iterator it = node->incomingAddrsBegin(),
+                    eit = node->incomingAddrsEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                cloneAddrEdge(*it);
+                workList.push((*it)->getSrcID());
+            }
+
+            for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
+                    eit = node->incomingStoresEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                cloneStoreEdge(*it);
+                workList.push((*it)->getSrcID());
+            }
+
+            for (ConstraintNode::const_iterator it = node->incomingLoadsBegin(),
+                    eit = node->incomingLoadsEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                cloneLoadEdge(*it);
+                workList.push((*it)->getSrcID());
+            }
+
+            for (ConstraintNode::const_iterator it = node->directInEdgeBegin(),
+                    eit = node->directInEdgeEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                cloneDirectEdge(*it);
+                workList.push((*it)->getSrcID());
+            }
+
+            // Find all outgoing edges for this node
+            for (ConstraintNode::const_iterator it = node->outgoingAddrsBegin(),
+                    eit = node->outgoingAddrsEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                cloneAddrEdge(*it); 
+                workList.push((*it)->getDstID());
+            }
+
+            for (ConstraintNode::const_iterator it = node->outgoingStoresBegin(),
+                    eit = node->outgoingStoresEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                cloneStoreEdge(*it); 
+                workList.push((*it)->getDstID());
+            }
+
+            for (ConstraintNode::const_iterator it = node->outgoingLoadsBegin(),
+                    eit = node->outgoingLoadsEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                cloneLoadEdge(*it); 
+                workList.push((*it)->getDstID());
+            }
+
+            for (ConstraintNode::const_iterator it = node->directOutEdgeBegin(),
+                    eit = node->directOutEdgeEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                cloneDirectEdge(*it); 
+                workList.push((*it)->getDstID());
+            }
+            fullyProcessedConsNodeList.set(nodeId);
+        }
+    }
+}
 
 /*!
  * Start building constraint graph
@@ -547,8 +662,13 @@ void ConstraintGraph::connectCaller2CalleeParams(llvm::CallSite cs, const llvm::
  * Dump constraint graph
  */
 void ConstraintGraph::dump() {
-    if(ConsCGDotGraph)
-        GraphPrinter::WriteGraphToFile(llvm::outs(), "consCG_final", this);
+    if(ConsCGDotGraph) {
+        if (selective) {
+            GraphPrinter::WriteGraphToFile(llvm::outs(), "consCG_selective_final", this);
+        } else {
+            GraphPrinter::WriteGraphToFile(llvm::outs(), "consCG_final", this);
+        }
+    }
 }
 
 /*!

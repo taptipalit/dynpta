@@ -47,6 +47,8 @@ public:
     typedef llvm::DenseMap<NodeID, NodeBS> NodeToSubsMap;
     typedef FIFOWorkList<NodeID> WorkList;
 private:
+    bool selective;
+
     PAG*pag;
     NodeToRepMap nodeToRepMap;
     NodeToSubsMap nodeToSubsMap;
@@ -78,17 +80,39 @@ private:
         return pag->getVarargNode(value);
     }
     //@}
+    
+    /// Clone routines and helpers
+    //@{
+    void cloneAddrEdge(ConstraintEdge*);
+
+    void cloneStoreEdge(ConstraintEdge*);
+
+    void cloneLoadEdge(ConstraintEdge*);
+
+    void cloneDirectEdge(ConstraintEdge*);
+
+    void testAndAddNode(NodeID, llvm::SparseBitVector<>&);
+    //@}
+
 
 public:
     /// Constructor
     ConstraintGraph(PAG* p): pag(p), edgeIndex(0) {
+        this->selective = false;
         buildCG();
+    }
+
+    ConstraintGraph(PAG* p, bool selective): pag(p), edgeIndex(0) {
+        // Do nothing
+        // Invoke only when copying from elsewhere
+        this->selective = selective;
     }
     /// Destructor
     virtual ~ConstraintGraph() {
         destroy();
     }
 
+    void createSubGraphReachableFrom(ConstraintGraph*, WorkList&);
     /// Get/add/remove constraint node
     //@{
     inline ConstraintNode* getConstraintNode(NodeID id) const {

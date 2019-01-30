@@ -105,7 +105,6 @@ void WPAPass::runOnModule(SVFModule svfModule) {
         _pta = awcfg;
         awcfg->analyze(svfModule);
 
-        /*
         PAG::CallSiteToFunPtrMap& callSiteToFunPtrMap = const_cast<PAG::CallSiteToFunPtrMap&>(awcfg->getIndirectCallsites());
         AndersenDD* anderdd = new AndersenDD();
         _pta = anderdd;
@@ -117,7 +116,6 @@ void WPAPass::runOnModule(SVFModule svfModule) {
         //anderdd->updateCallGraph(callSiteToFunPtrMap);
         // Glue end
         anderdd->analyze(svfModule);
-        */
     }
 }
 

@@ -33,6 +33,7 @@
 
 #include "llvm/Analysis/SVF/Util/WorkList.h"
 #include <llvm/ADT/GraphTraits.h>
+#include <llvm/Support/raw_ostream.h>
 
 /*
  * Generic graph solver for whole program pointer analysis
@@ -158,6 +159,7 @@ protected:
         return sccRepNode(worklist.pop());
     }
     inline void pushIntoWorklist(NodeID id) {
+        llvm::errs() << "pushed id = " << id << "\n";
         worklist.push(sccRepNode(id));
     }
     inline bool isWorklistEmpty() {
