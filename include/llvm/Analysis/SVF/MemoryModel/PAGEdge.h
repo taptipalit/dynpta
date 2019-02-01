@@ -54,7 +54,7 @@ public:
     /// Gep represents offset edge for field sensitivity
     /// ThreadFork/ThreadJoin is to model parameter passings between thread spawners and spawnees.
     enum PEDGEK {
-        Addr, Copy, Store, Load, Call, Ret, NormalGep, VariantGep, ThreadFork, ThreadJoin
+        Addr, Copy, Store, Load, Call, Ret, NormalGep, VariantGep, ThreadFork, ThreadJoin, StoreVal, LoadVal, CallVal, RetVal
     };
 
 private:
@@ -85,7 +85,11 @@ public:
                edge->getEdgeKind() == PAGEdge::NormalGep ||
                edge->getEdgeKind() == PAGEdge::VariantGep ||
                edge->getEdgeKind() == PAGEdge::ThreadFork ||
-               edge->getEdgeKind() == PAGEdge::ThreadJoin;
+               edge->getEdgeKind() == PAGEdge::ThreadJoin ||
+               edge->getEdgeKind() == PAGEdge::StoreVal ||
+               edge->getEdgeKind() == PAGEdge::LoadVal ||
+               edge->getEdgeKind() == PAGEdge::CallVal ||
+               edge->getEdgeKind() == PAGEdge::RetVal;
     }
     ///@}
 
@@ -519,4 +523,61 @@ public:
     }
     //@}
 };
+
+/*!
+ * Load non-pointer values
+ */
+class LoadValPE: public PAGEdge {
+private:
+    LoadValPE();
+    LoadValPE(const LoadValPE&);
+    void operator=(const LoadValPE &);
+public:
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    //@{
+    static inline bool classof(const LoadValPE *) {
+        return true;
+    }
+    static inline bool classof(const PAGEdge *edge) {
+        return edge->getEdgeKind() == PAGEdge::LoadVal;
+    }
+    static inline bool classof(const GenericPAGEdgeTy *edge) {
+        return edge->getEdgeKind() == PAGEdge::LoadVal;
+    }
+    //@}
+
+    /// constructor
+    LoadValPE(PAGNode* s, PAGNode* d) : PAGEdge(s,d,PAGEdge::LoadVal) {
+    }
+
+};
+
+/*!
+ * Load non-pointer values
+ */
+class StoreValPE: public PAGEdge {
+private:
+    StoreValPE();
+    StoreValPE(const StoreValPE&);
+    void operator=(const StoreValPE &);
+public:
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    //@{
+    static inline bool classof(const StoreValPE *) {
+        return true;
+    }
+    static inline bool classof(const PAGEdge *edge) {
+        return edge->getEdgeKind() == PAGEdge::StoreVal;
+    }
+    static inline bool classof(const GenericPAGEdgeTy *edge) {
+        return edge->getEdgeKind() == PAGEdge::StoreVal;
+    }
+    //@}
+
+    /// constructor
+    StoreValPE(PAGNode* s, PAGNode* d) : PAGEdge(s,d,PAGEdge::StoreVal) {
+    }
+
+};
+
 #endif /* PAGEDGE_H_ */

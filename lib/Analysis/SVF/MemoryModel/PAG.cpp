@@ -83,6 +83,18 @@ bool PAG::addLoadEdge(NodeID src, NodeID dst) {
 }
 
 /*!
+ * Add Load Value edge
+ */
+bool PAG::addLoadValEdge(NodeID src, NodeID dst) {
+    PAGNode* srcNode = getPAGNode(src);
+    PAGNode* dstNode = getPAGNode(dst);
+    if(hasIntraEdge(srcNode,dstNode, PAGEdge::LoadVal))
+        return false;
+    else
+        return addEdge(srcNode,dstNode, new LoadValPE(srcNode, dstNode));
+}
+
+/*!
  * Add Store edge
  */
 bool PAG::addStoreEdge(NodeID src, NodeID dst) {
@@ -92,6 +104,18 @@ bool PAG::addStoreEdge(NodeID src, NodeID dst) {
         return false;
     else
         return addEdge(srcNode,dstNode, new StorePE(srcNode, dstNode));
+}
+
+/*!
+ * Add Store Value edge
+ */
+bool PAG::addStoreValEdge(NodeID src, NodeID dst) {
+    PAGNode* srcNode = getPAGNode(src);
+    PAGNode* dstNode = getPAGNode(dst);
+    if(hasIntraEdge(srcNode,dstNode, PAGEdge::StoreVal))
+        return false;
+    else
+        return addEdge(srcNode,dstNode, new StoreValPE(srcNode, dstNode));
 }
 
 /*!
@@ -708,6 +732,10 @@ struct DOTGraphTraits<PAG*> : public DefaultDOTGraphTraits {
             return "color=black,style=dashed";
         } else if (isa<RetPE>(edge)) {
             return "color=black,style=dotted";
+        } else if (isa<LoadValPE>(edge)) {
+            return "color=yellow";
+        } else if (isa<StoreValPE>(edge)) {
+            return "color=grey";
         }
         else {
             assert(0 && "No such kind edge!!");

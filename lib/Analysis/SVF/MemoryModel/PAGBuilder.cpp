@@ -398,6 +398,14 @@ void PAGBuilder::visitLoadInst(LoadInst &inst) {
 
         pag->addLoadEdge(src, dst);
         
+    } else {
+        DBOUT(DPAGBuild, outs() << "process load value  " << inst << " \n");
+
+        NodeID dst = getValueNode(&inst);
+
+        NodeID src = getValueNode(inst.getPointerOperand());
+
+        pag->addLoadValEdge(src, dst);
     }
 }
 
@@ -419,6 +427,15 @@ void PAGBuilder::visitStoreInst(StoreInst &inst) {
 
         pag->addStoreEdge(src, dst);
         
+    } else {
+        DBOUT(DPAGBuild, outs() << "process store val " << inst << " \n");
+
+        NodeID dst = getValueNode(inst.getPointerOperand());
+
+        NodeID src = getValueNode(inst.getValueOperand());
+
+        pag->addStoreValEdge(src, dst);
+     
     }
 }
 

@@ -52,7 +52,7 @@ public:
     /// five kinds of constraint graph edges
     /// Gep edge is used for field sensitivity
     enum ConstraintEdgeK {
-        Addr, Copy, Store, Load, NormalGep, VariantGep
+        Addr, Copy, Store, Load, NormalGep, VariantGep, StoreVal, LoadVal
     };
 private:
     EdgeID edgeId;
@@ -75,7 +75,9 @@ public:
                edge->getEdgeKind() == Store ||
                edge->getEdgeKind() == Load ||
                edge->getEdgeKind() == NormalGep ||
-               edge->getEdgeKind() == VariantGep;
+               edge->getEdgeKind() == VariantGep ||
+               edge->getEdgeKind() == StoreVal ||
+               edge->getEdgeKind() == LoadVal;
     }
     /// Constraint edge type
     typedef GenericNode<ConstraintNode,ConstraintEdge>::GEdgeSetTy ConstraintEdgeSetTy;
@@ -192,6 +194,60 @@ public:
 
     /// Constructor
     LoadCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ConstraintEdge(s,d,Load,id) {
+    }
+};
+
+/*!
+ * Store Value edge
+ */
+class StoreValCGEdge: public ConstraintEdge {
+private:
+    StoreValCGEdge();                      ///< place holder
+    StoreValCGEdge(const StoreValCGEdge &);  ///< place holder
+    void operator=(const StoreValCGEdge &); ///< place holder
+public:
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    //@{
+    static inline bool classof(const StoreValCGEdge *) {
+        return true;
+    }
+    static inline bool classof(const ConstraintEdge *edge) {
+        return edge->getEdgeKind() == StoreVal;
+    }
+    static inline bool classof(const GenericConsEdgeTy *edge) {
+        return edge->getEdgeKind() == StoreVal;
+    }
+    //@}
+
+    /// constructor
+    StoreValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ConstraintEdge(s,d,StoreVal,id) {
+    }
+};
+
+/*!
+ * Load Value edge
+ */
+class LoadValCGEdge: public ConstraintEdge {
+private:
+    LoadValCGEdge();                      ///< place holder
+    LoadValCGEdge(const LoadValCGEdge &);  ///< place holder
+    void operator=(const LoadValCGEdge &); ///< place holder
+public:
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    //@{
+    static inline bool classof(const LoadValCGEdge *) {
+        return true;
+    }
+    static inline bool classof(const ConstraintEdge *edge) {
+        return edge->getEdgeKind() == LoadVal;
+    }
+    static inline bool classof(const GenericConsEdgeTy *edge) {
+        return edge->getEdgeKind() == LoadVal;
+    }
+    //@}
+
+    /// constructor
+    LoadValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ConstraintEdge(s,d,LoadVal,id) {
     }
 };
 

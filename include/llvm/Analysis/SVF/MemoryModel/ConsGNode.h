@@ -44,9 +44,15 @@ private:
 
     ConstraintEdge::ConstraintEdgeSetTy loadInEdges; ///< all incoming load edge of this node
     ConstraintEdge::ConstraintEdgeSetTy loadOutEdges; ///< all outgoing load edge of this node
+    
+    ConstraintEdge::ConstraintEdgeSetTy loadValInEdges; ///< all incoming load value edge of this node
+    ConstraintEdge::ConstraintEdgeSetTy loadValOutEdges; ///< all outgoing load value edge of this node
+
 
     ConstraintEdge::ConstraintEdgeSetTy storeInEdges; ///< all incoming store edge of this node
+    ConstraintEdge::ConstraintEdgeSetTy storeValInEdges;
     ConstraintEdge::ConstraintEdgeSetTy storeOutEdges; ///< all outgoing store edge of this node
+    ConstraintEdge::ConstraintEdgeSetTy storeValOutEdges; // <out outgoing store value edge of this node
 
     /// Copy/call/ret/gep incoming edge of this node,
     /// To be noted: this set is only used when SCC detection, and node merges
@@ -141,6 +147,20 @@ public:
         return loadInEdges.end();
     }
 
+    inline const_iterator outgoingLoadValsBegin() const {
+        return loadValOutEdges.begin();
+    }
+    inline const_iterator outgoingLoadValsEnd() const {
+        return loadValOutEdges.end();
+    }
+    inline const_iterator incomingLoadValsBegin() const {
+        return loadValInEdges.begin();
+    }
+    inline const_iterator incomingLoadValsEnd() const {
+        return loadValInEdges.end();
+    }
+
+
     inline const_iterator outgoingStoresBegin() const {
         return storeOutEdges.begin();
     }
@@ -153,7 +173,20 @@ public:
     inline const_iterator incomingStoresEnd() const {
         return storeInEdges.end();
     }
-    //@}
+
+    inline const_iterator outgoingStoreValsBegin() const {
+        return storeValOutEdges.begin();
+    }
+    inline const_iterator outgoingStoreValsEnd() const {
+        return storeValOutEdges.end();
+    }
+    inline const_iterator incomingStoreValsBegin() const {
+        return storeValInEdges.begin();
+    }
+    inline const_iterator incomingStoreValsEnd() const {
+        return storeValInEdges.end();
+    }
+   //@}
 
     ///  Add constraint graph edges
     //@{
@@ -177,8 +210,16 @@ public:
         loadInEdges.insert(inEdge);
         addIncomingEdge(inEdge);
     }
+    inline void addIncomingLoadValEdge(LoadValCGEdge* inEdge) {
+        loadValInEdges.insert(inEdge);
+        addIncomingEdge(inEdge);
+    }
     inline void addIncomingStoreEdge(StoreCGEdge* inEdge) {
         storeInEdges.insert(inEdge);
+        addIncomingEdge(inEdge);
+    }
+    inline void addIncomingStoreValEdge(StoreValCGEdge* inEdge) {
+        storeValInEdges.insert(inEdge);
         addIncomingEdge(inEdge);
     }
     inline void addIncomingDirectEdge(ConstraintEdge* inEdge) {
@@ -196,8 +237,19 @@ public:
         bool added2 = addOutgoingEdge(outEdge);
         assert(added1 && added2 && "edge not added, duplicated adding!!");
     }
+    inline void addOutgoingLoadValEdge(LoadValCGEdge* outEdge) {
+        bool added1 = loadValOutEdges.insert(outEdge).second;
+        bool added2 = addOutgoingEdge(outEdge);
+        assert(added1 && added2 && "edge not added, duplicated adding!!");
+    }
+
     inline void addOutgoingStoreEdge(StoreCGEdge* outEdge) {
         bool added1 = storeOutEdges.insert(outEdge).second;
+        bool added2 = addOutgoingEdge(outEdge);
+        assert(added1 && added2 && "edge not added, duplicated adding!!");
+    }
+    inline void addOutgoingStoreValEdge(StoreValCGEdge* outEdge) {
+        bool added1 = storeValOutEdges.insert(outEdge).second;
         bool added2 = addOutgoingEdge(outEdge);
         assert(added1 && added2 && "edge not added, duplicated adding!!");
     }

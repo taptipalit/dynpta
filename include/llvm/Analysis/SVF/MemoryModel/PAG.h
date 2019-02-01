@@ -630,6 +630,10 @@ public:
     bool addThreadForkEdge(NodeID src, NodeID dst, const llvm::Instruction* cs);
     /// Add Thread join edge for parameter passing
     bool addThreadJoinEdge(NodeID src, NodeID dst, const llvm::Instruction* cs);
+    /// Add LoadVal edge
+    bool addLoadValEdge(NodeID src, NodeID dst);
+    /// Add StoreVal edge
+    bool addStoreValEdge(NodeID src, NodeID dst);
     //@}
 
     /// Add global edges

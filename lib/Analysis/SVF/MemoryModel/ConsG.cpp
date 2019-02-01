@@ -46,11 +46,25 @@ void ConstraintGraph::cloneAddrEdge(ConstraintEdge* edge) {
     errs() << "Cloning addr edge: " << srcID << " --> " << dstID << "\n";
 }
 
+void ConstraintGraph::cloneStoreValEdge(ConstraintEdge* edge) {
+    NodeID srcID = edge->getSrcID();
+    NodeID dstID = edge->getDstID();
+    addStoreValCGEdge(srcID, dstID);
+    errs() << "Cloning store value edge: " << srcID << " --> " << dstID << "\n";
+}
+
 void ConstraintGraph::cloneStoreEdge(ConstraintEdge* edge) {
     NodeID srcID = edge->getSrcID();
     NodeID dstID = edge->getDstID();
     addStoreCGEdge(srcID, dstID);
     errs() << "Cloning store edge: " << srcID << " --> " << dstID << "\n";
+}
+
+void ConstraintGraph::cloneLoadValEdge(ConstraintEdge* edge) {
+    NodeID srcID = edge->getSrcID();
+    NodeID dstID = edge->getDstID();
+    addLoadValCGEdge(srcID, dstID);
+    errs() << "Cloning load value edge: " << srcID << " --> " << dstID << "\n";
 }
 
 void ConstraintGraph::cloneLoadEdge(ConstraintEdge* edge) {
@@ -90,7 +104,9 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
         NodeID nodeId = workList.pop();
         ConstraintNode* node = oldCG->getConstraintNode(nodeId);
         if (!fullyProcessedConsNodeList.test(nodeId)) {
+
             testAndAddNode(nodeId, addedConsNodeList);
+
             // Find all incoming edges for this node
             for (ConstraintNode::const_iterator it = node->incomingAddrsBegin(),
                     eit = node->incomingAddrsEnd(); it != eit; ++it) {
@@ -99,6 +115,15 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 workList.push((*it)->getSrcID());
             }
 
+            // Incoming store values
+            for (ConstraintNode::const_iterator it = node->incomingStoreValsBegin(),
+                    eit = node->incomingStoreValsEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                cloneStoreValEdge(*it);
+                workList.push((*it)->getSrcID());
+            }
+
+            // Incoming stores
             for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
                     eit = node->incomingStoresEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getSrcID(), addedConsNodeList);
@@ -106,6 +131,15 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 workList.push((*it)->getSrcID());
             }
 
+            // Incoming load values
+            for (ConstraintNode::const_iterator it = node->incomingLoadValsBegin(),
+                    eit = node->incomingLoadValsEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                cloneLoadValEdge(*it);
+                workList.push((*it)->getSrcID());
+            }
+
+            // Incoming loads
             for (ConstraintNode::const_iterator it = node->incomingLoadsBegin(),
                     eit = node->incomingLoadsEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getSrcID(), addedConsNodeList);
@@ -113,6 +147,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 workList.push((*it)->getSrcID());
             }
 
+            // Gep/copy edges
             for (ConstraintNode::const_iterator it = node->directInEdgeBegin(),
                     eit = node->directInEdgeEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getSrcID(), addedConsNodeList);
@@ -128,6 +163,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 workList.push((*it)->getDstID());
             }
 
+            // Outgoing stores
             for (ConstraintNode::const_iterator it = node->outgoingStoresBegin(),
                     eit = node->outgoingStoresEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getDstID(), addedConsNodeList);
@@ -135,10 +171,28 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 workList.push((*it)->getDstID());
             }
 
+            // Outgoing store vals
+            for (ConstraintNode::const_iterator it = node->outgoingStoreValsBegin(),
+                    eit = node->outgoingStoreValsEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                cloneStoreValEdge(*it); 
+                workList.push((*it)->getDstID());
+            }
+
+
+            // Outgoing loads
             for (ConstraintNode::const_iterator it = node->outgoingLoadsBegin(),
                     eit = node->outgoingLoadsEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getDstID(), addedConsNodeList);
                 cloneLoadEdge(*it); 
+                workList.push((*it)->getDstID());
+            }
+
+            // Outgoing store vals
+            for (ConstraintNode::const_iterator it = node->outgoingLoadValsBegin(),
+                    eit = node->outgoingLoadValsEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                cloneLoadValEdge(*it); 
                 workList.push((*it)->getDstID());
             }
 
@@ -148,6 +202,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 cloneDirectEdge(*it); 
                 workList.push((*it)->getDstID());
             }
+
             fullyProcessedConsNodeList.set(nodeId);
         }
     }
@@ -232,6 +287,20 @@ void ConstraintGraph::buildCG() {
                 loads.end(); iter != eiter; ++iter) {
         PAGEdge* edge = *iter;
         addStoreCGEdge(edge->getSrcID(),edge->getDstID());
+    }
+
+    PAGEdge::PAGEdgeSetTy& storeVals = pag->getEdgeSet(PAGEdge::StoreVal);
+    for (PAGEdge::PAGEdgeSetTy::iterator iter = storeVals.begin(), eiter =
+                storeVals.end(); iter != eiter; ++iter) {
+        PAGEdge* edge = *iter;
+        addStoreValCGEdge(edge->getSrcID(),edge->getDstID());
+    }
+
+    PAGEdge::PAGEdgeSetTy& loadVals = pag->getEdgeSet(PAGEdge::LoadVal);
+    for (PAGEdge::PAGEdgeSetTy::iterator iter = loadVals.begin(), eiter =
+                loadVals.end(); iter != eiter; ++iter) {
+        PAGEdge* edge = *iter;
+        addLoadValCGEdge(edge->getSrcID(),edge->getDstID());
     }
 }
 
@@ -339,6 +408,23 @@ bool ConstraintGraph::addLoadCGEdge(NodeID src, NodeID dst) {
 }
 
 /*!
+ * Add Load Val edge
+ */
+bool ConstraintGraph::addLoadValCGEdge(NodeID src, NodeID dst) {
+    ConstraintNode* srcNode = getConstraintNode(src);
+    ConstraintNode* dstNode = getConstraintNode(dst);
+    if(hasEdge(srcNode,dstNode,ConstraintEdge::LoadVal))
+        return false;
+
+    LoadValCGEdge* edge = new LoadValCGEdge(srcNode, dstNode, edgeIndex++);
+    bool added = LoadValCGEdgeSet.insert(edge).second;
+    assert(added && "not added??");
+    srcNode->addOutgoingLoadValEdge(edge);
+    dstNode->addIncomingLoadValEdge(edge);
+    return added;
+}
+
+/*!
  * Add Store edge
  */
 bool ConstraintGraph::addStoreCGEdge(NodeID src, NodeID dst) {
@@ -355,6 +441,22 @@ bool ConstraintGraph::addStoreCGEdge(NodeID src, NodeID dst) {
     return added;
 }
 
+/*!
+ * Add Store Val edge
+ */
+bool ConstraintGraph::addStoreValCGEdge(NodeID src, NodeID dst) {
+    ConstraintNode* srcNode = getConstraintNode(src);
+    ConstraintNode* dstNode = getConstraintNode(dst);
+    if(hasEdge(srcNode,dstNode,ConstraintEdge::StoreVal))
+        return false;
+
+    StoreValCGEdge* edge = new StoreValCGEdge(srcNode, dstNode, edgeIndex++);
+    bool added = StoreValCGEdgeSet.insert(edge).second;
+    assert(added && "not added??");
+    srcNode->addOutgoingStoreValEdge(edge);
+    dstNode->addIncomingStoreValEdge(edge);
+    return added;
+}
 
 /*!
  * Re-target dst node of an edge
@@ -761,6 +863,10 @@ struct DOTGraphTraits<ConstraintGraph*> : public DOTGraphTraits<PAG*> {
             return "color=blue";
         } else if (edge->getEdgeKind() == ConstraintEdge::Load) {
             return "color=red";
+        } else if (edge->getEdgeKind() == ConstraintEdge::LoadVal) {
+            return "color=yellow";
+        } else if (edge->getEdgeKind() == ConstraintEdge::StoreVal) {
+            return "color=grey";
         } else {
             assert(0 && "No such kind edge!!");
         }

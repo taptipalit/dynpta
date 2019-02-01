@@ -17,12 +17,12 @@ fi
 #wpa -nander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
-$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $fileinst.bc # -dump-pag -print-all-pts -dump-callgraph -dump-consG
+$LLVMROOT/opt -wpa -dump-pag -dump-consG $file.ll  -o $fileinst.bc # -dump-pag -print-all-pts -dump-callgraph -dump-consG
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc
 $LLVMROOT/llvm-dis $fileinst.bc -o $fileinst.ll
 #exit 0
-#dot -Tpng pag_final.dot -o $file"_pag_final.png"
-#dot -Tpng pag_initial.dot -o $file"_pag_initial.png"
+dot -Tpng pag_final.dot -o $file"_pag_final.png"
+dot -Tpng pag_initial.dot -o $file"_pag_initial.png"
 #dot -Tpng callgraph_final.dot -o $file"_callgraph_final.png"
 #dot -Tpng callgraph_initial.dot -o $file"_callgraph_initial.png"
 dot -Tpng consCG_final.dot -o $file"_consg_full_final.png"

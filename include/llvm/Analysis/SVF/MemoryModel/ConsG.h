@@ -56,7 +56,10 @@ private:
     ConstraintEdge::ConstraintEdgeSetTy AddrCGEdgeSet;
     ConstraintEdge::ConstraintEdgeSetTy directEdgeSet;
     ConstraintEdge::ConstraintEdgeSetTy LoadCGEdgeSet;
+    ConstraintEdge::ConstraintEdgeSetTy LoadValCGEdgeSet;
     ConstraintEdge::ConstraintEdgeSetTy StoreCGEdgeSet;
+    ConstraintEdge::ConstraintEdgeSetTy StoreValCGEdgeSet;
+
 
     EdgeID edgeIndex;
 
@@ -85,9 +88,13 @@ private:
     //@{
     void cloneAddrEdge(ConstraintEdge*);
 
+    void cloneStoreValEdge(ConstraintEdge*);
+
     void cloneStoreEdge(ConstraintEdge*);
 
     void cloneLoadEdge(ConstraintEdge*);
+
+    void cloneLoadValEdge(ConstraintEdge*);
 
     void cloneDirectEdge(ConstraintEdge*);
 
@@ -142,6 +149,10 @@ public:
             return StoreCGEdgeSet.find(&edge) != StoreCGEdgeSet.end();
         else if(kind == ConstraintEdge::Load)
             return LoadCGEdgeSet.find(&edge) != LoadCGEdgeSet.end();
+        else if (kind == ConstraintEdge::StoreVal)
+            return StoreValCGEdgeSet.find(&edge) != StoreValCGEdgeSet.end();
+        else if (kind == ConstraintEdge::LoadVal)
+            return LoadValCGEdgeSet.find(&edge) != LoadValCGEdgeSet.end();
         else
             assert(false && "no other kind!");
         return false;
@@ -166,8 +177,12 @@ public:
     bool addVariantGepCGEdge(NodeID src, NodeID dst);
     /// Add Load edge
     bool addLoadCGEdge(NodeID src, NodeID dst);
+    /// Add Load Value edge
+    bool addLoadValCGEdge(NodeID src, NodeID dst);
     /// Add Store edge
     bool addStoreCGEdge(NodeID src, NodeID dst);
+    /// Add Store Value edge
+    bool addStoreValCGEdge(NodeID src, NodeID dst);
     //@}
 
     ///Get PAG edge
@@ -187,6 +202,14 @@ public:
     /// Get Store edges
     inline ConstraintEdge::ConstraintEdgeSetTy& getStoreCGEdges() {
         return StoreCGEdgeSet;
+    }
+    /// Get Load Value edges
+    inline ConstraintEdge::ConstraintEdgeSetTy& getLoadValCGEdges() {
+        return LoadValCGEdgeSet;
+    }
+    /// Get Store edges
+    inline ConstraintEdge::ConstraintEdgeSetTy& getStoreValCGEdges() {
+        return StoreValCGEdgeSet;
     }
     //@}
 
