@@ -1,0 +1,2821 @@
+#include "EncryptionInternal.h"
+#include "ExtLibraryHandler.h"
+#include "AES.h"
+#include "ASMParser.h"
+
+#define DEBUG_TYPE "encryption"
+
+#define STORE 1
+#define LOAD 2
+
+using namespace llvm;
+
+namespace {
+
+	struct InstructionReplacement {
+		Instruction* OldInstruction;
+		Instruction* NextInstruction;
+		int Type;
+	};
+
+	class ProfileDetails {
+		public:
+			Function* fptr;
+			int sensitiveCalls;
+			int nonSensitiveCalls;
+			inline bool operator() (const ProfileDetails& struct1, const ProfileDetails& struct2)
+			{
+				return (struct1.sensitiveCalls < struct2.sensitiveCalls);
+			}
+
+
+	};
+
+	static const char* CallocLikeFunctions[] = {"calloc", nullptr};
+
+	class EncryptionPass : public ModulePass {
+		public:
+		static char ID;
+
+		EncryptionPass() : ModulePass(ID) {
+			initializeEncryptionPassPass(*PassRegistry::getPassRegistry());
+		}
+
+		bool runOnModule(Module &M) override;
+
+		private:
+		
+		bool DoFullEnc;
+
+		bool DoNullEnc;
+		bool DoAESEncCache;
+		bool DoAESEncBasic;
+
+		std::map<llvm::Value*, std::set<llvm::Value*>>* ptsToMapPtr;
+		std::map<llvm::Value*, std::set<llvm::Value*>>* ptsFromMapPtr;
+
+		external::ExtLibraryHandler ExtLibHandler;
+		external::AESBasic AESBasic;
+		external::AESCache AESCache;
+		external::ASMParser asmParser;
+
+
+		/* Hacky code to handle function pointers */
+		std::vector<Function*> MallocFunctions;
+
+		std::vector<Instruction*> InstructionList;
+		std::vector<InstructionReplacement*> ReplacementList; // Avoid messing up things while the iterators are running
+
+		std::vector<Value*> SensitiveAllocaList;
+		std::vector<Value*> GlobalSensitiveList;
+		std::vector<Value*> SensitiveLoadPtrList; // Any pointer that points to sensitive location
+		std::vector<Value*> SensitiveLoadList;
+		std::vector<Value*> SensitiveInlineAsmCalls;
+		std::vector<Value*> SensitiveInlineAsmArgs;
+		std::vector<Value*> SensitiveGEPPtrList;
+
+		/* The set equivalents */
+		std::set<Value*>* SensitiveAllocaSet;
+		std::set<Value*>* SensitiveLoadPtrSet; // Any pointer that points to sensitive location
+		std::set<Value*>* SensitiveLoadSet;
+		std::set<Value*>* SensitiveGEPPtrSet;
+
+		std::map<Value*, Value*> SensitivePtrValMap;
+
+		std::vector<StoreInst*> SensitiveStoreList;
+		std::vector<CallInst*> SensitiveExternalLibCallList;
+
+		bool containsSet(llvm::Value*, std::set<llvm::Value*>&);
+
+		bool contains(llvm::Value*, std::vector<llvm::Value*>&);
+
+		bool isSensitiveLoad(Value*);
+		bool isSensitiveLoadPtr(Value*);
+		bool isSensitiveGEPPtr(Value*);
+		bool isSensitiveAlloca(Value*);
+
+		bool isSensitiveLoadSet(Value*);
+		bool isSensitiveLoadPtrSet(Value*);
+		bool isSensitiveGEPPtrSet(Value*);
+		bool isSensitiveAllocaSet(Value*);
+		bool isSensitiveConstantExpr(Value*);
+
+		bool isSensitivePtrVal(Value*);
+
+		bool isSensitiveArg(Value*);
+		bool isaAllocationSite(Value*);
+
+
+		Instruction* FindNextInstruction(Instruction*);
+	
+
+		//void postProcessPointsToGraph(Module&, std::map<llvm::Value*, std::vector<llvm::Value*>>&, std::map<llvm::Value*, std::vector<llvm::Value*>>&);
+		void removeAnnotateInstruction(Module& M);
+
+		void collectGlobalSensitiveAnnotations(Module&);
+		void collectLocalSensitiveAnnotations(Module&);
+		void collectAllGlobalAllocSites(Module &);
+		void collectAllLocalAllocSites(Module &);
+
+		void collectSensitivePointsToInfo(Module&, std::map<llvm::Value*, std::set<llvm::Value*>>&, std::map< llvm::Value*, std::set< llvm::Value*>>&);
+		//void addExternInlineASMHandlers(Module&);
+
+		void initializeSensitiveGlobalVariables(Module&);
+		void collectSensitiveLoadInstructions(Module&, std::map<llvm::Value*, std::set<llvm::Value*>>&);
+		void collectSensitiveAsmInstructions(Module&, std::map<llvm::Value*, std::set<llvm::Value*>>&);
+		void collectSensitiveGEPInstructions(Module&, std::map<llvm::Value*, std::set<llvm::Value*>>&);
+		void collectSensitiveExternalLibraryCalls(Module&);
+
+		void buildSets(Module&);
+		void unConstantifySensitiveAllocSites(Module&);
+		//Value* retPtrIfAny(Function* F);
+
+		void preprocessAllocaAndLoadInstructions(Instruction*);
+		void preprocessStoreInstructions(Instruction*);
+
+		void performInstrumentation(Module&);
+
+		void performXorInstrumentation(Module&);
+		void performAesCacheInstrumentation(Module&);
+		void performAesBasicInstrumentation(Module&);
+
+		//void instrumentInlineAsm(Module&);
+
+		void resetInstructionLists(Function*);
+
+		void instrumentAndAnnotateInst(Module&);
+		void instrumentExternalFunctionCall(Module&);
+
+		void profileFunctionsForBottlenecks(Module&, std::map<Value*, std::set<Value*>>);
+
+		void fixupBrokenFunctionCallsFromWidening(Module&);
+
+		bool isCallocLike(const char* str);
+		bool isValueStoredToSensitiveLocation(Value*);
+
+		void getAnalysisUsage(AnalysisUsage& AU) const {
+			AU.addRequired<AndersenAAWrapperPass>();
+			AU.setPreservesAll();
+		}
+
+		// Data Flow Stage
+		bool runDFStage(Module &M);
+		void printMap(std::map<const llvm::Value*, std::vector<const llvm::Value*>> map);
+		void printList(std::vector<llvm::Value*> list);
+		const Value* getDef(std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain, const Value* use, const Value* currentDef);
+		const ReturnInst* getReturnInstr(const Function* F);
+		std::map<const llvm::Value*, std::vector<const llvm::Value*>> findDataflow(const Value* instr, const Value* initialInstr, std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain, std::map<const llvm::Value*, std::vector<const llvm::Value*>> dataflowMap, std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap, std::map<const llvm::Function*, std::vector<const llvm::Value*>> functionMap);
+		std::map<const llvm::Value*, std::vector<const llvm::Value*>> findDataflowInto(const Value* instr, const Value* initialInstr, std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain, std::map<const llvm::Value*, std::vector<const llvm::Value*>> dataflowMap, std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap, std::map<const llvm::Function*, std::vector<const llvm::Value*>> functionMap);
+		std::map<const llvm::Value*, std::vector<const llvm::Value*>> sensitivePtrsDF(Value* sensPtr, 
+		std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain, 
+		std::map<const llvm::Value*, std::vector<const llvm::Value*>> dataflowMap, 
+		std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap, 
+		std::map<const llvm::Function*, std::vector<const llvm::Value*>> functionMap);
+		bool isPresent(const Value* value, const Value* initialValue, std::map<const llvm::Value*, std::vector<const llvm::Value*>> dataflowMap);
+		const Value* getArg(const Value* arg, std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain);
+		const Value* getFunc(const Value* arg, std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain);
+	};
+}
+
+char EncryptionPass::ID = 0;
+
+cl::opt<bool> SelectiveEnc("sel-enc", cl::desc("Selective Encryption"), cl::init(false), cl::Hidden);
+cl::opt<bool> FullEnc("full-enc", cl::desc("Full Encryption"), cl::init(false), cl::Hidden);
+cl::opt<bool> NullEnc("null-enc", cl::desc("XOR Encryption"), cl::init(false), cl::Hidden);
+cl::opt<bool> AesEncCache("aes-enc-cache", cl::desc("AES Encryption - Cache"), cl::init(false), cl::Hidden);
+cl::opt<bool> AesEncBasic("aes-enc-basic", cl::desc("AES Encryption - Basic"), cl::init(false), cl::Hidden);
+
+void EncryptionPass::printMap(std::map<const llvm::Value*, std::vector<const llvm::Value*>> map) {
+	std::map<const llvm::Value*, std::vector<const llvm::Value*>>::iterator mapIt = map.begin();
+	for (; mapIt != map.end(); ++mapIt) {
+		const llvm::Value* pointer = mapIt->first;
+		errs() << *pointer << "\n";
+		for (unsigned int i = 0; i < mapIt->second.size(); ++i) {
+			errs() << "\t\t    :" << *mapIt->second[i] << "\n";
+		}
+		errs() << "\n";        
+	}  
+}
+
+void EncryptionPass::printList(std::vector<llvm::Value*> list) {
+	for (unsigned int i = 0; i < list.size(); ++i) {
+		errs() << *list[i] << "\n";
+	}
+}
+
+const Value* EncryptionPass::getDef(std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain, const Value* use, const Value* currentDef) {
+	std::map<const llvm::Value*, std::vector<const llvm::Value*>>::iterator defUseChainIt = defUseChain.begin();
+	for (; defUseChainIt != defUseChain.end(); ++defUseChainIt) {
+		for (unsigned int i = 0; i < defUseChainIt->second.size(); ++i) {
+			if (defUseChainIt->first != currentDef && defUseChainIt->second[i] == use) {
+				return defUseChainIt->first;
+			}
+		}
+	} 
+	return NULL;
+}
+
+const ReturnInst* EncryptionPass::getReturnInstr(const Function* F) {
+	// Function* func = F;
+	for(auto I = inst_begin(F), E = inst_end(F); I != E; ++I){
+		if (dyn_cast<ReturnInst>(&*I)) {
+			return dyn_cast<ReturnInst>(&*I);
+		}
+	}
+	return NULL;
+}
+
+bool EncryptionPass::isPresent(const Value* value, const Value* initialValue, std::map<const llvm::Value*, std::vector<const llvm::Value*>> dataflowMap) {
+	std::map<const llvm::Value*, std::vector<const llvm::Value*>>::iterator dataflowMapIt = dataflowMap.begin();
+	for (; dataflowMapIt != dataflowMap.end(); ++dataflowMapIt) {
+		if (initialValue == dataflowMapIt->first) {
+			for (unsigned int i = 0; i < dataflowMapIt->second.size(); ++i) {
+				if (value == dataflowMapIt->second[i]) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+const Value* EncryptionPass::getArg(const Value* arg, std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain) {
+	std::map<const llvm::Value*, std::vector<const llvm::Value*>>::iterator defUseChainIt = defUseChain.begin();
+  for (; defUseChainIt != defUseChain.end(); ++defUseChainIt) {
+    for (const llvm::Value* use : defUseChainIt->second) {
+	    if (const StoreInst* SI = dyn_cast<StoreInst>(use)) {
+	    	if (arg == SI->getOperand(0)) {
+	    		return defUseChainIt->first;
+	    	}
+	    }
+	  }       
+  } 
+  return NULL;
+}
+
+const Value* EncryptionPass::getFunc(const Value* value, std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain) {
+	std::map<const llvm::Value*, std::vector<const llvm::Value*>>::iterator defUseChainIt = defUseChain.begin();
+  for (; defUseChainIt != defUseChain.end(); ++defUseChainIt) {
+  	if (value == defUseChainIt->first) {
+  		for (const llvm::Value* use : defUseChainIt->second) {
+		    if (const StoreInst* SI = dyn_cast<StoreInst>(use)) {
+		    	if (value == SI->getOperand(1)) {
+		    		return SI->getOperand(0);
+		    	}
+		    }
+		  } 
+  	}
+  } 
+  return NULL;
+}
+
+std::map<const llvm::Value*, std::vector<const llvm::Value*>> EncryptionPass::findDataflow(const Value* value, 
+	const Value* initialValue, std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain, 
+	std::map<const llvm::Value*, std::vector<const llvm::Value*>> dataflowMap, std::map<llvm::Value*, 
+	std::set<llvm::Value*>> ptsToMap, std::map<const llvm::Function*, std::vector<const llvm::Value*>> functionMap) {
+
+	// errs() << "find dataflow for: " << *value << "\n";
+	// cyclic def-use chain for defs
+	// printMap(dataflowMap);
+	// if (isPresent(value, initialValue, dataflowMap)) {
+	// 	errs() << "find dataflow for: " << *value << "    " << *initialValue << "\n";
+	// 	return dataflowMap;
+	// }
+	// 
+	if (const LoadInst* loadInst = dyn_cast<LoadInst>(value)) {
+		const Value* nextValue = dyn_cast<Value>(loadInst->getOperand(0));
+		if (isPresent(nextValue, initialValue, dataflowMap)) {
+			return dataflowMap;
+		} else {
+			dataflowMap[initialValue].push_back(nextValue); 
+			dataflowMap = findDataflow(nextValue, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+		}
+	} else if (const GetElementPtrInst* getElemPtrInst = dyn_cast<GetElementPtrInst>(value)) {
+		const Value *nextValue = dyn_cast<Value>(getElemPtrInst->getPointerOperand());
+		if (isPresent(nextValue, initialValue, dataflowMap)) {
+			return dataflowMap;
+		} else {
+			dataflowMap[initialValue].push_back(nextValue);
+			dataflowMap = findDataflow(nextValue, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+		}
+	} else if (const Function* F = dyn_cast<Function>(value)) {
+		for(Function::const_arg_iterator arg = F->arg_begin(), argEnd = F->arg_end(); arg != argEnd; ++arg) {
+			const Value* nextValue = dyn_cast<Value>(arg);
+			if (isPresent(nextValue, initialValue, dataflowMap)) {
+				return dataflowMap;
+			} else {
+				dataflowMap[initialValue].push_back(nextValue);
+				dataflowMap = findDataflow(nextValue, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+			}
+		}
+		if (const ReturnInst* returnValue = getReturnInstr(F)) {
+			if (returnValue->getReturnValue()) {
+				const Value* nextValue = dyn_cast<Value>(returnValue->getReturnValue());
+				if (isPresent(nextValue, initialValue, dataflowMap)) {
+					return dataflowMap;
+				} else {
+					dataflowMap[initialValue].push_back(nextValue);
+					dataflowMap = findDataflow(nextValue, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+				}
+			}
+		}
+	} else if (const CallInst* callInst = dyn_cast<CallInst>(value)) {
+		if (const Value* calledValue = callInst->getCalledValue()) {
+			if (isPresent(callInst->getOperand(0), initialValue, dataflowMap)) {
+				return dataflowMap;
+			} else {
+				dataflowMap[initialValue].push_back(callInst->getOperand(0)); 
+				dataflowMap = findDataflow(callInst->getOperand(0), initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+			}
+			if (isPresent(calledValue, initialValue, dataflowMap)) {
+				return dataflowMap;
+			} else {
+				dataflowMap = findDataflow(calledValue, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+			}
+		} else if (const Function* F = dyn_cast<Function>(callInst->getCalledFunction())) {
+			if (isPresent(F, initialValue, dataflowMap)) {
+				return dataflowMap;
+			} else {
+				dataflowMap = findDataflow(F, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+			}
+			//dataflowMap = findDataflow(F, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+		} else {
+			// WILL IT EVER COME TO THIS?
+			// return dataflowMap;
+			if (isPresent(callInst->getOperand(0), initialValue, dataflowMap)) {
+				return dataflowMap;
+			} else {
+				dataflowMap = findDataflow(callInst->getOperand(0), initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+			}
+		}
+	} else {
+		// If it's a pointer then add whatever values the pointer is pointing to
+		if (value->getType()->isPointerTy()) {
+
+			if (value->getType()->getPointerElementType()->isPointerTy()) {
+				std::map<llvm::Value*, std::set<llvm::Value*>>::iterator ptsToMapIt = ptsToMap.begin();
+				for (; ptsToMapIt != ptsToMap.end(); ++ptsToMapIt) {
+					if (ptsToMapIt->first == value) {
+						for (unsigned int i = 0; i < ptsToMapIt->second.size(); ++i) {
+							Value* val = *std::next(ptsToMapIt->second.begin(), i);
+							if (value != val) {
+								if (Function* F = dyn_cast<Function>(val)) {
+									if (isPresent(F, initialValue, dataflowMap)) {
+										return dataflowMap;
+									} else {
+										dataflowMap = findDataflow(F, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+									}
+								} else {
+									dataflowMap[initialValue].push_back(val);
+								}
+							}
+						}
+					}
+				}
+				return dataflowMap;
+			} else {
+				std::vector<const llvm::Value*> uses = defUseChain[value];
+				for (unsigned int use = 0; use < uses.size(); ++use) {
+					const Instruction *useInstr = dyn_cast<Instruction>(uses[use]);
+					if (dyn_cast<StoreInst>(useInstr)) {
+						if (useInstr->getOperand(0)->getType()->isPointerTy() && useInstr->getOperand(1)->getType()->isPointerTy()) {
+						} else {
+							if (value == useInstr->getOperand(1)) {
+								if (isa<Constant>(useInstr->getOperand(0))) {
+									dataflowMap[initialValue].push_back(useInstr);
+								} else {
+									if (Argument* arg = dyn_cast<Argument>(useInstr->getOperand(0))) {
+										Function* func = arg->getParent();
+										int argIndex = 0;
+										for (Function::arg_iterator argIt = func->arg_begin(); argIt != func->arg_end(); ++argIt) {
+											if (arg == argIt) {
+												break;
+											}
+											argIndex++;
+										}
+
+										// To find dataflow for the arg inside this function (called function)
+										if (isPresent(arg, initialValue, dataflowMap)) {
+											return dataflowMap;
+										} else {
+											dataflowMap[initialValue].push_back(dyn_cast<Value>(arg));
+											dataflowMap = findDataflow(arg, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+										}
+										std::map<const llvm::Function*, std::vector<const llvm::Value*>>::iterator funcMapIt = functionMap.begin();
+										for (; funcMapIt != functionMap.end(); ++funcMapIt) {
+											const llvm::Function* F = funcMapIt->first;
+											if (F == func) {
+												// To find dataflow of the arg in its original function (caller function)
+												if (isPresent(funcMapIt->second[argIndex], initialValue, dataflowMap)) {
+													return dataflowMap;
+												} else {
+													dataflowMap[initialValue].push_back(funcMapIt->second[argIndex]);
+													dataflowMap = findDataflow(funcMapIt->second[argIndex], initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+												}
+											}
+										}
+									} else if (const Instruction *nextInstr = dyn_cast<Instruction>(useInstr->getOperand(0))) {
+										if (dyn_cast<StoreInst>(nextInstr)) {
+										} else {
+											if (isPresent(nextInstr, initialValue, dataflowMap)) {
+												return dataflowMap;
+											} else {
+												dataflowMap[initialValue].push_back(dyn_cast<Value>(nextInstr));
+												dataflowMap = findDataflow(nextInstr, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+											}
+										}
+									} 
+								}
+							}
+						}
+					}
+				}
+			} 
+		}
+	}
+	return dataflowMap;
+}
+
+
+
+std::map<const llvm::Value*, std::vector<const llvm::Value*>> EncryptionPass::findDataflowInto(const Value* value, 
+	const Value* initialValue, std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain, 
+	std::map<const llvm::Value*, std::vector<const llvm::Value*>> dataflowMap, std::map<llvm::Value*, 
+	std::set<llvm::Value*>> ptsToMap, std::map<const llvm::Function*, std::vector<const llvm::Value*>> functionMap) {
+
+  std::vector<const llvm::Value*> uses = defUseChain[value];
+  for (unsigned int use = 0; use < uses.size(); ++use) {
+    const Value *useInstr = uses[use];
+    if (const LoadInst* LI = dyn_cast<LoadInst>(useInstr)) {
+    	if (isPresent(useInstr, initialValue, dataflowMap)) {
+				return dataflowMap;
+			} else {
+      	dataflowMap[initialValue].push_back(useInstr);
+				dataflowMap = findDataflowInto(useInstr, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+			}
+    } else if (const StoreInst* SI = dyn_cast<StoreInst>(useInstr)) {
+      if (value == SI->getOperand(0)) {
+      	if (isPresent(dyn_cast<Value>(SI->getOperand(1)), initialValue, dataflowMap)) {
+					return dataflowMap;
+				} else {
+       		dataflowMap[initialValue].push_back(useInstr);
+					dataflowMap = findDataflowInto(dyn_cast<Value>(SI->getOperand(1)), initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+      	}
+      }
+    } else if (const CallInst* callInst = dyn_cast<CallInst>(useInstr)) {
+    	std::vector<const Function*> functions;
+    	if (callInst->getCalledFunction()) {
+    		functions.push_back(dyn_cast<Function>(callInst->getCalledFunction()));
+    	} else if (const Value* calledValue = callInst->getCalledValue()) {
+			  std::map<llvm::Value*, std::set<llvm::Value*>>::iterator ptsToMapIt = ptsToMap.begin();
+			  for (; ptsToMapIt != ptsToMap.end(); ++ptsToMapIt) {
+			     if (calledValue == ptsToMapIt->first) {
+			     	for (auto f : ptsToMapIt->second) {
+			     		if (const Function* F = dyn_cast<Function>(f)) {
+			     			functions.push_back(F);
+			     		}
+			     	}
+			     	break;
+			  	}
+			  }
+    	}
+
+      
+      for (auto function : functions) {
+      	// Get the index of the arg in the function call
+	      int argIndex = 0;
+	      for (CallInst::const_op_iterator opIt = callInst->arg_begin(); opIt != callInst->arg_end(); ++opIt) {
+	        if (value == *opIt) { 
+	          dataflowMap[initialValue].push_back(useInstr);
+	          break;
+	        }
+	        argIndex++;
+	      }
+	      // Trace function arg dataflow from the function that calls the other function
+			  std::map<const llvm::Function*, std::vector<const llvm::Value*>>::iterator funcMapIt = functionMap.begin();
+	      for (; funcMapIt != functionMap.end(); ++funcMapIt) {
+	        const llvm::Function* F = funcMapIt->first;
+	        if (function == F) {
+	          int funcArgIndex = 0;
+	          const Value* matchedArg = NULL;
+	          for (Function::const_arg_iterator argIt = F->arg_begin(); argIt != F->arg_end(); ++argIt) {
+	            if (argIndex == funcArgIndex) {
+	              const Value* arg = dyn_cast<Value>(argIt);
+	              dataflowMap[initialValue].push_back(arg);
+	              matchedArg = getArg(arg, defUseChain);
+	              break;
+	            }
+	            funcArgIndex++;
+            }
+
+	          if (matchedArg) {
+	          	if (isPresent(matchedArg, initialValue, dataflowMap)) {
+								return dataflowMap;
+							} else {
+	            	dataflowMap[initialValue].push_back(matchedArg);
+						  	dataflowMap = findDataflowInto(matchedArg, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+	          	}
+	          }
+	        }
+	      }
+      }
+
+      if (isPresent(useInstr, initialValue, dataflowMap)) {
+				return dataflowMap;
+			} else {
+      	dataflowMap = findDataflowInto(useInstr, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+    	}
+    } else if (const GetElementPtrInst* getElemPtrInst = dyn_cast<GetElementPtrInst>(useInstr)) {
+	    const Value *readFromValue = dyn_cast<Value>(getElemPtrInst->getPointerOperand());
+	    if (value == readFromValue) { // Do something for the else case
+	    	if (isPresent(useInstr, initialValue, dataflowMap)) {
+					return dataflowMap;
+				} else {
+		    	dataflowMap[initialValue].push_back(useInstr);
+		    	dataflowMap = findDataflowInto(useInstr, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+		    }
+	    } else {
+	    	if (isPresent(readFromValue, initialValue, dataflowMap)) {
+					return dataflowMap;
+				} else {
+		    	dataflowMap[initialValue].push_back(readFromValue);
+		    	dataflowMap = findDataflowInto(readFromValue, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+		    }
+	    }
+	  } else if (const CastInst* castInt = dyn_cast<CastInst>(useInstr)) {
+      if (isPresent(useInstr, initialValue, dataflowMap)) {
+				return dataflowMap;
+			} else {
+	      dataflowMap[initialValue].push_back(useInstr);
+				dataflowMap = findDataflowInto(useInstr, initialValue, defUseChain, dataflowMap, ptsToMap, functionMap);
+			}
+	  }
+  }
+  return dataflowMap;
+}
+
+
+
+std::map<const llvm::Value*, std::vector<const llvm::Value*>> EncryptionPass::sensitivePtrsDF(Value* sensPtr, 
+	std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain, 
+	std::map<const llvm::Value*, std::vector<const llvm::Value*>> dataflowMap, 
+	std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap, 
+	std::map<const llvm::Function*, std::vector<const llvm::Value*>> functionMap) {
+
+	errs() << "sensPtr: " << *sensPtr << "\n";
+	std::set<Value*> ptsToSet = ptsToMap[sensPtr];
+	for (Value* s : ptsToSet) {
+		if (s->getType()->getPointerElementType()->isPointerTy()) {
+			dataflowMap = sensitivePtrsDF(s, defUseChain, dataflowMap, ptsToMap, functionMap);
+		} else {
+			dataflowMap = findDataflow(s, s, defUseChain, dataflowMap, ptsToMap, functionMap);
+		}
+	}
+	return dataflowMap;
+}
+
+bool EncryptionPass::runDFStage(Module &M) {
+	// errs() << "\n";
+
+	std::vector<Value*> worklist;
+	std::vector<Value*> alloc_worklist;
+
+	// Add the global variables to the worklist and alloc_worklist
+	for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+		if (I->getName() != "llvm.global.annotations") {
+			GlobalVariable* GV = cast<GlobalVariable>(I);
+			if (Value* globalVariable = dyn_cast<Value>(&*GV)) {
+				worklist.push_back(&*globalVariable);
+				alloc_worklist.push_back(&*globalVariable);
+			}
+		}
+	}
+
+	std::map<const llvm::Function*, std::vector<const llvm::Value*>> functionMap;
+
+	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+		if (auto *F = dyn_cast<Function>(MIterator)) {
+			// make the function and arguments map
+			for(Function::const_arg_iterator arg = F->arg_begin(), argEnd = F->arg_end(); arg != argEnd; ++arg) {
+				const Value* nextInstrValue = dyn_cast<Value>(arg);
+				functionMap[F].push_back(nextInstrValue);
+			}
+			for(inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I){
+				Value* v = dyn_cast<Value>(&*I);
+				worklist.push_back(v);
+				if (dyn_cast<AllocaInst>(&*I)) {
+					Value* aloca_value = dyn_cast<Value>(&*I);
+					alloc_worklist.push_back(aloca_value);
+					// errs() << *aloca_value << "           " << F->getName() << "\n" ;
+				}
+			}
+		}
+	} 
+
+	// errs() << "=================================================================================== \n";
+	// printList(alloc_worklist);
+	// errs() << "=================================================================================== \n";
+
+
+	// errs() << "=================================================================================== \n";
+	// std::map<const llvm::Function*, std::vector<const llvm::Value*>>::iterator funcMapIt = functionMap.begin();
+	// for (; funcMapIt != functionMap.end(); ++funcMapIt) {
+	//   const llvm::Value* pointer = funcMapIt->first;
+	//   errs() << *pointer << "\n";
+	//   for (unsigned int i = 0; i < funcMapIt->second.size(); ++i) {
+	//     errs() << "\t\t    :" << *funcMapIt->second[i] << "\n";
+	//   }
+	//   errs() << "\n";        
+	// } 
+	// errs() << "=================================================================================== \n";
+
+
+	std::map<const llvm::Value*, std::vector<const llvm::Value*>> dataflowMap;
+	std::map<const llvm::Value*, std::vector<const llvm::Value*>> defUseChain;
+
+	// def-use chain for Instruction
+	// errs() << "=================================================================================== \n";
+	// errs() << "Def Use Chain \n";
+	// errs() << "=================================================================================== \n";
+	for(std::vector<Value*>::iterator iter = worklist.begin(); iter != worklist.end(); ++iter) {
+		Value* instr = *iter;
+		for(Value::user_iterator user = instr->user_begin(), userEnd = instr->user_end(); user != userEnd; ++user) {
+			Instruction *useInstr = dyn_cast<Instruction>(*user);
+			if (useInstr) {
+				defUseChain[instr].push_back(dyn_cast<Value>(useInstr));
+			}
+		} 
+	} 
+	// printMap(defUseChain);
+
+	// errs() << "=================================================================================== \n";
+	// errs() << "Pointer Analysis \n";
+	// errs() << "=================================================================================== \n";
+	// Do Alias Analysis for pointers
+	// AndersenAAResult result = getAnalysis<AndersenAAWrapperPass>().getResult();
+	std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap = getAnalysis<AndersenAAWrapperPass>().getResult().getSanitizedPtsToGraph();
+	// Print ptsToMap
+	// std::map<llvm::Value*, std::set<llvm::Value*>>::iterator mapIt = ptsToMap.begin();
+	// for (; mapIt != ptsToMap.end(); ++mapIt) {
+	//    errs() << *mapIt->first << "\n";
+	//    std::set<llvm::Value*> pointsToSet = mapIt->second;
+	//    for (llvm::Value* ptsToNode: pointsToSet) {
+	//      errs() << "\t\t    :" << *ptsToNode << "\n";
+	//    }
+	// }
+
+	// errs() << "=================================================================================== \n";
+	// errs() << "Dataflow Analysis \n";
+	// errs() << "=================================================================================== \n";
+	// Do Dataflow Analysis SensitiveAllocaList
+	/*
+	for(unsigned int index = 0; index < SensitiveAllocaList.size(); ++index) {
+		dataflowMap = findDataflowInto(SensitiveAllocaList[index], SensitiveAllocaList[index], defUseChain, dataflowMap, ptsToMap, functionMap);
+	}
+	*/
+
+	//for(Value * sensPtr : SensitivePointerList) {
+	//	dataflowMap = findDataflowInto(sensPtr, sensPtr, defUseChain, dataflowMap, ptsToMap, functionMap);
+	//}
+
+
+	// Append dataflow for pointers 
+	// std::map<const llvm::Value*, std::vector<const llvm::Value*>>::iterator dataflowMapIt = dataflowMap.begin();
+
+	// for (; dataflowMapIt != dataflowMap.end(); ++dataflowMapIt) {
+	//   for (unsigned int i = 0; i < dataflowMapIt->second.size(); ++i) {
+	//     if (dyn_cast<AllocaInst>(dataflowMapIt->second[i])) {
+	//       const AllocaInst* allocInstr = dyn_cast<AllocaInst>(dataflowMapIt->second[i]);
+	//       if (allocInstr->getAllocatedType()->isPointerTy()) {
+	//         std::map<llvm::Value*, std::set<llvm::Value*>>::iterator ptsToMapIt = ptsToMap.begin();
+	// 		  for (; ptsToMapIt != ptsToMap.end(); ++ptsToMapIt) {
+	// 		    if (ptsToMapIt->first == dataflowMapIt->second[i]) {
+	// 		      for (unsigned int ptsToIndex = 0; ptsToIndex < ptsToMapIt->second.size(); ++ptsToIndex) {
+	//             Value* val = *std::next(ptsToMapIt->second.begin(), ptsToIndex);
+	//             if (dataflowMapIt->second[i] != val) {
+	//               if (dataflowMap.count(val) > 0) {
+	//                 for (unsigned int index = 0; index < dataflowMap[val].size(); ++index ) {
+	//                   dataflowMapIt->second.push_back(dataflowMap[val][index]);
+	//                 }
+	//               }
+	//             }
+	//           }
+	//     }
+	// }
+	// printMap(dataflowMap);
+
+	return false;
+}
+
+bool EncryptionPass::containsSet(llvm::Value* V, std::set<llvm::Value*>& L) {
+	if (std::find(L.begin(), L.end(), V) != L.end()) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool EncryptionPass::contains(llvm::Value* V, std::vector<llvm::Value*>& L) {
+	if (std::find(L.begin(), L.end(), V) != L.end()) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool EncryptionPass::isSensitiveLoad(Value* Val) {
+	if (std::find(SensitiveLoadList.begin(), SensitiveLoadList.end(), Val) != SensitiveLoadList.end()) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool EncryptionPass::isSensitiveLoadPtr(Value* Val) {
+	if (std::find(SensitiveLoadPtrList.begin(), SensitiveLoadPtrList.end(), Val) != SensitiveLoadPtrList.end()) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool EncryptionPass::isSensitiveGEPPtr(Value* Val) {
+	if (std::find(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end(), Val) != SensitiveGEPPtrList.end()) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool EncryptionPass::isSensitiveAlloca(Value* Val) {
+	if (std::find(SensitiveAllocaList.begin(), SensitiveAllocaList.end(), Val) != SensitiveAllocaList.end()) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+/* The Set equivalents */
+bool EncryptionPass::isSensitiveLoadSet(Value* Val) {
+	if (std::find(SensitiveLoadSet->begin(), SensitiveLoadSet->end(), Val) != SensitiveLoadSet->end()) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool EncryptionPass::isSensitiveLoadPtrSet(Value* Val) {
+	if (std::find(SensitiveLoadPtrSet->begin(), SensitiveLoadPtrSet->end(), Val) != SensitiveLoadPtrSet->end()) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool EncryptionPass::isSensitiveGEPPtrSet(Value* Val) {
+	if (std::find(SensitiveGEPPtrSet->begin(), SensitiveGEPPtrSet->end(), Val) != SensitiveGEPPtrSet->end()) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool EncryptionPass::isSensitiveAllocaSet(Value* Val) {
+	if (std::find(SensitiveAllocaSet->begin(), SensitiveAllocaSet->end(), Val) != SensitiveAllocaSet->end()) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool EncryptionPass::isSensitivePtrVal(Value* Val) {
+	std::map<Value*,Value*>::iterator it = SensitivePtrValMap.find(Val);
+	if (it != SensitivePtrValMap.end()) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+/* The Set equivalents .... end */
+
+bool EncryptionPass::isaAllocationSite(Value* potentialAllocSite) {
+	if (isa<GlobalValue>(potentialAllocSite) || isa<AllocaInst>(potentialAllocSite) || isa<Constant>(potentialAllocSite) || isa<Argument>(potentialAllocSite)) 
+		return true;
+	else
+		return false;
+}
+
+Instruction* EncryptionPass::FindNextInstruction(Instruction* CurrentInstruction) {
+	bool RetNext = false;
+	for (std::vector<Instruction*>::iterator InstIt = InstructionList.begin() ; InstIt != InstructionList.end(); ++InstIt) {
+		if (RetNext == true) {
+			return *InstIt;
+		}
+		if (*InstIt == CurrentInstruction) {
+			RetNext = true;
+		}
+	}
+	// Print all list
+	/*
+	   for (std::vector<Instruction*>::iterator InstIt = InstructionList.begin() ; InstIt != InstructionList.end(); ++InstIt) {
+	   errs() << **InstIt << "\n";
+	   }
+	   */
+	return nullptr;
+}
+
+void EncryptionPass::collectAllLocalAllocSites(Module& M) {
+	// Collect AllocaInst, CastInst, and CallInst to malloc
+	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+		if (auto *F = dyn_cast<Function>(MIterator)) {
+			// Get the local sensitive values
+			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+					//outs() << "Basic block found, name : " << BB->getName() << "\n";
+					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+							if (AllocaInst* AInst = dyn_cast<AllocaInst>(Inst)) {
+								// Ignore all pointers here. They'll be handled once we do the pointer analysis
+								PointerType* allocaType = dyn_cast<PointerType>(AInst->getType());
+								if (allocaType->getPointerElementType()->isPointerTy()) {
+									continue;
+								} else {
+									SensitiveAllocaList.push_back(AInst);
+								}
+							} else if (CastInst* CSInst = dyn_cast<CastInst>(Inst)) {
+								SensitiveAllocaList.push_back(CSInst);
+							} else if (CallInst* CLInst = dyn_cast<CallInst>(Inst)) {
+								if (CLInst->getCalledFunction()->getName() == "malloc") {
+									SensitiveAllocaList.push_back(CLInst);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void EncryptionPass::removeAnnotateInstruction(Module& M) {
+	GlobalVariable* tobeDeleted = nullptr;
+	for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+		if (I->getName() == "llvm.global.annotations") {
+			for(Value::user_iterator User = I->user_begin(); User != I->user_end(); ++User) {
+
+				User->dump();
+			}
+
+			tobeDeleted = &(*I);
+		}
+	}
+
+}
+
+void EncryptionPass::collectAllGlobalAllocSites(Module& M) {
+	// Add the global variables which are sensitive to the list
+	for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+		if (I->getName() != "llvm.global.annotations") {
+			GlobalVariable* GV = llvm::cast<GlobalVariable>(I);
+			// Is this a constant? 
+			if ((GV->hasSection() && (strcmp(GV->getSection(), "llvm.metadata") >= 0))
+					|| isa<Constant>(GV)) {
+				continue;
+			}
+			PointerType* GVType = dyn_cast<PointerType>(GV->getType());
+			if (GVType != nullptr && !GVType->getPointerElementType()->isPointerTy()) {
+				SensitiveAllocaList.push_back(GV);
+				GlobalSensitiveList.push_back(GV);
+			}
+		}
+	}
+}
+
+void EncryptionPass::collectGlobalSensitiveAnnotations(Module& M) {
+	std::vector<StringRef> GlobalSensitiveNameList;
+
+	// Get the names of the global variables that are sensitive
+	if(GlobalVariable* GA = M.getGlobalVariable("llvm.global.annotations")) {
+		for (Value *AOp : GA->operands()) {
+			if (ConstantArray *CA = dyn_cast<ConstantArray>(AOp)) {
+				for (Value *CAOp : CA->operands()) {
+					if (ConstantStruct *CS = dyn_cast<ConstantStruct>(CAOp)) {
+						if (CS->getNumOperands() < 4) {
+							DEBUG(dbgs() << "Unexpected number of operands found. Skipping annotation. \n";);
+							break;
+						}
+
+						Value *CValue = CS->getOperand(0);
+						if (ConstantExpr *Cons = dyn_cast<ConstantExpr>(CValue)) {
+							GlobalSensitiveNameList.push_back(Cons->getOperand(0)->getName());
+						}
+					}
+				}
+			}
+		}
+	}
+	// Add the global variables which are sensitive to the list
+	for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+		if (I->getName() != "llvm.global.annotations") {
+			GlobalVariable* GV = llvm::cast<GlobalVariable>(I);
+			if (std::find(GlobalSensitiveNameList.begin(), GlobalSensitiveNameList.end(), GV->getName()) != GlobalSensitiveNameList.end()) {
+				SensitiveAllocaList.push_back(GV);
+				GlobalSensitiveList.push_back(GV);
+			}
+		}
+	}
+}
+
+void EncryptionPass::collectLocalSensitiveAnnotations(Module &M) {
+	// Do one pass around the program to gather all sensitive values
+
+	// For each function ... 
+	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+		if (auto *F = dyn_cast<Function>(MIterator)) {
+			// Get the local sensitive values
+			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+					//outs() << "Basic block found, name : " << BB->getName() << "\n";
+					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+							// Check if it's an annotation
+							if (isa<CallInst>(Inst)) {
+								CallInst* CInst = dyn_cast<CallInst>(Inst);
+								// CallInst->getCalledValue() gives us a pointer to the Function
+								if (CInst->getCalledValue()->getName().equals("llvm.var.annotation")) {
+									Value* SV = CInst->getArgOperand(0);
+									for (Value::use_iterator useItr = SV->use_begin(), useEnd = SV->use_end(); useItr != useEnd; useItr++) {
+										Value* UseValue = dyn_cast<Value>(*useItr);
+										SensitiveAllocaList.push_back(UseValue);
+									}
+								}
+							}	
+						}
+					}
+				}
+			}
+
+			// Check for bitcast versions. This is needed because annotation function calls seem to take 8bit arguments only.
+			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+							if (isa<BitCastInst>(Inst)) {
+								BitCastInst* BCInst = dyn_cast<BitCastInst>(Inst);
+								Value* RetVal = llvm::cast<Value>(Inst);
+								if (isSensitiveAlloca(RetVal)) {
+									// The bitcasted version of this variable was used in the annotation call,
+									// So add this variable too to the encrypted list
+									SensitiveAllocaList.push_back(BCInst->getOperand(0));
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+
+void EncryptionPass::collectSensitivePointsToInfo(Module &M, 
+		std::map<llvm::Value*, std::set<llvm::Value*>>& ptsToMap,
+		std::map<llvm::Value*, std::set<llvm::Value*>>& ptsFromMap) {
+
+	std::vector< llvm::Value*> workList;
+	std::vector< llvm::Value*> processedWorkList;
+
+	std::map< llvm::Value*, std::set< llvm::Value*>>::iterator ptsToMapIt = ptsToMap.begin();
+	bool done = false;
+
+	StringRef stdoutStr("stdout");
+	// Debuging
+	errs() << "Before beginning : \n";
+	for (const auto &myPair : ptsToMap) {
+		Value* fromVal = myPair.first;
+		std::set<Value*> toSet = myPair.second;
+		if (fromVal->hasName()) {
+			StringRef fromName = fromVal->getName();
+			if (fromName.find(stdoutStr) != StringRef::npos) {
+				fromVal->dump();
+			}
+		}
+		for (Value* val: toSet) {
+			if (val->hasName()) {
+				StringRef valName = val->getName();
+				if (valName.find(stdoutStr) != StringRef::npos) {
+					val->dump();
+				}
+			}
+		}
+	}
+	// Mark all possible allocation sites pointed to by sensitive pointers 
+	for (auto const& imap: ptsToMap) {
+		Value* ptr = imap.first;
+		if (isSensitiveAlloca(ptr)) { // We might have allocainst pointing to other allocainst (because field-insensitity)
+
+			std::set<Value*> ptsToSet = ptsToMap[ptr];
+			// If it's a cast instruction operating on a pointer, then skip it
+			if (isa<CastInst>(ptr)) continue;
+			std::copy(ptsToSet.begin(), ptsToSet.end(), std::back_inserter(SensitiveAllocaList));
+		}
+	}
+	// --- We need to keep merging the points-to sets of each pointer that points to sensitive allocation sites
+	// Set if off
+	std::set<Value*>* allocaSetPtr = new std::set<Value*>(SensitiveAllocaList.begin(), SensitiveAllocaList.end()); 
+	std::set<Value*>* newAllocaSetPtr = nullptr;
+	std::vector<Value*>* newAllocaVecPtr = nullptr;
+	std::set<Value*>* allAllocSitesSetPtr = nullptr;
+	int dc = 0;
+	while (!done) {
+		errs() << allocaSetPtr->size() << " New allocation sites found ... \n";
+
+		if (allocaSetPtr->size() == 0) break;;
+
+		if (newAllocaVecPtr) {
+			free(newAllocaVecPtr);
+		}
+		newAllocaVecPtr = new std::vector<Value*>();
+
+		for (Value* sensitiveAllocationSite: *allocaSetPtr) {
+			// --- All pointers pointing to these sites are sensitive pointers 
+				
+			// --- Any pointer that points to the sensitiveAllocationSite also needs to be processed
+			for (Value* ptr: ptsFromMap[sensitiveAllocationSite]) {
+				if (isaAllocationSite(ptr)) {
+					PointerType* ptrElemType = dyn_cast<PointerType>(ptr->getType()->getPointerElementType());
+					// --- All allocation sites this pointer can point to is also sensitive
+					std::set<Value*>* s = &ptsToMap[ptr];
+					newAllocaVecPtr->insert(newAllocaVecPtr->end(), s->begin(), s->end());
+					newAllocaVecPtr->push_back(ptr);
+					/**** debug ****/
+					/*
+					sensitiveAllocationSite->dump();
+					errs() << " points to ";
+					ptr->dump();
+					for (Value* val : *s) {
+						ptr->dump();
+						errs() << " points to ";
+						val->dump();
+					}
+					*/
+					/**** debug ****/
+				}
+			}
+
+			std::set<Value*>* sptr = &ptsToMap[sensitiveAllocationSite];
+			newAllocaVecPtr->insert(newAllocaVecPtr->end(), sptr->begin(), sptr->end());
+		}
+		// newAllocaVecPtr has all newly discovered sensitive allocation sites
+		// Convert it to set and find difference
+		// Free the old guy
+		if (newAllocaSetPtr) {
+			free(newAllocaSetPtr);
+		}
+		newAllocaSetPtr = new std::set<Value*>(newAllocaVecPtr->begin(), newAllocaVecPtr->end());
+
+		if (allAllocSitesSetPtr) {
+			delete allAllocSitesSetPtr;
+		}
+		allAllocSitesSetPtr = new std::set<Value*>(SensitiveAllocaList.begin(), SensitiveAllocaList.end());
+
+		std::set<Value*>* diffSetPtr = new std::set<Value*>();
+		// diff is the new allocation sites that have been found
+
+		set_difference(newAllocaSetPtr->begin(), newAllocaSetPtr->end(), allAllocSitesSetPtr->begin(), allAllocSitesSetPtr->end(), inserter(*diffSetPtr, diffSetPtr->begin()));
+
+		if (diffSetPtr->size() == 0) {
+			// Nothing new found, done!
+			done = true;
+		}
+		if (allocaSetPtr) {
+			free(allocaSetPtr);
+		}	
+		SensitiveAllocaList.insert(SensitiveAllocaList.end(), diffSetPtr->begin(), diffSetPtr->end());
+
+		allocaSetPtr = diffSetPtr;
+	}
+
+	/*
+	errs() << "Sensitive Allocation sites:\n";
+	for (Value* sensAlloca: SensitiveAllocaList) {
+		sensAlloca->dump();	
+	}
+
+	errs() << "Sensitive Pointers:\n";
+	for (Value* sensPtr: SensitivePointerList) {
+		sensPtr->dump();	
+	}
+	*/
+
+}
+
+void EncryptionPass::collectSensitiveGEPInstructions(Module& M, std::map<llvm::Value*, std::set<llvm::Value*>>& ptsToMap) {
+	// Find all the GEP instructions that load IR pointers that point to sensitive locations
+	std::map<llvm::Value*, std::set<llvm::Value*>>::iterator mapIt = ptsToMap.begin();
+	for (; mapIt != ptsToMap.end(); ++mapIt) {
+		if (GetElementPtrInst *GEPInst = dyn_cast<GetElementPtrInst>(mapIt->first)) {
+			std::set<llvm::Value*> pointsToSet = mapIt->second;
+			for (llvm::Value* ptsToNode: pointsToSet) {
+				if (isSensitiveAlloca(ptsToNode)) {
+					if (GEPInst->getPointerOperand()->getType()->isPointerTy()) {
+						SensitiveGEPPtrList.push_back(GEPInst);
+					}
+				}
+			}
+		}
+	}
+
+	DEBUG(
+	for (Value* GEPInst: SensitiveGEPPtrList) {
+		dbgs() << "Sensitive GEP instruction: ";
+		GEPInst->dump();
+	}
+	);
+
+	// Find all Load instructions that load from sensitive locations pointed to by GEP instructions
+	for (Value* GEPValue: SensitiveGEPPtrList) {
+		// Find all Users of this GEP instruction
+
+		for(Value::user_iterator User = GEPValue->user_begin(); User != GEPValue->user_end(); ++User) {
+			if (LoadInst* LdInst = dyn_cast<LoadInst>(*User)) {
+				if (!LdInst->getType()->isPointerTy()) {
+					// Ignore any pointer assignments here, the pointer analysis will take care of it TODO - Will this break anything?
+					if (!LdInst->getType()->isPointerTy()) {
+						SensitiveLoadList.push_back(LdInst);
+					}
+				}
+			}
+		}
+
+	}
+}
+
+void EncryptionPass::collectSensitiveAsmInstructions(Module& M, std::map<llvm::Value*, std::set<llvm::Value*>>& ptsToMap) {
+	// Find all InlineAsm instructions in the program and decrypt the sensitive operands
+	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+		if (auto *F = dyn_cast<Function>(MIterator)) {
+			// Iterate over all instructions in the Function to build the Instruction list
+			for (inst_iterator I = inst_begin(*F), E = inst_end(*F); I != E; ++I) {
+				CallInst* cInst = dyn_cast<CallInst>(&*I);
+				if (cInst) {
+					Value* calledValue = cInst->getCalledValue();
+					if (calledValue) {
+						// Inline assembly?
+						InlineAsm* inlineAsm = dyn_cast<InlineAsm>(calledValue);
+						if (inlineAsm) {
+							for(CallInst::const_op_iterator arg = cInst->arg_begin(), argEnd = cInst->arg_end(); arg != argEnd; ++arg) {
+								Value* argVal = dyn_cast<Value>(arg);
+								if (isSensitiveAlloca(argVal) || isSensitiveLoadPtr(argVal) || isSensitiveGEPPtr(argVal)) {
+									SensitiveInlineAsmCalls.push_back(cInst);
+								}
+							}					
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void EncryptionPass::collectSensitiveLoadInstructions(Module& M, std::map<llvm::Value*, std::set<llvm::Value*>>& ptsToMap) {
+	// Find all the Load instructions that load IR pointers that point to sensitive locations
+	std::map<llvm::Value*, std::set<llvm::Value*>>::iterator mapIt = ptsToMap.begin();
+	for (; mapIt != ptsToMap.end(); ++mapIt) {
+		if (LoadInst *LdInst = dyn_cast<LoadInst>(mapIt->first)) {
+			std::set<llvm::Value*> pointsToSet = mapIt->second;
+			for (llvm::Value* ptsToNode: pointsToSet) {
+				if (isSensitiveAllocaSet(ptsToNode)) {
+					SensitiveLoadPtrList.push_back(LdInst);
+				}
+			}
+		} else if (CastInst *CInst = dyn_cast<CastInst>(mapIt->first)) {
+			std::set<llvm::Value*> pointsToSet = mapIt->second;
+			for (llvm::Value* ptsToNode: pointsToSet) {
+				if (isSensitiveAllocaSet(ptsToNode)) {
+					SensitiveLoadPtrList.push_back(CInst);
+				}
+			}
+		}
+	}
+
+	DEBUG (
+	for (Value* LdInst: SensitiveLoadPtrList) {
+		dbgs() << "Sensitive Load Ptr instruction: ";
+		LdInst->dump();
+	}
+	);
+
+
+
+	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+		if (auto *F = dyn_cast<Function>(MIterator)) {
+			// Iterate over all instructions in the Function to build the Instruction list
+			for (inst_iterator I = inst_begin(*F), E = inst_end(*F); I != E; ++I) {
+				LoadInst* LdInst = dyn_cast<LoadInst>(&*I);
+				if (LdInst) {
+					if (isSensitiveAllocaSet(LdInst->getPointerOperand()) || isSensitiveGEPPtrSet(LdInst->getPointerOperand())) {
+						SensitiveLoadList.push_back(LdInst); // assert will not work. Andersen is field-insensitive. It might throw up any kinds of weird things.
+					} else if (ConstantExpr* CConstExpr = dyn_cast<ConstantExpr>(LdInst->getPointerOperand())) {
+						// Fix for Constant Expressions
+						ConstantExpr* ConstExpr = const_cast<ConstantExpr*>(CConstExpr);
+						if (ConstExpr->getOpcode() == Instruction::GetElementPtr) {
+							GEPOperator* GEPOp = dyn_cast<GEPOperator>(ConstExpr);
+							if (GEPOp && isSensitiveAlloca(GEPOp->getPointerOperand())) {
+								if (LdInst->getType()->isPointerTy()) {
+									SensitiveLoadPtrList.push_back(LdInst);
+									SensitiveLoadList.push_back(LdInst);
+								} else {
+									SensitiveLoadList.push_back(LdInst);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Find all Load instructions that load sensitive locations from the points to graph and constant expressions
+	for (Value* sensitivePtrLoad: SensitiveLoadPtrList) {
+		// Find all Users of this Load instruction
+		Value* loadValue = dyn_cast<Value>(sensitivePtrLoad);
+
+		for(Value::user_iterator User = loadValue->user_begin(); User != loadValue->user_end(); ++User) {
+			if (LoadInst* LdInst = dyn_cast<LoadInst>(*User) ) {
+				SensitiveLoadList.push_back(LdInst);
+			}
+		}
+
+	}
+
+	DEBUG (
+	for (Value* LdInst: SensitiveLoadList) {
+		dbgs() << "Sensitive Load instruction: ";
+		LdInst->dump();
+	}
+	);
+
+}
+
+bool EncryptionPass::isCallocLike(const char* str)
+{
+	for (unsigned i = 0; CallocLikeFunctions[i] != nullptr; ++i)
+	{
+		if (strcmp(CallocLikeFunctions[i], str) == 0)
+			return true;
+	}
+	return false;
+}
+
+bool EncryptionPass::isValueStoredToSensitiveLocation(Value* v) {
+	// Follow use chains, until you find a store
+	std::vector<Value*> workList;
+	workList.push_back(v);
+	for (int i = 0; i < workList.size(); i++) {
+		Value* val = workList[i];
+		for (Value::user_iterator UserIt = val->user_begin(), UserEnd = val->user_end(); UserIt != UserEnd; ++UserIt) {
+			Value* UseValue = dyn_cast<Value>(*UserIt);
+			if (CastInst* castInst = dyn_cast<CastInst>(UseValue)) {
+				if (castInst != val) {
+					workList.push_back(castInst);
+				}
+			}
+			if (StoreInst* storeInst = dyn_cast<StoreInst>(UseValue)) {
+				Value* storeLocation = storeInst->getPointerOperand();
+				if (isSensitiveAllocaSet(storeLocation) || isSensitiveGEPPtrSet(storeLocation) || isSensitiveLoadPtrSet(storeLocation)) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool EncryptionPass::isSensitiveConstantExpr(Value* v) {
+	if (ConstantExpr* consExpr = dyn_cast<ConstantExpr>(v)) {
+		if (consExpr->getOpcode() == Instruction::GetElementPtr) {
+			GEPOperator* GEPOp = dyn_cast<GEPOperator>(consExpr);
+			if (GEPOp && isSensitiveAlloca(GEPOp->getPointerOperand())) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void EncryptionPass::collectSensitiveExternalLibraryCalls(Module& M) {
+	// Create sets for quicker lookup
+	std::set<Value*> SensitiveGEPPtrSet(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
+	std::set<Value*> SensitiveLoadPtrSet(SensitiveLoadPtrList.begin(), SensitiveLoadPtrList.end());
+
+	std::set<Value*> AllFunctions;
+	// Populate list of all functions
+	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+		if (auto *F = dyn_cast<Function>(MIterator)) {
+			if (!F->isDeclaration()) {
+				AllFunctions.insert(F);
+			}
+		}
+	}
+
+	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+		if (auto *F = dyn_cast<Function>(MIterator)) {
+			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+							if (CallInst* CInst = dyn_cast<CallInst>(Inst)) {
+								if (CInst->getCalledFunction()) {
+									// It's not a function pointer
+									const char* fNameStr = CInst->getCalledFunction()->getName().data();
+									if (isCallocLike(fNameStr)) {
+										if (isValueStoredToSensitiveLocation(CInst)) {
+											SensitiveExternalLibCallList.push_back(CInst);
+										}
+									} else {
+										if (!containsSet(CInst->getCalledFunction(), AllFunctions)) {
+
+											// Get the arguments, check if any of them is sensitive 
+											// and then put code to decrypt them in memory
+											int numArgs = CInst->getNumArgOperands();
+											bool isSensitiveCall = false;
+											for (int i = 0; i < numArgs; i++) {
+												Value* value = CInst->getArgOperand(i);
+												if (isSensitiveArg(value)) {
+													DEBUG (
+															dbgs() << "Sensitive external library call found: ";
+															value->dump();
+													      );
+													isSensitiveCall = true;
+												}
+											}
+											if (isSensitiveCall) {
+												SensitiveExternalLibCallList.push_back(CInst);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+
+void EncryptionPass::preprocessAllocaAndLoadInstructions(Instruction* Inst) {
+	// Add the MetaData to the AllocaInst
+	// Check if it's an Allocation on the stack
+	if (AllocaInst* AInst = dyn_cast<AllocaInst>(Inst)) {
+		if (isSensitiveAllocaSet(AInst)) {
+			LLVMContext& C = AInst->getContext();
+			MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+			AInst->setMetadata("SENSITIVE", N);
+		}
+	} else if (LoadInst* LdInst = dyn_cast<LoadInst>(Inst)) {					
+		if (isSensitiveLoadSet(LdInst)) {
+			LLVMContext& C = LdInst->getContext();
+			MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+			LdInst->setMetadata("SENSITIVE", N);
+
+			// Find the next instruction
+			Instruction* NextInstruction = FindNextInstruction(Inst);
+			InstructionReplacement* Replacement = new InstructionReplacement();
+			Replacement->OldInstruction = Inst;
+			Replacement->NextInstruction = NextInstruction;
+			Replacement->Type = LOAD;
+			ReplacementList.push_back(Replacement);
+		}
+	}
+}
+
+
+void EncryptionPass::preprocessStoreInstructions(Instruction* Inst) {
+	StoreInst* StInst = dyn_cast<StoreInst>(Inst);
+	Value* PointerOperand = StInst->getPointerOperand();
+	// Fix for ConstantExpr
+	// First check if the Store instruction has GEPConstantExpr
+	bool sensitiveGEPCE = false;
+	if (ConstantExpr* CConstExpr = dyn_cast<ConstantExpr>(StInst->getPointerOperand())) {
+		// Fix for Constant Expressions
+		ConstantExpr* ConstExpr = const_cast<ConstantExpr*>(CConstExpr);
+		if (ConstExpr->getOpcode() == Instruction::GetElementPtr) {
+			GEPOperator* GEPOp = dyn_cast<GEPOperator>(ConstExpr);
+			if (GEPOp && isSensitiveAlloca(GEPOp->getPointerOperand())) {
+				sensitiveGEPCE = true;
+			}
+		}
+	}
+
+	if (isSensitiveAllocaSet(PointerOperand) || isSensitiveLoadPtrSet(PointerOperand) || isSensitiveGEPPtrSet(PointerOperand) || sensitiveGEPCE ) {
+		LLVMContext& C = StInst->getContext();
+		MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+		StInst->setMetadata("SENSITIVE", N);
+
+		InstructionReplacement* Replacement = new InstructionReplacement();
+		Replacement->OldInstruction = Inst;
+		Replacement->NextInstruction = nullptr; // Don't care about the next, the decryption happens before the store
+		Replacement->Type = STORE;
+		ReplacementList.push_back(Replacement);
+	}
+}
+
+
+void EncryptionPass::resetInstructionLists(Function *F) {
+	ReplacementList.clear();
+	InstructionList.clear();
+	// Iterate over all instructions in the Function to build the Instruction list
+	for (inst_iterator I = inst_begin(*F), E = inst_end(*F); I != E; ++I) {
+		InstructionList.push_back(&*I);
+	}
+
+}
+
+void EncryptionPass::performAesBasicInstrumentation(Module& M) {
+	for (std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementList.begin() ; ReplacementIt != ReplacementList.end(); ++ReplacementIt) {
+		InstructionReplacement* Repl = *ReplacementIt;
+		if (Repl->Type == LOAD) {
+			LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
+			Value* decryptValue = AESBasic.getDecryptedValue(LdInst);	
+
+			std::vector<User*> LdInstUsers;
+			for (User* U: LdInst->users()) {
+				LdInstUsers.push_back(U);
+			}
+			for(User* U: LdInstUsers) {
+				int i, NumOperands = U->getNumOperands();
+				for (i = 0; i < NumOperands; i++) {
+					if (U->getOperand(i) == LdInst) {
+						U->setOperand(i, decryptValue);
+					}
+				}
+			}
+			LdInst->eraseFromParent();
+		} else if (Repl->Type == STORE) {
+			StoreInst* StInst = dyn_cast<StoreInst>(Repl->OldInstruction);
+			/*Value* encryptValue = */AESBasic.setEncryptedValue(StInst);
+			StInst->eraseFromParent();
+		}
+	}
+}
+
+void EncryptionPass::performAesCacheInstrumentation(Module& M) {
+	for (std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementList.begin() ; ReplacementIt != ReplacementList.end(); ++ReplacementIt) {
+		InstructionReplacement* Repl = *ReplacementIt;
+		if (Repl->Type == LOAD) {
+			IRBuilder<> Builder(Repl->NextInstruction); // Insert before "next" instruction
+			LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
+
+			// Check get the decrypted value
+			Value* decryptedValue = AESCache.getDecryptedValueCached(LdInst);
+
+			// Can't blindly replace all uses of the old loaded value, because it includes the InlineASM
+			std::vector<User*> LoadInstUsers;
+			for (User *U : LdInst->users()) {
+				LoadInstUsers.push_back(U);
+			}
+
+			for (User *U: LoadInstUsers) {
+				if (U != decryptedValue) {
+					int i, NumOperands = U->getNumOperands();
+					for (i = 0; i < NumOperands; i++) {
+						if (U->getOperand(i) == LdInst) {
+							U->setOperand(i, decryptedValue);
+						}
+					}
+				}
+			}
+
+			// Remove the Load instruction
+			LdInst->eraseFromParent();
+		} else	if (Repl->Type == STORE) {
+			IRBuilder<> Builder(Repl->OldInstruction); // Insert before the current Store instruction
+			StoreInst* StInst = dyn_cast<StoreInst>(Repl->OldInstruction);
+			DEBUG (
+			dbgs() << "Replacing Store Instruction : ";
+			StInst->dump();
+			);
+
+			AESCache.setEncryptedValueCached(StInst);
+			// Remove the Store instruction
+			StInst->eraseFromParent();
+		}
+	}
+}
+
+/*
+void EncryptionPass::instrumentInlineAsm(Module& M) {
+	PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+	for (Value* sensitiveAsm: SensitiveInlineAsmCalls) {
+		CallInst* sensCInst = dyn_cast<CallInst>(sensitiveAsm);
+		InlineAsm* inlineAsm = dyn_cast<InlineAsm>(sensCInst->getCalledValue());
+		
+		int argIndex = 0;
+		for(User::op_iterator arg = sensCInst->arg_begin(), argEnd = sensCInst->arg_end(); arg != argEnd; ++arg) {
+			argIndex++;
+			Value* argVal = dyn_cast<Value>(&*arg);
+			if (isSensitiveAlloca(argVal) || isSensitiveLoadPtr(argVal) || isSensitiveGEPPtr(argVal)) {
+				// Decrypt before the call
+				IRBuilder<> InstBuilder(sensCInst);
+				int numBytesToDecrypt = asmParser.findNumBytesAccessed(inlineAsm, argVal, argIndex);
+				Function* instrumentFunction = M.getFunction("decryptInMem");
+				std::vector<Value*> ArgList;
+				if (argVal->getType() != voidPtrType) {
+					Value* voidArgVal = InstBuilder.CreateBitCast(argVal, voidPtrType);
+					ArgList.push_back(voidArgVal);
+				} else {
+					ArgList.push_back(argVal);
+				}
+				ArgList.push_back(ConstantInt::get(IntegerType::get(sensCInst->getContext(), 64), numBytesToDecrypt));
+				InstBuilder.CreateCall(instrumentFunction, ArgList);
+				
+				// Encrypt after the inline assembly call
+				Function* encInstFunc = M.getFunction("encryptInMem");
+				CallInst* encCInst = CallInst::Create(encInstFunc, ArgList);
+				encCInst->insertAfter(sensCInst);
+			}
+		}
+	}
+}
+*/
+
+void EncryptionPass::performXorInstrumentation(Module& M) {
+	IntegerType* longTy = IntegerType::get(M.getContext(), 64);
+	Value* XORResult = nullptr;
+	ConstantInt* XORInt = nullptr;
+	Value* intValOfPtr = nullptr;
+	Value* intXORedPtr = nullptr;
+
+	for (std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementList.begin() ; ReplacementIt != ReplacementList.end(); ++ReplacementIt) {
+		InstructionReplacement* Repl = *ReplacementIt;
+		if (Repl->Type == LOAD) {
+			IRBuilder<> Builder(Repl->NextInstruction); // Insert before "next" instruction
+			LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
+			// We need to add a XOR instruction after this load
+			// Then, we need to update all references to the original virtual register with the new virtreg
+			Value* LoadValue = llvm::cast<Value>(LdInst);
+			IntegerType* Ty = dyn_cast<IntegerType>(LoadValue->getType());
+			PointerType* PTy = dyn_cast<PointerType>(LoadValue->getType());
+			if (Ty) {
+				switch(Ty->getBitWidth()) {
+					case 8:
+						XORInt = ConstantInt::get(Ty, 0xAA, true);
+						break;
+					case 16:
+						XORInt = ConstantInt::get(Ty, 0xAAAA, true);
+						break;
+					case 32:
+						XORInt = ConstantInt::get(Ty, 0xAAAAAAAA, true);
+						break;
+					case 64:
+						XORInt = ConstantInt::get(Ty, 0xAAAAAAAAAAAAAAAA, true);
+						break;
+					default:
+						errs() << "Invalid Integer Type!\n";
+				}
+				
+				XORResult = Builder.CreateXor(LoadValue, XORInt);
+			} else if (PTy) {
+				// The loaded value is a pointer, do a ptrtoint and then xor, then inttoptr
+				intValOfPtr = Builder.CreatePtrToInt(LoadValue, longTy);
+				XORInt = ConstantInt::get(longTy, 0xAAAAAAAAAAAAAAAA, true);
+				intXORedPtr = Builder.CreateXor(intValOfPtr, XORInt);
+				XORResult = Builder.CreateIntToPtr(intXORedPtr, PTy);
+
+				// We're replacing a pointer - handle memberships of that pointer
+				if (isSensitiveAllocaSet(LoadValue)) {
+					SensitiveAllocaList.push_back(XORResult);
+					SensitiveAllocaSet->insert(XORResult);
+				} 
+				if (isSensitiveGEPPtrSet(LoadValue)) {
+					SensitiveGEPPtrList.push_back(XORResult);
+					SensitiveGEPPtrSet->insert(XORResult);
+				}
+				if (isSensitiveLoadPtrSet(LoadValue)) {
+					SensitiveLoadPtrList.push_back(XORResult);
+					SensitiveLoadPtrSet->insert(XORResult);
+				}
+				if (isSensitiveLoadSet(LoadValue)) {
+					SensitiveLoadList.push_back(XORResult);
+					SensitiveLoadSet->insert(XORResult);
+				}
+
+				// The loaded value is a pointer
+				// If this pointer were to be passed to outside libraries, then it must be protected
+				for (Value::use_iterator UseIt = LoadValue->use_begin(), UseEnd = LoadValue->use_end(); UseIt != UseEnd; UseIt++) {
+					Value* UseValue = dyn_cast<Value>(*UseIt);
+					if(LoadInst* loadedFromPtr = dyn_cast<LoadInst>(UseValue)) {
+						SensitivePtrValMap[XORResult] = loadedFromPtr->getPointerOperand();
+						break;
+					}
+				}
+
+			} else {
+				assert(false);
+			}
+
+			Instruction* XORInst = dyn_cast<Instruction>(XORResult);
+			if (XORInst) {
+				LLVMContext& C = XORInst->getContext();
+				MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+				XORInst->setMetadata("SENSITIVE", N);
+			}
+			// Can't blindly replace all uses of the old loaded value, because it includes the XOR
+
+			std::vector<User*> LoadInstUsers;
+			for (User *U : LdInst->users()) {
+				LoadInstUsers.push_back(U);
+			}
+			for (User *U: LoadInstUsers) {
+				if ((U != XORInst) && (U != intValOfPtr) && (U != intXORedPtr)) {
+					int i, NumOperands = U->getNumOperands();
+					for (i = 0; i < NumOperands; i++) {
+						if (U->getOperand(i) == LoadValue) {
+							U->setOperand(i, XORResult);
+						}
+					}
+				}
+			}
+		} else	if (Repl->Type == STORE) {
+			// Add the XOR instruction before the Store
+			IRBuilder<> Builder(Repl->OldInstruction); // Insert before the current Store instruction
+			StoreInst* StInst = dyn_cast<StoreInst>(Repl->OldInstruction);
+			DEBUG (
+			dbgs() << "Replacing Store Instruction : ";
+			StInst->dump();
+			);
+			// Get the value operand
+			Value* PointerValue = StInst->getValueOperand();
+			IntegerType *Ty = dyn_cast<IntegerType>(PointerValue->getType());
+			PointerType *PTy = dyn_cast<PointerType>(PointerValue->getType());
+			if (Ty) {
+				switch(Ty->getBitWidth()) {
+					case 8:
+						XORInt = ConstantInt::get(Ty, 0xAA, true);
+						break;
+					case 16:
+						XORInt = ConstantInt::get(Ty, 0xAAAA, true);
+						break;
+					case 32:
+						XORInt = ConstantInt::get(Ty, 0xAAAAAAAA, true);
+						break;
+					case 64:
+						XORInt = ConstantInt::get(Ty, 0xAAAAAAAAAAAAAAAA, true);
+						break;
+					default:
+						errs() << "Invalid Integer Type!\n";
+				}
+
+				XORResult = Builder.CreateXor(PointerValue, XORInt);
+			} else if (PTy) {
+				// The loaded value is a pointer, do a ptrtoint and then xor, then inttoptr
+				intValOfPtr = Builder.CreatePtrToInt(PointerValue, longTy);
+				XORInt = ConstantInt::get(longTy, 0xAAAAAAAAAAAAAAAA, true);
+				intXORedPtr = Builder.CreateXor(intValOfPtr, XORInt);
+				XORResult = Builder.CreateIntToPtr(intXORedPtr, PTy);
+				// We're replacing a pointer - handle memberships of that pointer
+				if (isSensitiveAllocaSet(PointerValue)) {
+					SensitiveAllocaList.push_back(XORResult);
+					SensitiveAllocaSet->insert(XORResult);
+				} 
+				if (isSensitiveGEPPtrSet(PointerValue)) {
+					SensitiveGEPPtrList.push_back(XORResult);
+					SensitiveGEPPtrSet->insert(XORResult);
+				}
+				if (isSensitiveLoadPtrSet(PointerValue)) {
+					SensitiveLoadPtrList.push_back(XORResult);
+					SensitiveLoadPtrSet->insert(XORResult);
+				}
+				if (isSensitiveLoadSet(PointerValue)) {
+					SensitiveLoadList.push_back(XORResult);
+					SensitiveLoadSet->insert(XORResult);
+				}
+			}
+
+			Instruction* XORInst = dyn_cast<Instruction>(XORResult);
+			if (XORInst) {
+				LLVMContext& C = XORInst->getContext();
+				MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+				XORInst->setMetadata("SENSITIVE", N);
+			}
+			// Update the Value to store the XORResult
+			StInst->setOperand(0, XORResult);
+		}
+	}
+
+
+}
+
+void EncryptionPass::performInstrumentation(Module& M) {
+	if (DoNullEnc) {
+		performXorInstrumentation(M);
+	} else if (DoAESEncCache){
+		performAesCacheInstrumentation(M);
+	} else if (DoAESEncBasic) {
+		performAesBasicInstrumentation(M);
+	}
+}
+
+
+bool EncryptionPass::isSensitiveArg(Value* arg) {
+	if (isSensitiveGEPPtrSet(arg) || isSensitiveLoadPtrSet(arg) || isSensitiveAllocaSet(arg) || isSensitiveConstantExpr(arg)) {
+		return true;
+	} else {
+		// Check if we need to do special handling for call values
+		if (CallInst* retVal = dyn_cast<CallInst>(arg)) {
+			// TODO Handle function pointers
+			Function* calledFunction = retVal->getCalledFunction();
+			if (calledFunction) {
+				// Check the retmap 
+				std::set<Value*> retVals = (*ptsToMapPtr)[calledFunction];
+				for (Value* retVal: retVals) {
+					if (isSensitiveArg(retVal)) {
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+
+/**
+ * The routine that actual does the instrumentation for external function calls.
+ */
+void EncryptionPass::instrumentExternalFunctionCall(Module &M) {
+	std::set<Value*> UnsupportedCallSet;
+
+	std::vector<Value*> sensitivePointerValueList; // List of sensitive pointers (the pointer itself is sensitive)
+	/*IntegerType* longTy = IntegerType::get(M.getContext(), 64);*/
+
+	for (CallInst* externalCallInst : SensitiveExternalLibCallList) {
+		Function* externalFunction = externalCallInst->getCalledFunction();
+		IRBuilder<> InstBuilder(externalCallInst);
+
+		int numArgs = externalCallInst->getNumArgOperands();
+		/*
+		sensitivePointerValueList.clear();
+		// Are any of the args in sensitive allocation sites -- do we really need to do this?
+		for (int i = 0; i < numArgs; i++) {
+			Value* arg = externalCallInst->getArgOperand(i);
+			if (isSensitivePtrVal(arg)) {
+				// XOR and store
+				Value* XORInt = ConstantInt::get(longTy, 0xAAAAAAAAAAAAAAAA, true);
+				Value* intValOfPtr = InstBuilder.CreatePtrToInt(arg, longTy);
+
+				Value* XORResult = InstBuilder.CreateXor(intValOfPtr, XORInt);
+				Value* destPtr = SensitivePtrValMap[arg];
+				Value* XORResultPtr = InstBuilder.CreateIntToPtr(XORResult, destPtr->getType()->getPointerElementType());
+
+				StoreInst* StInst = InstBuilder.CreateStore(XORResultPtr, destPtr);
+				sensitivePointerValueList.push_back(arg);
+			}
+		}
+		*/
+
+		if (externalFunction->getName() == "calloc") {
+			Function* instrumentFunction = M.getFunction("encryptArrayForLibCall");
+			std::vector<Value*> ArgList;
+			Value* numElements = externalCallInst->getArgOperand(0);
+			Value* elemSize = externalCallInst->getArgOperand(1);
+			Value* numBytes = InstBuilder.CreateMul(elemSize, numElements, "mul");
+
+			ArgList.push_back(externalCallInst);
+			ArgList.push_back(numBytes);
+			// Insert call instruction to call the function
+			CallInst* CInst = CallInst::Create(instrumentFunction, ArgList);
+			CInst->insertAfter(externalCallInst);
+		} else if (externalFunction->getName() == "printf") {
+			// Get the arguments, check if any of them is sensitive 
+			// and then put code to decrypt them in memory
+			for (int i = 0; i < numArgs; i++) {
+				Value* value = externalCallInst->getArgOperand(i);
+				if (isSensitiveArg(value)) {
+					DEBUG (
+					dbgs() << "Do decryption for print value: ";
+					value->dump();
+					);
+					Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+					std::vector<Value*> ArgList;
+					ArgList.push_back(value);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+				}
+			}
+		} else if (externalFunction->getName() == "puts") {
+			Value* value = externalCallInst->getArgOperand(0);
+			if (isSensitiveArg(value)) {
+				DEBUG (
+				dbgs() << "Do decryption for puts value: ";
+				value->dump();
+				);
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(value);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "fopen") {
+			Value* fileName = externalCallInst->getArgOperand(0);
+			Value* mode = externalCallInst->getArgOperand(1);
+			if (isSensitiveArg(fileName)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(fileName);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+			if (isSensitiveArg(mode)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(mode);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "fprintf") {
+			// Variable arg number
+			int argNum = externalCallInst->getNumArgOperands();
+			// Assuming first arguments, FILE* stream can never be sensitive
+			if (argNum > 1) {
+				// has varargs
+				for (int i = 1; i < argNum; i++) {
+					Value* arg = externalCallInst->getArgOperand(i);
+					if (isSensitiveArg(arg) ) {
+						Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+						std::vector<Value*> ArgList;
+						ArgList.push_back(arg);
+						/*CallInst* CInst = */
+						InstBuilder.CreateCall(decryptFunction, ArgList);
+						// Encrypt it back
+						Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+						CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+						encCInst->insertAfter(externalCallInst);
+
+					}
+				}
+			}
+		} else if (externalFunction->getName() == "sprintf") {
+			// Variable arg number
+			int argNum = externalCallInst->getNumArgOperands();
+			for (int i = 0; i < argNum; i++) {
+				// has varargs
+				Value* arg = externalCallInst->getArgOperand(i);
+				if (isSensitiveArg(arg)) {
+					Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+					std::vector<Value*> ArgList;
+					ArgList.push_back(arg);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				}
+			}
+		} else if (externalFunction->getName() == "snprintf") {
+			// Variable arg number
+			int argNum = externalCallInst->getNumArgOperands();
+			// has varargs
+			for (int i = 0; i < argNum; i++) {
+				if (i == 1) continue; // the size_t size arg
+				Value* arg = externalCallInst->getArgOperand(i);
+				if (isSensitiveArg(arg)) {
+					Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+					std::vector<Value*> ArgList;
+					ArgList.push_back(arg);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				}
+			}
+		} else if (externalFunction->getName() == "memcmp") {
+			Value* firstBuff = externalCallInst->getArgOperand(0);
+			Value* secondBuff = externalCallInst->getArgOperand(1);
+			Value* numBytes = externalCallInst->getArgOperand(2);
+			bool firstBuffSens = false;
+			bool secondBuffSens = false;
+			if (isSensitiveArg(firstBuff)) {
+				firstBuffSens = true;
+			}
+			if (isSensitiveArg(secondBuff)) {
+				secondBuffSens = true;
+			}
+			Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+			std::vector<Value*> ArgList;
+
+			// One of them is sensitive, the other is not
+			// If it is the source, then decrypt before the call to memcpy
+			// If it is the destination, then decrypt after the call to memcpy
+
+			if (firstBuffSens xor secondBuffSens) {
+				if (firstBuffSens) {
+					ArgList.push_back(firstBuff);
+					ArgList.push_back(numBytes);
+					// Insert call instruction to call the function
+					IRBuilder<> InstBuilder(externalCallInst);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				} else {
+					ArgList.push_back(secondBuff);
+					ArgList.push_back(numBytes);
+					// Insert call instruction to call the function
+					IRBuilder<> InstBuilder(externalCallInst);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				}
+			}
+		} else if (externalFunction->getName().find("llvm.memmove") != StringRef::npos) {
+			Value* firstBuff = externalCallInst->getArgOperand(0);
+			Value* secondBuff = externalCallInst->getArgOperand(1);
+			Value* numBytes = externalCallInst->getArgOperand(2);
+			bool firstBuffSens = false;
+			bool secondBuffSens = false;
+			if (isSensitiveArg(firstBuff)) {
+				firstBuffSens = true;
+			}
+			if (isSensitiveArg(secondBuff)) {
+				secondBuffSens = true;
+			}
+			Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+			std::vector<Value*> ArgList;
+
+			// One of them is sensitive, the other is not
+			// If it is the source, then decrypt before the call to memcpy
+			// If it is the destination, then decrypt after the call to memcpy
+
+			if (firstBuffSens xor secondBuffSens) {
+				if (firstBuffSens) {
+					ArgList.push_back(firstBuff);
+					ArgList.push_back(numBytes);
+					// Insert call instruction to call the function
+					IRBuilder<> InstBuilder(externalCallInst);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				} else {
+					ArgList.push_back(secondBuff);
+					ArgList.push_back(numBytes);
+					// Insert call instruction to call the function
+					IRBuilder<> InstBuilder(externalCallInst);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				}
+			}
+		} else if (externalFunction->getName() == "opendir") {
+			Value* dirName = externalCallInst->getArgOperand(0);
+			if (isSensitiveArg(dirName)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(dirName);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "stat") {
+			Value* pathName = externalCallInst->getArgOperand(0);
+			Value* statBuf = externalCallInst->getArgOperand(1);
+			if (isSensitiveArg(pathName)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(pathName);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+			if (isSensitiveArg(statBuf)) {
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(statBuf);
+				ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 144));
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "fread") {
+			Value* bufferPtr = externalCallInst->getArgOperand(0);
+			Value* elemSize = externalCallInst->getArgOperand(1);
+			Value* numElements = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(bufferPtr)) {
+				// Insert call instruction to call the function
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				Value* numBytes = InstBuilder.CreateMul(elemSize, numElements, "mul");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(bufferPtr);
+				ArgList.push_back(numBytes);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "strchr") {
+			Value* str = externalCallInst->getArgOperand(0);
+			if (isSensitiveArg(str)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(str);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+			}
+		} else if (externalFunction->getName() == "strcmp" || externalFunction->getName() == "strncmp") {
+			Value* string1 = externalCallInst->getArgOperand(0);
+			Value* string2 = externalCallInst->getArgOperand(1);
+			if (isSensitiveArg(string1)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string1);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+			}
+			if (isSensitiveArg(string2)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string2);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "strlen") {
+			Value* string1 = externalCallInst->getArgOperand(0);
+			if (isSensitiveArg(string1) ) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string1);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+			}
+		} else if (externalFunction->getName() == "strstr") {
+			Value* string1 = externalCallInst->getArgOperand(0);
+			Value* string2 = externalCallInst->getArgOperand(1);
+			if (isSensitiveArg(string1)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string1);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+			if (isSensitiveArg(string2)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string2);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "syscall") {
+			// Only support syscall getRandom at the moment. On current machine it is 318
+			if (ConstantInt* syscallNumVal = dyn_cast<ConstantInt>(externalCallInst->getArgOperand(0))) {
+				uint64_t syscallNum = syscallNumVal->getValue().getLimitedValue();
+				if (syscallNum == 318) {
+					Value* buf = externalCallInst->getArgOperand(1);
+					Value* bufLen = externalCallInst->getArgOperand(2);
+					// The second argument might be a sensitive buffer
+					if (isSensitiveArg(buf)) {
+						Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                        Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+						std::vector<Value*> ArgList;
+						ArgList.push_back(buf);
+						ArgList.push_back(bufLen);
+						/*CallInst* CInst = */
+						InstBuilder.CreateCall(decryptFunction, ArgList);
+						// Encrypt it back
+						CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+						encCInst->insertAfter(externalCallInst);
+
+					}
+				} else {
+					errs() << "Unsupported syscall found!\n";
+					assert(false);
+				}
+			}
+		} else if (externalFunction->getName() == "fwrite") {
+			// Get the first operand
+			Value* bufferPtr = externalCallInst->getArgOperand(0);
+			Value* elemSize = externalCallInst->getArgOperand(1);
+			Value* numElements = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(bufferPtr)) {
+				// Insert call instruction to call the function
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				Value* numBytes = InstBuilder.CreateMul(elemSize, numElements, "mul");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(bufferPtr);
+				ArgList.push_back(numBytes);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName().find("llvm.memcpy") != StringRef::npos) {
+			Value* destBufferPtr = externalCallInst->getArgOperand(0);
+			Value* srcBufferPtr = externalCallInst->getArgOperand(1);
+			Value* numBytes = externalCallInst->getArgOperand(2);
+			// If both sensitive, or both not sensitive then do nothing
+			/*
+			if ((isSensitiveArg(srcBufferPtr)) 
+					xor (isSensitiveArg(destBufferPtr))) {
+					*/
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+				// One of them is sensitive, the other is not
+				// If it is the source, then decrypt before the call to memcpy
+				// If it is the destination, then decrypt after the call to memcpy
+
+				if (isSensitiveArg(srcBufferPtr)) {
+					std::vector<Value*> ArgList;
+					ArgList.push_back(srcBufferPtr);
+					ArgList.push_back(numBytes);
+					// Insert call instruction to call the function
+					IRBuilder<> InstBuilder(externalCallInst);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				} 
+				if (isSensitiveArg(destBufferPtr)) {
+					std::vector<Value*> ArgList;
+					ArgList.push_back(destBufferPtr);
+					ArgList.push_back(numBytes);
+					// Can't use IRBuilder, TODO - is this ok to do?
+					CallInst* CInst = CallInst::Create(encryptFunction, ArgList);
+					CInst->insertAfter(externalCallInst);
+				}
+				/*
+			}
+			*/
+		} else if (externalFunction->getName().find("llvm.memset") != StringRef::npos) {
+			Value *bufferPtr = externalCallInst->getArgOperand(0);
+			Value *numBytes = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(bufferPtr)) {
+				Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(bufferPtr);
+				ArgList.push_back(numBytes);
+				CallInst* CInst = CallInst::Create(encryptFunction, ArgList);
+				CInst->insertAfter(externalCallInst);
+			}
+		} else if (externalFunction->getName().find("read") != StringRef::npos) {
+			Value* bufferPtr = externalCallInst->getArgOperand(1);
+			Value* numBytes = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(bufferPtr)) {
+				Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(bufferPtr);
+				ArgList.push_back(numBytes);
+				CallInst* CInst = CallInst::Create(encryptFunction, ArgList);
+				CInst->insertAfter(externalCallInst);
+			}
+		} else if (externalFunction->getName() == "write") {
+			Value* bufferPtr = externalCallInst->getArgOperand(1);
+			Value* numBytes = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(bufferPtr)) {
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(bufferPtr);
+				ArgList.push_back(numBytes);
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "bind") {
+			/*Value* sockfd = externalCallInst->getArgOperand(0);*/
+			Value* sockaddr = externalCallInst->getArgOperand(1);
+			Value* socklen = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(sockaddr)) {
+				PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+				IntegerType* longType = IntegerType::get(M.getContext(), 64);
+				// Convert sockaddr* to void*
+				Value* voidSockaddrVal = InstBuilder.CreateBitCast(sockaddr, voidPtrType);
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(voidSockaddrVal);
+				if (IntegerType* socklenType = dyn_cast<IntegerType>(socklen->getType())) {
+					if (socklenType->getBitWidth() != 64) {
+						Value* longSocklenVal = InstBuilder.CreateSExt(socklen, longType);	
+						ArgList.push_back(longSocklenVal);
+					} else {
+						ArgList.push_back(socklen);
+					}
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+				} else {
+					errs() << "Don't know what to do with non-integer type socklen.\n";
+					assert(false);
+				}
+			}
+		} else if (externalFunction->getName() == "connect") {
+			// #TODO - Check if required
+		} else if (externalFunction->getName() == "getaddrinfo") {
+			Value* host = externalCallInst->getArgOperand(0);
+			Value* port = externalCallInst->getArgOperand(1);
+			Value* addrHints = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(host)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(host);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+			if (isSensitiveArg(port)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(port);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+			if (isSensitiveArg(addrHints)) {
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(addrHints);
+				ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 48));
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else {
+			UnsupportedCallSet.insert(externalCallInst);
+			//errs() << "Unsupported external function: "<<externalFunction->getName() << "\n";
+			//assert(false);
+		}
+		// Add instructions after the externalCallInst
+		/*	
+		for (Value* sensitivePtrVal: sensitivePointerValueList) {
+			// XOR and store
+			Value* XORInt = ConstantInt::get(longTy, 0xAAAAAAAAAAAAAAAA, true);
+			PtrToIntInst* intValOfPtr = new PtrToIntInst(sensitivePtrVal, longTy);
+			intValOfPtr->insertAfter(externalCallInst);
+
+			BinaryOperator* XOROp = BinaryOperator::CreateXor(intValOfPtr, XORInt);
+			XOROp->insertAfter(intValOfPtr);
+			Value* destPtr = SensitivePtrValMap[sensitivePtrVal];
+			if (XOROp->getType() != destPtr->getType()) {
+				IntToPtrInst* XORPtr = new IntToPtrInst(XOROp, destPtr->getType()->getPointerElementType());
+				XORPtr->insertAfter(XOROp);
+				StoreInst* StInst = new StoreInst(XORPtr, destPtr);
+				StInst->insertAfter(XORPtr);
+			} else {
+				StoreInst* StInst = new StoreInst(XOROp, destPtr);
+				StInst->insertAfter(XOROp);
+			}
+		}
+		*/
+	}
+	errs() << "Unsupported Sensitive External Function: \n";
+	std::set<Function*> unsupFns;
+	for (Value* unsupportedCall: UnsupportedCallSet) {
+		CallInst* CInst = dyn_cast<CallInst>(unsupportedCall);
+		//errs() << "Function call: "<< CInst->getCalledFunction()->getName() << " ";
+		unsupFns.insert(CInst->getCalledFunction());
+		/*
+		for (int i = 0; i < CInst->getNumArgOperands(); i++) {
+			Value* argVal = CInst->getArgOperand(i);
+			argVal->dump();
+		}
+		*/
+	}
+	for (Function* fn: unsupFns) {
+		errs() << "Function: " << fn->getName() << "\n";
+	}
+}
+
+/**
+ * The routine that instruments and annotates the sensitive Alloca, Load and Store instructions
+ * with the encryption/decryption logic and adds the metadata that tells the CodeGen to protect
+ * the sensitive virtual registers during Register spills
+ */
+void EncryptionPass::instrumentAndAnnotateInst(Module& M) {
+	// For each function ... 
+	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+		if (auto *F = dyn_cast<Function>(MIterator)) {
+			// For each function
+			resetInstructionLists(F);
+			// Mark all the Load instructions that need to be instrumented
+			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+							if (isa<LoadInst>(Inst) || isa<AllocaInst>(Inst)) {
+								preprocessAllocaAndLoadInstructions(Inst);
+							} else if (isa<StoreInst>(Inst)) {
+								preprocessStoreInstructions(Inst);
+							}
+						}
+					}
+				}
+			}
+
+			performInstrumentation(M);
+			resetInstructionLists(F);	
+		}
+	}
+
+	//instrumentInlineAsm(M);
+	instrumentExternalFunctionCall(M);
+}
+
+void EncryptionPass::fixupBrokenFunctionCallsFromWidening(Module &M) {
+	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+		if (auto *F = dyn_cast<Function>(MIterator)) {
+			for (inst_iterator I = inst_begin(*F), E = inst_end(*F); I != E; ++I) {
+				if (CallInst* callInst = dyn_cast<CallInst>(&(*I))) {
+					for (int i = 0; i < callInst->getNumArgOperands(); i++) {
+						Value* arg = callInst->getArgOperand(i);
+						if (PointerType* valPtrTy = dyn_cast<PointerType>(arg->getType())) {
+							IntegerType* valPtrIntTy = dyn_cast<IntegerType>(valPtrTy->getPointerElementType());
+							if (valPtrIntTy) {
+							 	if (valPtrIntTy->getBitWidth() == 128) {
+
+									Function* f = callInst->getCalledFunction();
+									Type* paramType = f->getFunctionType()->getParamType(i);
+									// TODO - handle getCalledValue() for function pointers
+									// Create a bitcast and pass that as the argument
+									IRBuilder<> Builder(callInst);
+									Value* bcVal = Builder.CreateBitCast(arg, paramType);
+									for (User* U: arg->users()) {
+										if (U != bcVal) {
+											int i, NumOperands = U->getNumOperands();
+											for (i = 0; i < NumOperands; i++) {
+												if (U->getOperand(i) == arg) {
+													U->setOperand(i, bcVal);
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}	
+			}
+		}
+	}
+}
+
+void EncryptionPass::initializeSensitiveGlobalVariables(Module& M) {
+
+	// Add the extern function
+	// Build the signature of the function
+	PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+	IntegerType* longType = IntegerType::get(M.getContext(), 64);
+
+
+	std::vector<Type*> typeVec;
+	typeVec.push_back(voidPtrType);
+	typeVec.push_back(longType);
+	ArrayRef<Type*> paramArgArray(typeVec);
+
+	FunctionType* FTypeDec = FunctionType::get(IntegerType::get(M.getContext(), 64), paramArgArray, false);
+
+	Function* EncryptGlobalFunction = Function::Create(FTypeDec, Function::ExternalLinkage, "encrypt_globals", &M);
+
+	DataLayout dataLayout = M.getDataLayout();
+	// Find the main function
+	Function* mainFunction = M.getFunction("main");
+	Instruction* insertionPoint = nullptr;
+
+	if (!mainFunction) {
+		errs() << "Libraries with sensitive global variables not supported!\n";
+		assert(false);
+	}
+
+	// Find the insertion point in the main function
+	for (inst_iterator I = inst_begin(*mainFunction), E = inst_end(*mainFunction); I != E; ++I) {
+		Instruction* inst = &*I;
+		insertionPoint = inst;
+		if (!isa<AllocaInst>(inst)) {
+			break;
+		}
+	}
+
+	IRBuilder<> Builder(insertionPoint);
+
+	for (Value* sensitiveAlloca: SensitiveAllocaList) {
+		if (GlobalVariable* gVar = dyn_cast<GlobalVariable>(sensitiveAlloca)) {
+			const char* sectionName = gVar->getSection();
+			StringRef sectionNameSRef(sectionName);
+			StringRef metadataSRef("llvm.metadata");
+			if (metadataSRef.equals(sectionNameSRef)) {
+				continue;
+			}
+			Value* bcVal = Builder.CreateBitCast(gVar, voidPtrType);
+			PointerType* globalTypePtr = dyn_cast<PointerType>(gVar->getType());
+			assert(globalTypePtr);
+			Type* globalType = globalTypePtr->getPointerElementType();
+			uint64_t sizeOfGlobalType = dataLayout.getTypeAllocSize(globalType);
+			ConstantInt* sizeOfConstant = ConstantInt::get(longType, sizeOfGlobalType, false);
+			// Send it off to encryptGlobal routine to encrypt
+			std::vector<Value*> encryptGlobalArgs;
+			encryptGlobalArgs.push_back(bcVal);
+		        encryptGlobalArgs.push_back(sizeOfConstant);
+			Value* result = Builder.CreateCall(EncryptGlobalFunction, encryptGlobalArgs);	
+		}
+	}
+}
+
+void EncryptionPass::buildSets(Module &M) {
+	SensitiveAllocaSet = new std::set<Value*>(SensitiveAllocaList.begin(), SensitiveAllocaList.end());
+	SensitiveLoadPtrSet = new std::set<Value*>(SensitiveLoadPtrList.begin(), SensitiveLoadPtrList.end()); // Any pointer that points to sensitive location
+	SensitiveLoadSet = new std::set<Value*>(SensitiveLoadList.begin(), SensitiveLoadList.end());
+	SensitiveGEPPtrSet = new std::set<Value*>(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
+}
+
+void EncryptionPass::unConstantifySensitiveAllocSites(Module &M) {
+	for (Value* sensitiveAllocSite: SensitiveAllocaList) {
+		if (GlobalVariable* gVar = dyn_cast<GlobalVariable>(sensitiveAllocSite)) {
+			if (gVar->isConstant()) {
+				gVar->setConstant(false);
+			}
+		}
+	}
+}
+
+/*
+void EncryptionPass::addExternInlineASMHandlers(Module &M) {
+	std::string FunctionNameDec = "decryptInMem";
+
+	// Build the signature of the function
+	PointerType* intPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+	IntegerType* intType = IntegerType::get(M.getContext(), 64);
+
+	std::vector<Type*> typeVec;
+	typeVec.push_back(intPtrType);
+	typeVec.push_back(intType);
+	ArrayRef<Type*> paramArgArray(typeVec);
+
+	FunctionType* FTypeDec = FunctionType::get(Type::getVoidTy(M.getContext()), paramArgArray, false);
+	Function* decryptInMemFunction = Function::Create(FTypeDec, Function::ExternalLinkage, FunctionNameDec, &M);
+
+	std::string FunctionNameEnc = "encryptInMem";
+	// Build the signature of the function
+	FunctionType* FTypeEnc = FunctionType::get(Type::getVoidTy(M.getContext()), paramArgArray, false);
+	Function* encryptInMemFunction = Function::Create(FTypeEnc, Function::ExternalLinkage, FunctionNameEnc, &M);
+
+}
+*/
+
+void EncryptionPass::profileFunctionsForBottlenecks(Module& M, std::map<Value*, std::set<Value*>> ptsToMap) {
+	std::map<Function*, ProfileDetails*> functionMap;
+	std::vector<ProfileDetails> profDetsVec;
+	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+		if (auto *F = dyn_cast<Function>(MIterator)) {
+			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+							if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
+								bool isSensitive = false;
+								if (callInst->getCalledFunction()) {
+									Function* fptr = callInst->getCalledFunction();	
+									// Is any of the arguments sensitive
+									int numArgOperands = callInst->getNumArgOperands();
+									for (int i = 0; i < numArgOperands; i++) {
+										Value* arg = callInst->getArgOperand(i);
+										if (isSensitiveAllocaSet(arg) || isSensitiveGEPPtrSet(arg) || isSensitiveLoadPtrSet(arg)) {
+											isSensitive = true;
+										}
+									}
+									auto fMapIt = functionMap.find(fptr);
+									if (fMapIt != functionMap.end()) {
+										ProfileDetails* profDets = fMapIt->second;
+										// Update
+										if (isSensitive) {
+											profDets->sensitiveCalls++;
+										} else {
+											profDets->nonSensitiveCalls++;
+										}
+									} else {
+										// Create new
+										ProfileDetails* profDets = new ProfileDetails();
+										profDets->fptr = fptr;
+										if (isSensitive) {
+											profDets->sensitiveCalls = 1;
+											profDets->nonSensitiveCalls = 0;
+										} else {
+											profDets->sensitiveCalls = 0;
+											profDets->nonSensitiveCalls = 1;
+										}
+										functionMap[fptr] = profDets;
+									}
+								} else if (callInst->getCalledValue()) {
+									std::set<Value*> fnList = ptsToMap[callInst->getCalledValue()];
+									for (Value* vFun: fnList) {
+										Function* fptr = dyn_cast<Function>(vFun);
+										if (fptr) {
+											// Is any of the arguments sensitive
+											int numArgOperands = callInst->getNumArgOperands();
+											for (int i = 0; i < numArgOperands; i++) {
+												Value* arg = callInst->getArgOperand(i);
+												if (isSensitiveAllocaSet(arg) || isSensitiveGEPPtrSet(arg) || isSensitiveLoadPtrSet(arg)) {
+													isSensitive = true;
+												}
+											}
+											auto fMapIt = functionMap.find(fptr);
+											if (fMapIt != functionMap.end()) {
+												ProfileDetails* profDets = fMapIt->second;
+												// Update
+												if (isSensitive) {
+													profDets->sensitiveCalls++;
+												} else {
+													profDets->nonSensitiveCalls++;
+												}
+											} else {
+												// Create new
+												ProfileDetails* profDets = new ProfileDetails();
+												profDets->fptr = fptr;
+												if (isSensitive) {
+													profDets->sensitiveCalls = 1;
+													profDets->nonSensitiveCalls = 0;
+												} else {
+													profDets->sensitiveCalls = 0;
+													profDets->nonSensitiveCalls = 1;
+												}
+												functionMap[fptr] = profDets;
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	std::map<Function*, ProfileDetails*>::iterator it = functionMap.begin();
+	while (it != functionMap.end()) {
+		Function* fptr = it->first;
+		ProfileDetails profDets = *(it->second);
+		profDetsVec.push_back(profDets);
+		it++;
+	}
+	std::sort(profDetsVec.begin(), profDetsVec.end(), ProfileDetails());
+	for (ProfileDetails profDets: profDetsVec) {
+		errs() << profDets.fptr->getName() << " : " << profDets.sensitiveCalls << " : " << profDets.nonSensitiveCalls << "\n";
+	}
+
+}
+
+bool EncryptionPass::runOnModule(Module &M) {
+
+
+	DEBUG (
+	dbgs() << "Running Encryption pass\n";
+	);
+
+	DoNullEnc = DoAESEncCache = DoAESEncBasic = false;
+	DoFullEnc = false;
+
+	if (NullEnc) {
+		DoNullEnc = true;
+	} else if (AesEncBasic) {
+		DoAESEncBasic = true;
+	} else if (AesEncCache) {
+		DoAESEncCache = true;
+	} else {
+		DoNullEnc = true;
+	}
+
+	if (FullEnc) {
+		DoFullEnc = true;
+	}
+
+
+	// Do Alias Analysis for pointers
+	std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap = getAnalysis<AndersenAAWrapperPass>().getResult().getSanitizedPtsToGraph();
+	std::map<llvm::Value*, std::set<llvm::Value*>> ptsFromMap = getAnalysis<AndersenAAWrapperPass>().getResult().getSanitizedPtsFromGraph();
+
+	ptsToMapPtr = &ptsToMap;
+	ptsFromMapPtr = &ptsFromMap;
+
+	errs() << "Performed Pointer Analysis\n";
+
+	if (DoFullEnc) {
+		collectAllGlobalAllocSites(M);
+		collectAllLocalAllocSites(M);
+	} else {
+		collectGlobalSensitiveAnnotations(M);
+		collectLocalSensitiveAnnotations(M);
+	}
+
+	// Populate the sensitive data types now
+	// Remove the annotation instruction because it causes a lot of headache later on
+	removeAnnotateInstruction(M);
+	DEBUG (
+	dbgs() << "Collected sensitive annotations\n";
+
+	for (Value* val: SensitiveAllocaList) {
+		val->dump();
+	}
+	);
+	errs() << "Collected sensitive annotations\n";
+
+	collectSensitivePointsToInfo(M, ptsToMap, ptsFromMap);
+	SensitiveAllocaSet = new std::set<Value*>(SensitiveAllocaList.begin(), SensitiveAllocaList.end());
+	
+	if (DoAESEncCache) {
+		AESCache.initializeAes(M);
+		AESCache.widenSensitiveAllocationSites(M, SensitiveAllocaList, ptsToMap, ptsFromMap);
+		dbgs() << "Initialized AES, widened buffers to multiples of 128 bits";
+	} else if (DoAESEncBasic) {
+		AESBasic.initializeAes(M);
+		AESBasic.widenSensitiveVariables(M, SensitiveAllocaList, ptsToMap, ptsFromMap);
+	}
+
+	unConstantifySensitiveAllocSites(M);
+	DEBUG (
+	dbgs() << "Collected sensitive points-to info\n";
+
+	for (Value* sensitiveVPtr: SensitiveAllocaList) {
+		errs() << "Sensitive Allocation site: ";
+		if (sensitiveVPtr->user_empty()) {
+			continue;
+		}
+		sensitiveVPtr->dump();
+	}
+
+	);
+	errs() << "Collected sensitive points-to info\n";
+
+	// runDFStage(M);
+
+	//addExternInlineASMHandlers(M);
+
+	initializeSensitiveGlobalVariables(M);
+
+	collectSensitiveGEPInstructions(M, ptsToMap);
+
+	SensitiveGEPPtrSet = new std::set<Value*>(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
+
+	DEBUG (
+		dbgs() << "Collected sensitive GEP instructions\n";
+	);
+	errs() << "Collected sensitive GEP instructions\n";
+	collectSensitiveLoadInstructions(M, ptsToMap);
+
+	SensitiveLoadPtrSet = new std::set<Value*>(SensitiveLoadPtrList.begin(), SensitiveLoadPtrList.end()); // Any pointer that points to sensitive location
+	SensitiveLoadSet = new std::set<Value*>(SensitiveLoadList.begin(), SensitiveLoadList.end());
+
+	collectSensitiveAsmInstructions(M, ptsToMap);
+
+	DEBUG (
+	dbgs() << "Collected sensitive Load instructions\n";
+	);
+	errs() << "Collected sensitive load instructions\n";
+
+	collectSensitiveExternalLibraryCalls(M);
+	DEBUG (
+	dbgs() << "Collected sensitive External Library calls\n";
+	);
+
+	errs() << "Collected sensitive External Library calls\n";
+	/*
+	for (LoadInst* LdInst: SensitiveLoadList) {
+		errs() << "Sensitive Load instruction: ";
+		LdInst->dump();
+	}
+	*/
+	// Build the sets, now that we have the lists
+	buildSets(M);
+
+	if (DoNullEnc) {
+		ExtLibHandler.addNullExtFuncHandler(M);
+	} else if (DoAESEncBasic) {
+		assert(false && "External Functions not supported yet for AES Basic");
+	} else if (DoAESEncCache) {
+		ExtLibHandler.addAESCacheExtFuncHandler(M);
+
+	}
+
+	DEBUG (
+	dbgs() << "Instrumented external function calls\n";
+	);
+
+	instrumentAndAnnotateInst(M);
+	DEBUG (
+	dbgs() << "Instrumented and annotated sensitive Load and Store instructions\n";
+	);
+
+	if (DoAESEncBasic) {
+		fixupBrokenFunctionCallsFromWidening(M);
+	}
+
+	return true;
+}
+
+INITIALIZE_PASS_BEGIN(EncryptionPass, "encryption", "Identify and instrument sensitive variables", false, true)
+INITIALIZE_PASS_DEPENDENCY(AndersenAAWrapperPass);
+INITIALIZE_PASS_END(EncryptionPass, "encryption", "Identify and instrument sensitive variables", false, true)
+
+ModulePass* llvm::createEncryptionPass() { return new EncryptionPass(); }
+
+

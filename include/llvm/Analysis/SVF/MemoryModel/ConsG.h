@@ -60,6 +60,8 @@ private:
     ConstraintEdge::ConstraintEdgeSetTy StoreCGEdgeSet;
     ConstraintEdge::ConstraintEdgeSetTy StoreValCGEdgeSet;
 
+    ConstraintEdge::ConstraintEdgeSetTy CallValCGEdgeSet;
+    ConstraintEdge::ConstraintEdgeSetTy RetValCGEdgeSet;
 
     EdgeID edgeIndex;
 
@@ -97,6 +99,10 @@ private:
     void cloneLoadValEdge(ConstraintEdge*);
 
     void cloneDirectEdge(ConstraintEdge*);
+
+    void cloneCallValEdge(ConstraintEdge*);
+
+    void cloneRetValEdge(ConstraintEdge*);
 
     void testAndAddNode(NodeID, llvm::SparseBitVector<>&);
     //@}
@@ -153,6 +159,10 @@ public:
             return StoreValCGEdgeSet.find(&edge) != StoreValCGEdgeSet.end();
         else if (kind == ConstraintEdge::LoadVal)
             return LoadValCGEdgeSet.find(&edge) != LoadValCGEdgeSet.end();
+        else if (kind == ConstraintEdge::CallVal)
+            return CallValCGEdgeSet.find(&edge) != CallValCGEdgeSet.end();
+        else if (kind == ConstraintEdge::RetVal)
+            return RetValCGEdgeSet.find(&edge) != RetValCGEdgeSet.end();
         else
             assert(false && "no other kind!");
         return false;
@@ -183,6 +193,10 @@ public:
     bool addStoreCGEdge(NodeID src, NodeID dst);
     /// Add Store Value edge
     bool addStoreValCGEdge(NodeID src, NodeID dst);
+    /// Add Call Value edge
+    bool addCallValCGEdge(NodeID src, NodeID dst);
+    /// Add Ret Value edge
+    bool addRetValCGEdge(NodeID src, NodeID dst);
     //@}
 
     ///Get PAG edge

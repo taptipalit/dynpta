@@ -525,6 +525,63 @@ public:
 };
 
 /*!
+ * Return non-pointer values
+ */
+class RetValPE: public PAGEdge {
+private:
+    RetValPE();
+    RetValPE(const RetValPE&);
+    void operator=(const RetValPE &);
+public:
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    //@{
+    static inline bool classof(const RetValPE *) {
+        return true;
+    }
+    static inline bool classof(const PAGEdge *edge) {
+        return edge->getEdgeKind() == PAGEdge::RetVal;
+    }
+    static inline bool classof(const GenericPAGEdgeTy *edge) {
+        return edge->getEdgeKind() == PAGEdge::RetVal;
+    }
+    //@}
+
+    /// constructor
+    RetValPE(PAGNode* s, PAGNode* d) : PAGEdge(s,d,PAGEdge::RetVal) {
+    }
+
+};
+
+/*!
+ * Call with non-pointer values
+ */
+class CallValPE: public PAGEdge {
+private:
+    CallValPE();
+    CallValPE(const CallValPE&);
+    void operator=(const CallValPE &);
+public:
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    //@{
+    static inline bool classof(const CallValPE *) {
+        return true;
+    }
+    static inline bool classof(const PAGEdge *edge) {
+        return edge->getEdgeKind() == PAGEdge::CallVal;
+    }
+    static inline bool classof(const GenericPAGEdgeTy *edge) {
+        return edge->getEdgeKind() == PAGEdge::CallVal;
+    }
+    //@}
+
+    /// constructor
+    CallValPE(PAGNode* s, PAGNode* d) : PAGEdge(s,d,PAGEdge::CallVal) {
+    }
+
+};
+
+
+/*!
  * Load non-pointer values
  */
 class LoadValPE: public PAGEdge {

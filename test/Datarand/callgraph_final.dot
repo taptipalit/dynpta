@@ -1,14 +1,13 @@
 digraph "Call Graph" {
 	label="Call Graph";
 
-	Node0x60d16d0 [shape=record,shape=circle,label="{dosomething}"];
-	Node0x60d16d0 -> Node0x60d1ff0[color=black];
-	Node0x60d1ff0 [shape=record,shape=Mrecord,label="{printf}"];
-	Node0x60d20f0 [shape=record,shape=circle,label="{main}"];
-	Node0x60d20f0 -> Node0x60d2170[color=black];
-	Node0x60d1f70 [shape=record,shape=Mrecord,label="{llvm.dbg.declare}"];
-	Node0x60d2070 [shape=record,shape=circle,label="{doanotherthing}"];
-	Node0x60d2070 -> Node0x60d16d0[color=black];
-	Node0x60d2070 -> Node0x60d1ff0[color=black];
-	Node0x60d2170 [shape=record,shape=Mrecord,label="{llvm.var.annotation}"];
+	Node0x694cad0 [shape=record,shape=circle,label="{gunc}"];
+	Node0x694cad0 -> Node0x694d3f0[color=black];
+	Node0x694d3f0 [shape=record,shape=Mrecord,label="{printf}"];
+	Node0x694d4f0 [shape=record,shape=circle,label="{main}"];
+	Node0x694d4f0 -> Node0x694d570[color=black];
+	Node0x694d370 [shape=record,shape=Mrecord,label="{llvm.dbg.declare}"];
+	Node0x694d470 [shape=record,shape=circle,label="{func}"];
+	Node0x694d470 -> Node0x694d3f0[color=black];
+	Node0x694d570 [shape=record,shape=Mrecord,label="{llvm.var.annotation}"];
 }

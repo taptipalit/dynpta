@@ -1,0 +1,1417 @@
+{
+    // @TODO fldsen
+	std::set<Value*> UnsupportedCallSet;
+
+	std::vector<Value*> sensitivePointerValueList; // List of sensitive pointers (the pointer itself is sensitive)
+	/*IntegerType* longTy = IntegerType::get(M.getContext(), 64);*/
+
+	for (CallInst* externalCallInst : SensitiveExternalLibCallList) {
+		Function* externalFunction = externalCallInst->getCalledFunction();
+        if (!externalFunction) {
+            // Was a function pointer.
+            std::vector<Function*> possibleFuns;
+            for (Value* fn: ptsToMap[externalCallInst->getCalledValue()]) {
+                if (Function* realFn = dyn_cast<Function>(fn)) {
+                    possibleFuns.push_back(realFn);
+                }
+            }
+            if (possibleFuns.size() != 1) {
+                errs() << "For call instruction: " << *externalCallInst << " in function " << externalCallInst->getParent()->getParent()->getName() << " found " << possibleFuns.size() << " functions\n";
+            }
+            assert(possibleFuns.size() == 1 && "Found more than one external function pointer targets. Don't know what to do here.\n");
+            externalFunction = possibleFuns[0];
+        }
+        /*
+        if (externalFunction->getName().equals("strlen")) {
+            errs() << "1. " << externalCallInst << " : " << *externalCallInst << "\n";
+        }
+        */
+		IRBuilder<> InstBuilder(externalCallInst);
+
+        StringRef annotFn("llvm.var.annotation");
+        if (annotFn.equals(externalFunction->getName())) {
+            continue;
+        }
+		int numArgs = externalCallInst->getNumArgOperands();
+		/*
+		sensitivePointerValueList.clear();
+		// Are any of the args in sensitive allocation sites -- do we really need to do this?
+		for (int i = 0; i < numArgs; i++) {
+			Value* arg = externalCallInst->getArgOperand(i);
+			if (isSensitivePtrVal(arg)) {
+				// XOR and store
+				Value* XORInt = ConstantInt::get(longTy, 0xAAAAAAAAAAAAAAAA, true);
+				Value* intValOfPtr = InstBuilder.CreatePtrToInt(arg, longTy);
+
+				Value* XORResult = InstBuilder.CreateXor(intValOfPtr, XORInt);
+				Value* destPtr = SensitivePtrValMap[arg];
+				Value* XORResultPtr = InstBuilder.CreateIntToPtr(XORResult, destPtr->getType()->getPointerElementType());
+
+				StoreInst* StInst = InstBuilder.CreateStore(XORResultPtr, destPtr);
+				sensitivePointerValueList.push_back(arg);
+			}
+		}
+		*/
+
+        // In case of AES cache encryption, write back the cache
+        if (DoAESEncCache) {
+            AESCache.writeback(externalCallInst);
+        }
+
+        if (externalFunction->getName() == "select") {
+            // TODO - Handle all arguments
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+
+            IRBuilder<> InstBuilder(externalCallInst);
+            Value* sensitiveArg = externalCallInst->getOperand(1);
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+            std::vector<Value*> ArgList;
+            if (sensitiveArg->getType() != voidPtrType) {
+                Value* voidArgVal = InstBuilder.CreateBitCast(sensitiveArg, voidPtrType);
+                ArgList.push_back(voidArgVal);
+            } else {
+                ArgList.push_back(sensitiveArg);
+            }
+            ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 128));
+            InstBuilder.CreateCall(decryptFunction, ArgList);
+            // Encrypt it back
+            CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+            encCInst->insertAfter(externalCallInst);
+        } else if (externalFunction->getName() == "calloc" || externalFunction->getName() == "aes_calloc") {
+			Function* instrumentFunction = M.getFunction("encryptArrayForLibCall");
+			std::vector<Value*> ArgList;
+			Value* numElements = externalCallInst->getArgOperand(0);
+			Value* elemSize = externalCallInst->getArgOperand(1);
+			Value* numBytes = InstBuilder.CreateMul(elemSize, numElements, "mul");
+
+			ArgList.push_back(externalCallInst);
+			ArgList.push_back(numBytes);
+			// Insert call instruction to call the function
+			CallInst* CInst = CallInst::Create(instrumentFunction, ArgList);
+			CInst->insertAfter(externalCallInst);
+		} else if (externalFunction->getName() == "printf") {
+			// Get the arguments, check if any of them is sensitive 
+			// and then put code to decrypt them in memory
+			for (int i = 0; i < numArgs; i++) {
+				Value* value = externalCallInst->getArgOperand(i);
+				if (isSensitiveArg(value, ptsToMap)) {
+					DEBUG (
+					dbgs() << "Do decryption for print value: ";
+					value->dump();
+					);
+					Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+					std::vector<Value*> ArgList;
+					ArgList.push_back(value);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+				}
+			}
+        } else if (externalFunction->getName() == "asprintf" || externalFunction->getName() == "asprintf128") {
+            // For the first argument which is a pointer to a string
+            Value* stringPtr = externalCallInst->getArgOperand(0);
+            // stringPtr is a pointer
+            // We need to check if it points to sensitive memory objects, and not if it is a sensitive memory object
+            if (isSensitiveArg(stringPtr, ptsToMap)) {
+                Function* encryptFunction = M.getFunction("encryptStringPtrAfterLibCall");
+                std::vector<Value*> ArgList;
+                ArgList.push_back(stringPtr);
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(externalCallInst);
+            }
+            for (int i = 1; i < numArgs; i++) {
+                Value* value = externalCallInst->getArgOperand(i);
+                if (isSensitiveArg(value, ptsToMap)) {
+                    DEBUG (
+                            dbgs() << "Do decryption for print value: ";
+                            value->dump();
+                          );
+                    Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+                    std::vector<Value*> ArgList;
+                    ArgList.push_back(value);
+                    /*CallInst* CInst = */
+                    InstBuilder.CreateCall(decryptFunction, ArgList);
+                    // Encrypt it back
+                    Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+                    CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                    encCInst->insertAfter(externalCallInst);
+                }
+            }
+        } else if (externalFunction->getName() == "posix_memalign") {
+            errs() << "Sensitive posix_memalign\n";
+            Value* memPtr = externalCallInst->getArgOperand(0);
+            Value* size = externalCallInst->getArgOperand(2);
+            // stringPtr is a pointer
+            // We need to check if it points to sensitive memory objects, and not if it is a sensitive memory object
+            if (isSensitiveArg(memPtr, ptsToMap)) {
+                Function* instrumentFunction = M.getFunction("encryptArrayPtrAfterLibCall");
+                std::vector<Value*> ArgList;
+                ArgList.push_back(memPtr);
+                ArgList.push_back(size);
+                // Insert call instruction to call the function
+                CallInst* CInst = CallInst::Create(instrumentFunction, ArgList);
+                CInst->insertAfter(externalCallInst);
+            }
+        } else if (externalFunction->getName() == "cloneenv") {
+            if (isSensitiveObjSet(externalCallInst)) {
+                std::vector<Value*> ArgList;
+                ArgList.push_back(externalCallInst);
+                Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(externalCallInst);
+            }
+        } else if (externalFunction->getName() == "poll") {
+            IRBuilder<> InstBuilder(externalCallInst);
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+
+            // Handle only the pollfd. The nfds will be in register, the timeout better be 0
+            Value* pollfdVal = externalCallInst->getArgOperand(0);
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+            if (isSensitiveArg(pollfdVal, ptsToMap)) {
+                std::vector<Value*> ArgList;
+                if (pollfdVal->getType() != voidPtrType) {
+                    Value* voidArgVal = InstBuilder.CreateBitCast(pollfdVal, voidPtrType);
+                    ArgList.push_back(voidArgVal);
+                } else {
+                    ArgList.push_back(pollfdVal);
+                }
+                ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 8));
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(externalCallInst);
+            }
+		} else if (externalFunction->getName() == "puts") {
+			Value* value = externalCallInst->getArgOperand(0);
+			if (isSensitiveArg(value, ptsToMap)) {
+				DEBUG (
+				dbgs() << "Do decryption for puts value: ";
+				value->dump();
+				);
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(value);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "fgets") {
+        	Value* buffer = externalCallInst->getArgOperand(0);
+            Value* fileStream0 = externalCallInst->getArgOperand(2);
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+            Value* fileStream = InstBuilder.CreateBitCast(fileStream0, voidPtrType);
+
+			if (isSensitiveArg(buffer, ptsToMap)) {
+				//Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(buffer);
+				//InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+			if (isSensitiveArg(fileStream, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(fileStream);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+        } else if (externalFunction->getName() == "fopen" || externalFunction->getName() == "open") {
+			Value* fileName = externalCallInst->getArgOperand(0);
+			Value* mode = externalCallInst->getArgOperand(1);
+			if (isSensitiveArg(fileName, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(fileName);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+			if (isSensitiveArg(mode, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(mode);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "fprintf") {
+			// Variable arg number
+			int argNum = externalCallInst->getNumArgOperands();
+			// Assuming first arguments, FILE* stream can never be sensitive
+			if (argNum > 1) {
+				// has varargs
+				for (int i = 1; i < argNum; i++) {
+					Value* arg = externalCallInst->getArgOperand(i);
+					if (isSensitiveArg(arg, ptsToMap) ) {
+						Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+						std::vector<Value*> ArgList;
+						ArgList.push_back(arg);
+						/*CallInst* CInst = */
+						InstBuilder.CreateCall(decryptFunction, ArgList);
+						// Encrypt it back
+						Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+						CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+						encCInst->insertAfter(externalCallInst);
+
+					}
+				}
+			}
+		} else if (externalFunction->getName() == "vsnprintf") {
+			// vsnprintf(char* str, size_t size, const char *format, va_list ap);
+			int argNum = externalCallInst->getNumArgOperands();
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+                     
+            // The first argument -> char *str
+            Value* arg = externalCallInst->getArgOperand(0);
+            if (isSensitiveArg(arg, ptsToMap)) {
+                //Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+                std::vector<Value*> ArgList;
+                if (arg->getType() != voidPtrType) {
+                    arg = InstBuilder.CreateBitCast(arg, voidPtrType);
+                }
+                ArgList.push_back(arg);
+                /*CallInst* CInst = */
+                //InstBuilder.CreateCall(decryptFunction, ArgList);
+                // Encrypt it back
+                Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(externalCallInst);
+
+            }
+            // Second argument is the size, ignore
+            // The third argument is the format buffer
+            arg = externalCallInst->getArgOperand(2);
+            if (isSensitiveArg(arg, ptsToMap)) {
+                Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+                std::vector<Value*> ArgList;
+                if (arg->getType() != voidPtrType) {
+                    arg = InstBuilder.CreateBitCast(arg, voidPtrType);
+                }
+                ArgList.push_back(arg);
+                /*CallInst* CInst = */
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+                // Encrypt it back
+                Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(externalCallInst);
+            }
+            // The fourth argument is the tricky va_list
+            arg = externalCallInst->getArgOperand(3);
+            if (isSensitiveArg(arg, ptsToMap)) {
+                Function* decryptFunction = M.getFunction("decryptVaArgListBeforeLibCall");
+                std::vector<Value*> ArgList;
+                ArgList.push_back(externalCallInst->getArgOperand(2));
+                ArgList.push_back(arg);
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+
+                std::vector<Value*> vaArgList;
+                if (arg->getType() != voidPtrType) {
+                    arg = InstBuilder.CreateBitCast(arg, voidPtrType);
+                }
+
+                vaArgList.push_back(arg);
+                // Before we try to encrypt it back, we need to call a va_end and va_start to reinitialize 
+                // the va_list
+                Function* vaEndIntrinsicFun = M.getFunction("llvm.va_end");
+                CallInst* vaEndCInst = CallInst::Create(vaEndIntrinsicFun, vaArgList);
+                vaEndCInst->insertAfter(externalCallInst);
+
+                Function* vaStartIntrinsicFun = M.getFunction("llvm.va_start");
+                CallInst* vaStartCInst = CallInst::Create(vaStartIntrinsicFun, vaArgList);
+                vaStartCInst->insertAfter(vaEndCInst);
+
+                Function* encryptFunction = M.getFunction("encryptVaArgListAfterLibCall");
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(vaStartCInst);
+            }
+        } else if (externalFunction->getName() == "vprintf") {
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+ 
+            Value* format = externalCallInst->getArgOperand(0);
+            Value* vararg = externalCallInst->getArgOperand(1);
+            if (isSensitiveArg(format, ptsToMap)) {
+                Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+                std::vector<Value*> ArgList;
+                if (format->getType() != voidPtrType) {
+                    format = InstBuilder.CreateBitCast(format, voidPtrType);
+                }
+                ArgList.push_back(format);
+                /*CallInst* CInst = */
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+                // Encrypt it back
+                Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(externalCallInst);
+            }
+            if (isSensitiveArg(vararg, ptsToMap)) {
+                Function* decryptFunction = M.getFunction("decryptVaArgListBeforeLibCall");
+                std::vector<Value*> ArgList;
+                ArgList.push_back(format);
+                ArgList.push_back(vararg);
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+
+                std::vector<Value*> vaArgList;
+                if (vararg->getType() != voidPtrType) {
+                    vararg = InstBuilder.CreateBitCast(vararg, voidPtrType);
+                }
+
+                vaArgList.push_back(vararg);
+                // Before we try to encrypt it back, we need to call a va_end and va_start to reinitialize 
+                // the va_list
+                Function* vaEndIntrinsicFun = M.getFunction("llvm.va_end");
+                CallInst* vaEndCInst = CallInst::Create(vaEndIntrinsicFun, vaArgList);
+                vaEndCInst->insertAfter(externalCallInst);
+
+                Function* vaStartIntrinsicFun = M.getFunction("llvm.va_start");
+                CallInst* vaStartCInst = CallInst::Create(vaStartIntrinsicFun, vaArgList);
+                vaStartCInst->insertAfter(vaEndCInst);
+
+                Function* encryptFunction = M.getFunction("encryptVaArgListAfterLibCall");
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(vaStartCInst);
+            }
+        } else if (externalFunction->getName() == "sprintf") {
+            // Variable arg number
+            int argNum = externalCallInst->getNumArgOperands();
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+                     
+			for (int i = 0; i < argNum; i++) {
+				// has varargs
+				Value* arg = externalCallInst->getArgOperand(i);
+				if (isSensitiveArg(arg, ptsToMap)) {
+					Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+					std::vector<Value*> ArgList;
+                    if (arg->getType() != voidPtrType) {
+                        arg = InstBuilder.CreateBitCast(arg, voidPtrType);
+                    }
+					ArgList.push_back(arg);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				}
+			}
+		} else if (externalFunction->getName() == "snprintf") {
+			// Variable arg number
+			int argNum = externalCallInst->getNumArgOperands();
+			// has varargs TODO
+			for (int i = 0; i < argNum; i++) {
+				if (i == 1) continue; // the size_t size arg
+				Value* arg = externalCallInst->getArgOperand(i);
+				if (isSensitiveArg(arg, ptsToMap)) {
+					Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+					std::vector<Value*> ArgList;
+					ArgList.push_back(arg);
+					/*CallInst* CInst = */
+                    if (i != 0) {
+                        // Don't decrypt the first argument, which is the destination.
+					    InstBuilder.CreateCall(decryptFunction, ArgList);
+                    }
+					// Encrypt it back
+					Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				}
+			}
+		} else if (externalFunction->getName() == "memcmp") {
+			Value* firstBuff = externalCallInst->getArgOperand(0);
+			Value* secondBuff = externalCallInst->getArgOperand(1);
+			Value* numBytes = externalCallInst->getArgOperand(2);
+			bool firstBuffSens = false;
+			bool secondBuffSens = false;
+			if (isSensitiveArg(firstBuff, ptsToMap)) {
+				firstBuffSens = true;
+			}
+			if (isSensitiveArg(secondBuff, ptsToMap)) {
+				secondBuffSens = true;
+			}
+			Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+			// One of them is sensitive, the other is not
+			// If it is the source, then decrypt before the call to memcpy
+			// If it is the destination, then decrypt after the call to memcpy
+
+			//if (firstBuffSens xor secondBuffSens) {
+				if (firstBuffSens) {
+			        std::vector<Value*> ArgList;
+					ArgList.push_back(firstBuff);
+					ArgList.push_back(numBytes);
+					// Insert call instruction to call the function
+					IRBuilder<> InstBuilder(externalCallInst);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				} 
+                if (secondBuffSens) {
+                    std::vector<Value*> ArgList;
+					ArgList.push_back(secondBuff);
+					ArgList.push_back(numBytes);
+					// Insert call instruction to call the function
+					IRBuilder<> InstBuilder(externalCallInst);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				}
+			//}
+		} else if (externalFunction->getName().find("llvm.memmove") != StringRef::npos) {
+			Value* firstBuff = externalCallInst->getArgOperand(0);
+			Value* secondBuff = externalCallInst->getArgOperand(1);
+			Value* numBytes = externalCallInst->getArgOperand(2);
+			bool firstBuffSens = false;
+			bool secondBuffSens = false;
+			if (isSensitiveArg(firstBuff, ptsToMap)) {
+				firstBuffSens = true;
+			}
+			if (isSensitiveArg(secondBuff, ptsToMap)) {
+				secondBuffSens = true;
+			}
+			Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+			std::vector<Value*> ArgList;
+
+			// One of them is sensitive, the other is not
+			// If it is the source, then decrypt before the call to memcpy
+			// If it is the destination, then decrypt after the call to memcpy
+
+			if (firstBuffSens xor secondBuffSens) {
+				if (firstBuffSens) {
+					ArgList.push_back(firstBuff);
+					ArgList.push_back(numBytes);
+					// Insert call instruction to call the function
+					IRBuilder<> InstBuilder(externalCallInst);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				} else {
+					ArgList.push_back(secondBuff);
+					ArgList.push_back(numBytes);
+					// Insert call instruction to call the function
+					IRBuilder<> InstBuilder(externalCallInst);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				}
+			}
+		} else if (externalFunction->getName() == "opendir") {
+			Value* dirName = externalCallInst->getArgOperand(0);
+			if (isSensitiveArg(dirName, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(dirName);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "stat" || externalFunction->getName() == "lstat") {
+			Value* pathName = externalCallInst->getArgOperand(0);
+			Value* statBuf = externalCallInst->getArgOperand(1);
+			if (isSensitiveArg(pathName, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(pathName);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+			if (isSensitiveArg(statBuf, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(statBuf);
+				ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 144));
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "fread") {
+			Value* bufferPtr = externalCallInst->getArgOperand(0);
+			Value* elemSize = externalCallInst->getArgOperand(1);
+			Value* numElements = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(bufferPtr, ptsToMap)) {
+				// Insert call instruction to call the function
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				Value* numBytes = InstBuilder.CreateMul(elemSize, numElements, "mul");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(bufferPtr);
+				ArgList.push_back(numBytes);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "strchr") {
+			Value* str = externalCallInst->getArgOperand(0);
+			if (isSensitiveArg(str, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(str);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+			}
+		} else if (externalFunction->getName() == "strcmp" || externalFunction->getName() == "strncmp" || externalFunction->getName() == "strncasecmp") {
+			Value* string1 = externalCallInst->getArgOperand(0);
+			Value* string2 = externalCallInst->getArgOperand(1);
+			if (isSensitiveArg(string1, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string1);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+			}
+			if (isSensitiveArg(string2, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string2);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "memchr" || externalFunction->getName() == "memrchr" || 
+                externalFunction->getName() == "strtol" || externalFunction->getName() == "unlink") {
+            Value* bufferPtr = externalCallInst->getArgOperand(0);
+
+            Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+            Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+
+            if (isSensitiveArg(bufferPtr, ptsToMap)) {
+                std::vector<Value*> ArgList;
+                ArgList.push_back(bufferPtr);
+                // Insert call instruction to call the function
+                IRBuilder<> InstBuilder(externalCallInst);
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+                // Encrypt it back
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+			}
+        } else if (externalFunction->getName().find("strcpy") != StringRef::npos || externalFunction->getName() == "strncpy") {
+            Value* destBufferPtr = externalCallInst->getArgOperand(0);
+            Value* srcBufferPtr = externalCallInst->getArgOperand(1);
+
+            Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+            Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+
+            if (isSensitiveArg(srcBufferPtr, ptsToMap)) {
+                std::vector<Value*> ArgList;
+                ArgList.push_back(srcBufferPtr);
+                // Insert call instruction to call the function
+                IRBuilder<> InstBuilder(externalCallInst);
+                /*CallInst* CInst = */
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+                // Encrypt it back
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+			}
+			if (isSensitiveArg(destBufferPtr, ptsToMap)) {
+				std::vector<Value*> ArgList;
+				ArgList.push_back(destBufferPtr);
+				IRBuilder<> InstBuilder(externalCallInst);
+				InstBuilder.CreateCall(decryptFunction, ArgList); // Bug Fix - Need to do this for unaligned buffers
+				// Can't use IRBuilder, TODO - is this ok to do?
+				CallInst* CInst = CallInst::Create(encryptFunction, ArgList);
+				CInst->insertAfter(externalCallInst);
+			}
+		} else if (externalFunction->getName().find("strcasecmp") != StringRef::npos) {
+            Value* destBufferPtr = externalCallInst->getArgOperand(0);
+            Value* srcBufferPtr = externalCallInst->getArgOperand(1);
+
+            Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+            Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+
+            if (isSensitiveArg(srcBufferPtr, ptsToMap)) {
+                std::vector<Value*> ArgList;
+                ArgList.push_back(srcBufferPtr);
+                // Insert call instruction to call the function
+                IRBuilder<> InstBuilder(externalCallInst);
+                /*CallInst* CInst = */
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+                // Encrypt it back
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+			}
+			if (isSensitiveArg(destBufferPtr, ptsToMap)) {
+				std::vector<Value*> ArgList;
+				ArgList.push_back(destBufferPtr);
+				IRBuilder<> InstBuilder(externalCallInst);
+				InstBuilder.CreateCall(decryptFunction, ArgList); // Bug Fix - Need to do this for unaligned buffers
+				// Can't use IRBuilder, TODO - is this ok to do?
+				CallInst* CInst = CallInst::Create(encryptFunction, ArgList);
+				CInst->insertAfter(externalCallInst);
+			}
+        } else if (externalFunction->getName() == "strlen") {
+			Value* string1 = externalCallInst->getArgOperand(0);
+			if (isSensitiveArg(string1, ptsToMap) ) {
+                /*
+                errs() << "Analysis says string " << *string1 << " is sensitive\n";
+                for (Value* val: ptsToMap[string1]) {
+                    errs() << "points to ... " << *val << "\n";
+                }
+                */
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string1);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+			}
+		} else if (externalFunction->getName() == "strdup") {
+            Value* string1 = externalCallInst->getArgOperand(0);
+			if (isSensitiveArg(string1, ptsToMap) ) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string1);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+			}
+            // It allocates and returns memory, is that sensitive?
+            if (isSensitiveObjSet(externalCallInst)) {
+                std::vector<Value*> ArgList;
+                ArgList.push_back(externalCallInst);
+                Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+            }
+        } else if (externalFunction->getName() == "strstr" || externalFunction->getName() == "strcasestr") {
+			Value* string1 = externalCallInst->getArgOperand(0);
+			Value* string2 = externalCallInst->getArgOperand(1);
+			if (isSensitiveArg(string1, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string1);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+			if (isSensitiveArg(string2, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string2);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+        } else if (externalFunction->getName() == "crypt") {
+        	Value* string1 = externalCallInst->getArgOperand(0);
+			Value* string2 = externalCallInst->getArgOperand(1);
+			if (isSensitiveArg(string1, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string1);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+			if (isSensitiveArg(string2, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(string2);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+
+        } else if (externalFunction->getName() == "cwd") {
+            Value* buf = externalCallInst->getArgOperand(0);
+            Value* bufLen = externalCallInst->getArgOperand(1);
+            // The second argument might be a sensitive buffer
+            if (isSensitiveArg(buf, ptsToMap)) {
+                Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+                std::vector<Value*> ArgList;
+                ArgList.push_back(buf);
+                ArgList.push_back(bufLen);
+                /*CallInst* CInst = */
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+                // Encrypt it back
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(externalCallInst);
+            }
+        } else if (externalFunction->getName() == "syscall") {
+                // Only support syscall getRandom at the moment. On current machine it is 318
+                if (ConstantInt* syscallNumVal = dyn_cast<ConstantInt>(externalCallInst->getArgOperand(0))) {
+                    IntegerType* longType = IntegerType::get(M.getContext(), 64);
+                    uint64_t syscallNum = syscallNumVal->getValue().getLimitedValue();
+                    if (syscallNum == 318) {
+					Value* buf = externalCallInst->getArgOperand(1);
+					Value* bufLen = externalCallInst->getArgOperand(2);
+                    IntegerType* bufLenWidth = dyn_cast<IntegerType>(bufLen->getType());
+                    assert(bufLenWidth && "Buflen should always be an integer!");
+                    if (bufLenWidth->getBitWidth() != 64) {
+                        // Can only extend, never truncate, as 64 bit
+                        bufLen = InstBuilder.CreateSExt(bufLen, longType);
+                    }
+					// The second argument might be a sensitive buffer
+					if (isSensitiveArg(buf, ptsToMap)) {
+						Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                        Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+						std::vector<Value*> ArgList;
+						ArgList.push_back(buf);
+						ArgList.push_back(bufLen);
+						/*CallInst* CInst = */
+						InstBuilder.CreateCall(decryptFunction, ArgList);
+						// Encrypt it back
+						CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+						encCInst->insertAfter(externalCallInst);
+
+					}
+				} else {
+					errs() << "Unsupported syscall found!\n";
+					assert(false);
+				}
+			}
+		} else if (externalFunction->getName() == "fwrite") {
+			// Get the first operand
+			Value* bufferPtr = externalCallInst->getArgOperand(0);
+			Value* elemSize = externalCallInst->getArgOperand(1);
+			Value* numElements = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(bufferPtr, ptsToMap)) {
+				// Insert call instruction to call the function
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				Value* numBytes = InstBuilder.CreateMul(elemSize, numElements, "mul");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(bufferPtr);
+				ArgList.push_back(numBytes);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName().find("llvm.memcpy") != StringRef::npos) {
+			Value* destBufferPtr = externalCallInst->getArgOperand(0);
+			Value* srcBufferPtr = externalCallInst->getArgOperand(1);
+			Value* numBytes = externalCallInst->getArgOperand(2);
+			// If both sensitive, or both not sensitive then do nothing
+			/*
+			if ((isSensitiveArg(srcBufferPtr, ptsToMap)) 
+					xor (isSensitiveArg(destBufferPtr, ptsToMap))) {
+					*/
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+				// One of them is sensitive, the other is not
+				// If it is the source, then decrypt before the call to memcpy
+				// If it is the destination, then decrypt after the call to memcpy
+
+				if (isSensitiveArg(srcBufferPtr, ptsToMap)) {
+					std::vector<Value*> ArgList;
+					ArgList.push_back(srcBufferPtr);
+					ArgList.push_back(numBytes);
+					// Insert call instruction to call the function
+					IRBuilder<> InstBuilder(externalCallInst);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+
+				} 
+				if (isSensitiveArg(destBufferPtr, ptsToMap)) {
+					std::vector<Value*> ArgList;
+					ArgList.push_back(destBufferPtr);
+					ArgList.push_back(numBytes);
+                    IRBuilder<> InstBuilder(externalCallInst);
+                    InstBuilder.CreateCall(decryptFunction, ArgList); // Bug Fix - Need to do this for unaligned buffers
+					// Can't use IRBuilder, TODO - is this ok to do?
+					CallInst* CInst = CallInst::Create(encryptFunction, ArgList);
+					CInst->insertAfter(externalCallInst);
+				}
+				/*
+			}
+			*/
+		} else if (externalFunction->getName() == "bzero") {
+            Value *bufferPtr = externalCallInst->getArgOperand(0);
+            Value *numBytes = externalCallInst->getArgOperand(1);
+        	if (isSensitiveArg(bufferPtr, ptsToMap)) {
+                Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+				Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+                IRBuilder<> InstBuilder(externalCallInst);
+				std::vector<Value*> ArgList;
+				ArgList.push_back(bufferPtr);
+				ArgList.push_back(numBytes);
+                InstBuilder.CreateCall(decryptFunction, ArgList); // Bug Fix - Need to do this for unaligned buffers
+				CallInst* CInst = CallInst::Create(encryptFunction, ArgList);
+				CInst->insertAfter(externalCallInst);
+			}
+        } else if (externalFunction->getName().find("memset") != StringRef::npos) {
+			Value *bufferPtr = externalCallInst->getArgOperand(0);
+			Value *numBytes = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(bufferPtr, ptsToMap)) {
+                Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+				Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+                IRBuilder<> InstBuilder(externalCallInst);
+				std::vector<Value*> ArgList;
+				ArgList.push_back(bufferPtr);
+				ArgList.push_back(numBytes);
+                InstBuilder.CreateCall(decryptFunction, ArgList); // Bug Fix - Need to do this for unaligned buffers
+				CallInst* CInst = CallInst::Create(encryptFunction, ArgList);
+				CInst->insertAfter(externalCallInst);
+			}
+		} else if (externalFunction->getName().find("llvm.memset") != StringRef::npos) {
+			Value *bufferPtr = externalCallInst->getArgOperand(0);
+			Value *numBytes = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(bufferPtr, ptsToMap)) {
+                Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+				Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+                IRBuilder<> InstBuilder(externalCallInst);
+				std::vector<Value*> ArgList;
+				ArgList.push_back(bufferPtr);
+				ArgList.push_back(numBytes);
+                InstBuilder.CreateCall(decryptFunction, ArgList); // Bug Fix - Need to do this for unaligned buffers
+				CallInst* CInst = CallInst::Create(encryptFunction, ArgList);
+				CInst->insertAfter(externalCallInst);
+			}
+		} else if (externalFunction->getName() == "read") {
+			Value* bufferPtr = externalCallInst->getArgOperand(1);
+			Value* numBytes = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(bufferPtr, ptsToMap)) {
+				Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+                Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(bufferPtr);
+				ArgList.push_back(numBytes);
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+				CallInst* CInst = CallInst::Create(encryptFunction, ArgList);
+				CInst->insertAfter(externalCallInst);
+			}
+		} else if (externalFunction->getName() == "write") {
+			Value* bufferPtr = externalCallInst->getArgOperand(1);
+			Value* numBytes = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(bufferPtr, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(bufferPtr);
+				ArgList.push_back(numBytes);
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+		} else if (externalFunction->getName() == "bind") {
+			/*Value* sockfd = externalCallInst->getArgOperand(0);*/
+			Value* sockaddr = externalCallInst->getArgOperand(1);
+			Value* socklen = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(sockaddr, ptsToMap)) {
+				PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+				IntegerType* longType = IntegerType::get(M.getContext(), 64);
+				// Convert sockaddr* to void*
+				Value* voidSockaddrVal = InstBuilder.CreateBitCast(sockaddr, voidPtrType);
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(voidSockaddrVal);
+				if (IntegerType* socklenType = dyn_cast<IntegerType>(socklen->getType())) {
+					if (socklenType->getBitWidth() != 64) {
+						Value* longSocklenVal = InstBuilder.CreateSExt(socklen, longType);	
+						ArgList.push_back(longSocklenVal);
+					} else {
+						ArgList.push_back(socklen);
+					}
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+				} else {
+					errs() << "Don't know what to do with non-integer type socklen.\n";
+					assert(false);
+				}
+			}
+		} else if (externalFunction->getName() == "connect") {
+			// #TODO - Check if required
+		} else if (externalFunction->getName() == "getaddrinfo") {
+			Value* host = externalCallInst->getArgOperand(0);
+			Value* port = externalCallInst->getArgOperand(1);
+			Value* addrHints = externalCallInst->getArgOperand(2);
+			if (isSensitiveArg(host, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(host);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+			if (isSensitiveArg(port, ptsToMap)) {
+				Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+				std::vector<Value*> ArgList;
+				ArgList.push_back(port);
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+			if (isSensitiveArg(addrHints, ptsToMap)) {
+				PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+				IntegerType* longType = IntegerType::get(M.getContext(), 64);
+
+				Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+				std::vector<Value*> ArgList;
+                Value* addrHintsVoidPtr= InstBuilder.CreateBitCast(addrHints, voidPtrType);
+				ArgList.push_back(addrHintsVoidPtr);
+				ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 48));
+				/*CallInst* CInst = */
+				InstBuilder.CreateCall(decryptFunction, ArgList);
+				// Encrypt it back
+				CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+				encCInst->insertAfter(externalCallInst);
+
+			}
+        } else if (externalFunction->getName() == "pthread_mutex_lock") {
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+            std::vector<Value*> ArgList;
+            Value* encryptedPtr= InstBuilder.CreateBitCast(externalCallInst->getArgOperand(0), voidPtrType);
+            ArgList.push_back(encryptedPtr);
+            ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 40));
+            /*CallInst* CInst = */
+            InstBuilder.CreateCall(decryptFunction, ArgList);
+            // Encrypt it back
+            CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+            encCInst->insertAfter(externalCallInst);
+        } else if (externalFunction->getName() == "pthread_mutex_lock") {
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+            std::vector<Value*> ArgList;
+            Value* encryptedPtr= InstBuilder.CreateBitCast(externalCallInst->getArgOperand(0), voidPtrType);
+            ArgList.push_back(encryptedPtr);
+            ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 40));
+            /*CallInst* CInst = */
+            InstBuilder.CreateCall(decryptFunction, ArgList);
+            // Encrypt it back
+            CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+            encCInst->insertAfter(externalCallInst);
+
+        } else if (externalFunction->getName() == "pthread_mutex_init") {
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+            std::vector<Value*> ArgList;
+            Value* encryptedPtr= InstBuilder.CreateBitCast(externalCallInst->getArgOperand(0), voidPtrType);
+            ArgList.push_back(encryptedPtr);
+            ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 40));
+            /*CallInst* CInst = */
+            InstBuilder.CreateCall(decryptFunction, ArgList);
+            // Encrypt it back
+            CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+            encCInst->insertAfter(externalCallInst);
+        } else if (externalFunction->getName() == "pthread_mutex_destroy") {
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+            std::vector<Value*> ArgList;
+            Value* encryptedPtr= InstBuilder.CreateBitCast(externalCallInst->getArgOperand(0), voidPtrType);
+            ArgList.push_back(encryptedPtr);
+            ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 40));
+            /*CallInst* CInst = */
+            InstBuilder.CreateCall(decryptFunction, ArgList);
+            // Encrypt it back
+            CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+            encCInst->insertAfter(externalCallInst);
+        } else if (externalFunction->getName() == "pthread_create") {
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+            Value* pthreadTArg = externalCallInst->getArgOperand(0);
+            Value* pthreadAttrTArg = externalCallInst->getArgOperand(1);
+            if (isSensitiveArg(pthreadTArg, ptsToMap)) {
+                std::vector<Value*> ArgList;
+                Value* encryptedPtr= InstBuilder.CreateBitCast(pthreadTArg, voidPtrType);
+                ArgList.push_back(encryptedPtr);
+                ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 8));
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+                // Encrypt it back
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(externalCallInst);
+            }
+            if (isSensitiveArg(pthreadAttrTArg, ptsToMap)) {
+                 std::vector<Value*> ArgList;
+                Value* encryptedPtr= InstBuilder.CreateBitCast(pthreadAttrTArg, voidPtrType);
+                ArgList.push_back(encryptedPtr);
+                ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 56));
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+                // Encrypt it back
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(externalCallInst);
+            }
+        } else if (externalFunction->getName() == "readdir" || externalFunction->getName() == "clonereaddir") {
+            Value* dirp = externalCallInst->getArgOperand(0);
+            if (isSensitiveArg(dirp, ptsToMap)) {
+                int dirpSize = getCompositeSzValue(dirp, M);
+                Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+                std::vector<Value*> ArgList;
+                ArgList.push_back(dirp);
+                ArgList.push_back(
+                        ConstantInt::get(
+                            IntegerType::get(externalCallInst->getContext(), 64), 
+                            dirpSize
+                            )
+                        );
+                InstBuilder.CreateCall(decryptFunction, ArgList);
+                // Encrypt it back
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(externalCallInst);
+            }
+            if (isSensitiveArg(externalCallInst)) {
+                int direntSize = getCompositeSzValue(externalCallInst, M);
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+
+                PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+                IntegerType* longType = IntegerType::get(M.getContext(), 64);
+
+                CastInst* castInst = BitCastInst::CreateBitOrPointerCast(externalCallInst, voidPtrType);
+                castInst->insertAfter(externalCallInst);
+
+                std::vector<Value*> ArgList;
+                ArgList.push_back(castInst);
+                ArgList.push_back(
+                        ConstantInt::get(
+                            IntegerType::get(externalCallInst->getContext(), 64), 
+                            direntSize
+                            )
+                        );
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(castInst);
+            }
+        } /* else if (externalFunction->getName() == "pthread_setspecific") {
+            // int pthread_setspecific(pthread_key_t, const void *value); --> the pthread_key_t is just an integer
+            // so only the void* value can be sensitive, it's size is tricky to find
+            Value* voidPtrValue = externalCallInst->getArgOperand(1);
+            if (isSensitiveArg(voidPtrValue, ptsToMap)) {
+                int voidMemObjSize = getSzVoidArgVal(voidPtrValue, M);
+
+                errs() << "For external pthread_setspecific call " << *externalCallInst << " in function " << externalCallInst->getParent()->getParent()->getName() << ", size = " << voidMemObjSize << "\n";
+                if (voidMemObjSize == -1) {
+                    Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+                    Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+                     std::vector<Value*> ArgList;
+                    ArgList.push_back(externalCallInst->getArgOperand(1));
+                    InstBuilder.CreateCall(decryptFunction, ArgList);
+                    // Encrypt it back
+                    CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                    encCInst->insertAfter(externalCallInst);
+
+                } else {
+                    Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                    Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+                    std::vector<Value*> ArgList;
+                    ArgList.push_back(externalCallInst->getArgOperand(1));
+                    ArgList.push_back(
+                            ConstantInt::get(
+                                IntegerType::get(externalCallInst->getContext(), 64), 
+                                voidMemObjSize 
+                                )
+                            );
+                    InstBuilder.CreateCall(decryptFunction, ArgList);
+                    // Encrypt it back
+                    CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                    encCInst->insertAfter(externalCallInst);
+                }
+            }
+        } else if (externalFunction->getName() == "pthread_getspecific") {
+            Value* voidPtrValue = externalCallInst; // The return value
+            int voidMemObjSize = getSzVoidRetVal(voidPtrValue, M);
+            errs() << "For external pthread_setspecific call " << *externalCallInst << " in function " << externalCallInst->getParent()->getParent()->getName() << ", size = " << voidMemObjSize << "\n";
+            if (voidMemObjSize == -1) {
+                Function* instrumentFunction = M.getFunction("encryptStringAfterLibCall");
+                std::vector<Value*> ArgList;
+                ArgList.push_back(externalCallInst);
+                CallInst* CInst = CallInst::Create(instrumentFunction, ArgList);
+                CInst->insertAfter(externalCallInst);
+            } else {
+                Function* instrumentFunction = M.getFunction("encryptArrayForLibCall");
+                std::vector<Value*> ArgList;
+
+                ArgList.push_back(externalCallInst);
+                ArgList.push_back(
+                            ConstantInt::get(
+                                IntegerType::get(externalCallInst->getContext(), 64), 
+                                voidMemObjSize 
+                                )
+                            );
+                // Insert call instruction to call the function
+                CallInst* CInst = CallInst::Create(instrumentFunction, ArgList);
+                CInst->insertAfter(externalCallInst);
+            }
+        } */
+        else if (externalFunction->getName() == "epoll_ctl") {
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+            std::vector<Value*> ArgList;
+            Value* encryptedPtr= InstBuilder.CreateBitCast(externalCallInst->getArgOperand(3), voidPtrType);
+            ArgList.push_back(encryptedPtr);
+            ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 12));
+            /*CallInst* CInst = */
+            InstBuilder.CreateCall(decryptFunction, ArgList);
+            // Encrypt it back
+            CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+            encCInst->insertAfter(externalCallInst);
+        } else if (externalFunction->getName() == "epoll_wait") {
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+            std::vector<Value*> ArgList;
+            Value* encryptedPtr= InstBuilder.CreateBitCast(externalCallInst->getArgOperand(1), voidPtrType);
+            ArgList.push_back(encryptedPtr);
+            ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 12));
+            /*CallInst* CInst = */
+            InstBuilder.CreateCall(decryptFunction, ArgList);
+            // Encrypt it back
+            CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+            encCInst->insertAfter(externalCallInst);
+        } else if (externalFunction->getName() == "uname") {
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+            std::vector<Value*> ArgList;
+            Value* encryptedPtr= InstBuilder.CreateBitCast(externalCallInst->getArgOperand(0), voidPtrType);
+            ArgList.push_back(encryptedPtr);
+            ArgList.push_back(ConstantInt::get(IntegerType::get(externalCallInst->getContext(), 64), 390));
+            /*CallInst* CInst = */
+            InstBuilder.CreateCall(decryptFunction, ArgList);
+            // Encrypt it back
+            CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+            encCInst->insertAfter(externalCallInst);
+
+        } else if (externalFunction->getName() == "mk_string_build") {
+			// Variable arg number
+			int argNum = externalCallInst->getNumArgOperands();
+            PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            IntegerType* longType = IntegerType::get(M.getContext(), 64);
+                     
+            //char *mk_string_build(char **buffer, unsigned long *len, const char *format, ...);
+            Value* returnBufPtr = externalCallInst;
+            if (isSensitiveArg(returnBufPtr, ptsToMap)) {
+                std::vector<Value*> ArgList;
+                if (returnBufPtr->getType() != voidPtrType) {
+                    returnBufPtr = InstBuilder.CreateBitCast(returnBufPtr, voidPtrType);
+                }
+                ArgList.push_back(returnBufPtr);
+                // Encrypt it back
+                Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                encCInst->insertAfter(externalCallInst);
+
+            }
+			for (int i = 2; i < argNum; i++) {
+				// has varargs
+				Value* arg = externalCallInst->getArgOperand(i);
+				if (isSensitiveArg(arg, ptsToMap)) {
+					Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+					std::vector<Value*> ArgList;
+                    if (arg->getType() != voidPtrType) {
+                        arg = InstBuilder.CreateBitCast(arg, voidPtrType);
+                    }
+					ArgList.push_back(arg);
+					/*CallInst* CInst = */
+					InstBuilder.CreateCall(decryptFunction, ArgList);
+					// Encrypt it back
+					Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+					CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+					encCInst->insertAfter(externalCallInst);
+				}
+			}
+		} else {
+			UnsupportedCallSet.insert(externalCallInst);
+			//errs() << "Unsupported external function: "<<externalFunction->getName() << "\n";
+			//assert(false);
+		}
+		// Add instructions after the externalCallInst
+		/*	
+		for (Value* sensitivePtrVal: sensitivePointerValueList) {
+			// XOR and store
+			Value* XORInt = ConstantInt::get(longTy, 0xAAAAAAAAAAAAAAAA, true);
+			PtrToIntInst* intValOfPtr = new PtrToIntInst(sensitivePtrVal, longTy);
+			intValOfPtr->insertAfter(externalCallInst);
+
+			BinaryOperator* XOROp = BinaryOperator::CreateXor(intValOfPtr, XORInt);
+			XOROp->insertAfter(intValOfPtr);
+			Value* destPtr = SensitivePtrValMap[sensitivePtrVal];
+			if (XOROp->getType() != destPtr->getType()) {
+				IntToPtrInst* XORPtr = new IntToPtrInst(XOROp, destPtr->getType()->getPointerElementType());
+				XORPtr->insertAfter(XOROp);
+				StoreInst* StInst = new StoreInst(XORPtr, destPtr);
+				StInst->insertAfter(XORPtr);
+			} else {
+				StoreInst* StInst = new StoreInst(XOROp, destPtr);
+				StInst->insertAfter(XOROp);
+			}
+		}
+		*/
+	}
+	errs() << "Unsupported Sensitive External Function: \n";
+	std::set<Function*> unsupFns;
+	for (Value* unsupportedCall: UnsupportedCallSet) {
+		CallInst* CInst = dyn_cast<CallInst>(unsupportedCall);
+		//dbgs() << "Function call: "<< CInst->getCalledFunction()->getName() << " ";
+        if (CInst->getCalledFunction()) {
+		    unsupFns.insert(CInst->getCalledFunction());
+        } else {
+            for (Value* fn: ptsToMap[CInst->getCalledValue()]) {
+                if (Function* realFn = dyn_cast<Function>(fn)) {
+                    unsupFns.insert(realFn);
+                }
+            }
+        }
+		/*
+		for (int i = 0; i < CInst->getNumArgOperands(); i++) {
+			Value* argVal = CInst->getArgOperand(i);
+			argVal->dump();
+		}
+		*/
+	}
+	for (Function* fn: unsupFns) {
+        if (fn->getName() == "realloc") {
+            dbgs() << "Function: " << fn->getName() << ", can probably do without instrumentation\n";
+        } else {
+		    dbgs() << "Function: " << fn->getName() << "\n";
+        }
+	}
+
+    // TODO - Handle ASM calls correctly. Right now only deal with the fd_set call
+    for (Value* asmVal: SensitiveInlineAsmCalls) {
+        CallInst* inlineAsmCall = dyn_cast<CallInst>(asmVal);
+    	PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+
+        IRBuilder<> InstBuilder(inlineAsmCall);
+        if (inlineAsmCall->getNumArgOperands() < 3) {
+            continue;
+        }
+        Value* sensitiveArg = inlineAsmCall->getOperand(2);
+        Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+        Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+        std::vector<Value*> ArgList;
+        if (sensitiveArg->getType() != voidPtrType) {
+            Value* voidArgVal = InstBuilder.CreateBitCast(sensitiveArg, voidPtrType);
+            ArgList.push_back(voidArgVal);
+        } else {
+            ArgList.push_back(sensitiveArg);
+        }
+        ArgList.push_back(ConstantInt::get(IntegerType::get(inlineAsmCall->getContext(), 64), 128));
+        InstBuilder.CreateCall(decryptFunction, ArgList);
+        // Encrypt it back
+        CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+        encCInst->insertAfter(inlineAsmCall);
+        break; // TODO - Should be only one!
+    }
+}

@@ -637,6 +637,7 @@ void BVDataPTAImpl::onTheFlyCallGraphSolve(const CallSiteToFunPtrMap& callsites,
             const Value *vtbl = getVCallVtblPtr(cs);
             assert(pag->hasValueNode(vtbl));
             NodeID vtblId = pag->getValueNode(vtbl);
+            assert(false && "Haven't implemented value flow analysis for this yet!\n");
             resolveCPPIndCalls(cs, getPts(vtblId), newEdges,callgraph);
         } else
             resolveIndCalls(iter->first,getPts(iter->second),newEdges,callgraph);

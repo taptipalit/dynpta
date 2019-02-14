@@ -57,7 +57,7 @@ static cl::opt<unsigned> maxFieldNumLimit("fieldlimit",  cl::init(10000),
 static cl::opt<bool> LocMemModel("locMM", cl::init(false),
                                  cl::desc("Bytes/bits modeling of memory locations"));
 
-static cl::opt<bool> modelConsts("modelConsts", cl::init(false),
+static cl::opt<bool> modelConsts("modelConsts", cl::init(true),
                                  cl::desc("Modeling individual constant objects"));
 
 /*!

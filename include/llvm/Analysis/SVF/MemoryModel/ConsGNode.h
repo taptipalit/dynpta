@@ -54,6 +54,12 @@ private:
     ConstraintEdge::ConstraintEdgeSetTy storeOutEdges; ///< all outgoing store edge of this node
     ConstraintEdge::ConstraintEdgeSetTy storeValOutEdges; // <out outgoing store value edge of this node
 
+    ConstraintEdge::ConstraintEdgeSetTy callValInEdges;
+    ConstraintEdge::ConstraintEdgeSetTy callValOutEdges;
+
+    ConstraintEdge::ConstraintEdgeSetTy retValInEdges;
+    ConstraintEdge::ConstraintEdgeSetTy retValOutEdges;
+
     /// Copy/call/ret/gep incoming edge of this node,
     /// To be noted: this set is only used when SCC detection, and node merges
     ConstraintEdge::ConstraintEdgeSetTy directInEdges;
@@ -174,6 +180,41 @@ public:
         return storeInEdges.end();
     }
 
+    // Call Val
+    inline const_iterator outgoingCallValsBegin() const {
+        return callValOutEdges.begin();
+    }
+
+    inline const_iterator outgoingCallValsEnd() const {
+        return callValOutEdges.end();
+    }
+
+    inline const_iterator incomingCallValsBegin() const {
+        return callValInEdges.begin();
+    }
+
+    inline const_iterator incomingCallValsEnd() const {
+        return callValInEdges.end();
+    }
+
+    // Ret Val
+    inline const_iterator outgoingRetValsBegin() const {
+        return retValOutEdges.begin();
+    }
+
+    inline const_iterator outgoingRetValsEnd() const {
+        return retValOutEdges.end();
+    }
+
+    inline const_iterator incomingRetValsBegin() const {
+        return retValInEdges.begin();
+    }
+
+    inline const_iterator incomingRetValsEnd() const {
+        return retValInEdges.end();
+    }
+
+
     inline const_iterator outgoingStoreValsBegin() const {
         return storeValOutEdges.begin();
     }
@@ -206,6 +247,18 @@ public:
         addressInEdges.insert(inEdge);
         addIncomingEdge(inEdge);
     }
+
+    inline void addIncomingCallValEdge(CallValCGEdge* outEdge) {
+        bool added1 = callValInEdges.insert(outEdge).second;
+        bool added2 = addIncomingEdge(outEdge);
+        assert(added1 && added2 && "edge not added, duplicated adding!!");
+    }
+    inline void addIncomingRetValEdge(RetValCGEdge* outEdge) {
+        bool added1 = retValInEdges.insert(outEdge).second;
+        bool added2 = addIncomingEdge(outEdge);
+        assert(added1 && added2 && "edge not added, duplicated adding!!");
+    }
+
     inline void addIncomingLoadEdge(LoadCGEdge* inEdge) {
         loadInEdges.insert(inEdge);
         addIncomingEdge(inEdge);
@@ -237,6 +290,18 @@ public:
         bool added2 = addOutgoingEdge(outEdge);
         assert(added1 && added2 && "edge not added, duplicated adding!!");
     }
+
+    inline void addOutgoingCallValEdge(CallValCGEdge* outEdge) {
+        bool added1 = callValOutEdges.insert(outEdge).second;
+        bool added2 = addOutgoingEdge(outEdge);
+        assert(added1 && added2 && "edge not added, duplicated adding!!");
+    }
+    inline void addOutgoingRetValEdge(RetValCGEdge* outEdge) {
+        bool added1 = retValOutEdges.insert(outEdge).second;
+        bool added2 = addOutgoingEdge(outEdge);
+        assert(added1 && added2 && "edge not added, duplicated adding!!");
+    }
+
     inline void addOutgoingLoadValEdge(LoadValCGEdge* outEdge) {
         bool added1 = loadValOutEdges.insert(outEdge).second;
         bool added2 = addOutgoingEdge(outEdge);

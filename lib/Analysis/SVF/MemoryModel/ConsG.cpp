@@ -74,6 +74,18 @@ void ConstraintGraph::cloneLoadEdge(ConstraintEdge* edge) {
     errs() << "Cloning load edge: " << srcID << " --> " << dstID << "\n";
 }
 
+void ConstraintGraph::cloneCallValEdge(ConstraintEdge* edge) {
+    NodeID srcID = edge->getSrcID();
+    NodeID dstID = edge->getDstID();
+    addCallValCGEdge(srcID, dstID);
+}
+
+void ConstraintGraph::cloneRetValEdge(ConstraintEdge* edge) {
+    NodeID srcID = edge->getSrcID();
+    NodeID dstID = edge->getDstID();
+    addRetValCGEdge(srcID, dstID);
+}
+
 void ConstraintGraph::cloneDirectEdge(ConstraintEdge* edge) {
     NodeID srcID = edge->getSrcID();
     NodeID dstID = edge->getDstID();
@@ -123,6 +135,14 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 workList.push((*it)->getSrcID());
             }
 
+            // Incoming call values
+            for (ConstraintNode::const_iterator it = node->incomingCallValsBegin(),
+                    eit = node->incomingCallValsEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                cloneCallValEdge(*it);
+                workList.push((*it)->getSrcID());
+            }
+
             // Incoming stores
             for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
                     eit = node->incomingStoresEnd(); it != eit; ++it) {
@@ -138,6 +158,15 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 cloneLoadValEdge(*it);
                 workList.push((*it)->getSrcID());
             }
+
+            // Incoming return values
+            for (ConstraintNode::const_iterator it = node->incomingRetValsBegin(),
+                    eit = node->incomingRetValsEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                cloneRetValEdge(*it);
+                workList.push((*it)->getSrcID());
+            }
+
 
             // Incoming loads
             for (ConstraintNode::const_iterator it = node->incomingLoadsBegin(),
@@ -179,6 +208,14 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 workList.push((*it)->getDstID());
             }
 
+            // Outgoing call values
+            for (ConstraintNode::const_iterator it = node->outgoingCallValsBegin(),
+                    eit = node->outgoingCallValsEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                cloneCallValEdge(*it);
+                workList.push((*it)->getDstID());
+            }
+
 
             // Outgoing loads
             for (ConstraintNode::const_iterator it = node->outgoingLoadsBegin(),
@@ -188,13 +225,22 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 workList.push((*it)->getDstID());
             }
 
-            // Outgoing store vals
+            // Outgoing load vals
             for (ConstraintNode::const_iterator it = node->outgoingLoadValsBegin(),
                     eit = node->outgoingLoadValsEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getDstID(), addedConsNodeList);
                 cloneLoadValEdge(*it); 
                 workList.push((*it)->getDstID());
             }
+
+            // Outgoing return values
+            for (ConstraintNode::const_iterator it = node->outgoingRetValsBegin(),
+                    eit = node->outgoingRetValsEnd(); it != eit; ++it) {
+                testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                cloneRetValEdge(*it);
+                workList.push((*it)->getDstID());
+            }
+
 
             for (ConstraintNode::const_iterator it = node->directOutEdgeBegin(),
                     eit = node->directOutEdgeEnd(); it != eit; ++it) {
@@ -302,6 +348,24 @@ void ConstraintGraph::buildCG() {
         PAGEdge* edge = *iter;
         addLoadValCGEdge(edge->getSrcID(),edge->getDstID());
     }
+
+    // Call Values
+    PAGEdge::PAGEdgeSetTy& callVals = pag->getEdgeSet(PAGEdge::CallVal);
+    for (PAGEdge::PAGEdgeSetTy::iterator iter = callVals.begin(), eiter = 
+            callVals.end(); iter != eiter; ++iter) {
+        PAGEdge* edge = *iter;
+        addCallValCGEdge(edge->getSrcID(), edge->getDstID());
+    }
+
+    // Return Values
+    PAGEdge::PAGEdgeSetTy& retVals = pag->getEdgeSet(PAGEdge::RetVal);
+    for (PAGEdge::PAGEdgeSetTy::iterator iter = retVals.begin(), eiter = 
+            retVals.end(); iter != eiter; ++iter) {
+        PAGEdge* edge = *iter;
+        addRetValCGEdge(edge->getSrcID(), edge->getDstID());
+    }
+
+
 }
 
 
@@ -421,6 +485,40 @@ bool ConstraintGraph::addLoadValCGEdge(NodeID src, NodeID dst) {
     assert(added && "not added??");
     srcNode->addOutgoingLoadValEdge(edge);
     dstNode->addIncomingLoadValEdge(edge);
+    return added;
+}
+
+/*!
+ * Add Call Val edge
+ */
+bool ConstraintGraph::addCallValCGEdge(NodeID src, NodeID dst) {
+    ConstraintNode* srcNode = getConstraintNode(src);
+    ConstraintNode* dstNode = getConstraintNode(dst);
+    if(hasEdge(srcNode,dstNode,ConstraintEdge::CallVal))
+        return false;
+
+    CallValCGEdge* edge = new CallValCGEdge(srcNode, dstNode, edgeIndex++);
+    bool added = CallValCGEdgeSet.insert(edge).second;
+    assert(added && "not added??");
+    srcNode->addOutgoingCallValEdge(edge);
+    dstNode->addIncomingCallValEdge(edge);
+    return added;
+}
+
+/*!
+ * Add Return Val edge
+ */
+bool ConstraintGraph::addRetValCGEdge(NodeID src, NodeID dst) {
+    ConstraintNode* srcNode = getConstraintNode(src);
+    ConstraintNode* dstNode = getConstraintNode(dst);
+    if(hasEdge(srcNode,dstNode,ConstraintEdge::RetVal))
+        return false;
+
+    RetValCGEdge* edge = new RetValCGEdge(srcNode, dstNode, edgeIndex++);
+    bool added = RetValCGEdgeSet.insert(edge).second;
+    assert(added && "not added??");
+    srcNode->addOutgoingRetValEdge(edge);
+    dstNode->addIncomingRetValEdge(edge);
     return added;
 }
 
@@ -707,7 +805,11 @@ void ConstraintGraph::connectCaller2CalleeParams(llvm::CallSite cs, const llvm::
             }
         }
         else {
-            DBOUT(DAndersen, outs() << "not a pointer ignored\n");
+            NodeID dstrec = sccRepNode(cs_return->getId());
+            NodeID srcret = sccRepNode(fun_return->getId());
+
+            addRetValCGEdge(srcret, dstrec);
+            //DBOUT(DAndersen, outs() << "not a pointer ignored\n");
         }
     }
 
@@ -736,6 +838,10 @@ void ConstraintGraph::connectCaller2CalleeParams(llvm::CallSite cs, const llvm::
                 if(addCopyCGEdge(srcAA, dstFA)) {
                     cpySrcNodes.insert(std::make_pair(srcAA,dstFA));
                 }
+            } else {
+                NodeID srcAA = sccRepNode(cs_arg->getId());
+                NodeID dstFA = sccRepNode(fun_arg->getId());
+                addCallValCGEdge(srcAA, dstFA);
             }
         }
 
@@ -867,6 +973,10 @@ struct DOTGraphTraits<ConstraintGraph*> : public DOTGraphTraits<PAG*> {
             return "color=yellow";
         } else if (edge->getEdgeKind() == ConstraintEdge::StoreVal) {
             return "color=grey";
+        } else if (edge->getEdgeKind() == ConstraintEdge::CallVal) {
+            return "color=blue,style=dotted";
+        } else if (edge->getEdgeKind() == ConstraintEdge::RetVal) {
+            return "color=green,style=dotted";
         } else {
             assert(0 && "No such kind edge!!");
         }

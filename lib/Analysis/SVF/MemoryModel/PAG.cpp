@@ -83,6 +83,33 @@ bool PAG::addLoadEdge(NodeID src, NodeID dst) {
 }
 
 /*!
+ * Add Return Value edge
+ */
+bool PAG::addRetValEdge(NodeID src, NodeID dst) {
+    PAGNode* srcNode = getPAGNode(src);
+    PAGNode* dstNode = getPAGNode(dst);
+    if(hasIntraEdge(srcNode,dstNode, PAGEdge::RetVal))
+        return false;
+    else
+        return addEdge(srcNode,dstNode, new RetValPE(srcNode, dstNode));
+}
+
+
+
+/*!
+ * Add Call Value edge
+ */
+bool PAG::addCallValEdge(NodeID src, NodeID dst) {
+    PAGNode* srcNode = getPAGNode(src);
+    PAGNode* dstNode = getPAGNode(dst);
+    if(hasIntraEdge(srcNode,dstNode, PAGEdge::CallVal))
+        return false;
+    else
+        return addEdge(srcNode,dstNode, new CallValPE(srcNode, dstNode));
+}
+
+
+/*!
  * Add Load Value edge
  */
 bool PAG::addLoadValEdge(NodeID src, NodeID dst) {
@@ -736,6 +763,10 @@ struct DOTGraphTraits<PAG*> : public DefaultDOTGraphTraits {
             return "color=yellow";
         } else if (isa<StoreValPE>(edge)) {
             return "color=grey";
+        } else if (isa<CallValPE>(edge)) {
+            return "color=blue,style=dotted";
+        } else if (isa<RetValPE>(edge)) {
+            return "color=green,style=dotted";
         }
         else {
             assert(0 && "No such kind edge!!");

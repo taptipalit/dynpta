@@ -39,4 +39,5 @@ required_libraries =
  TransformUtils
  FunctionPointerAnalysis
  LibcTransform
+ Encryption
  SVF

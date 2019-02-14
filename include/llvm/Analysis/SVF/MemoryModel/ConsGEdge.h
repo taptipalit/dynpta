@@ -52,7 +52,7 @@ public:
     /// five kinds of constraint graph edges
     /// Gep edge is used for field sensitivity
     enum ConstraintEdgeK {
-        Addr, Copy, Store, Load, NormalGep, VariantGep, StoreVal, LoadVal
+        Addr, Copy, Store, Load, NormalGep, VariantGep, StoreVal, LoadVal, CallVal, RetVal
     };
 private:
     EdgeID edgeId;
@@ -248,6 +248,60 @@ public:
 
     /// constructor
     LoadValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ConstraintEdge(s,d,LoadVal,id) {
+    }
+};
+
+/*!
+ * Call Value edge
+ */
+class CallValCGEdge: public ConstraintEdge {
+private:
+    CallValCGEdge();                      ///< place holder
+    CallValCGEdge(const CallValCGEdge &);  ///< place holder
+    void operator=(const CallValCGEdge &); ///< place holder
+public:
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    //@{
+    static inline bool classof(const CallValCGEdge *) {
+        return true;
+    }
+    static inline bool classof(const ConstraintEdge *edge) {
+        return edge->getEdgeKind() == CallVal;
+    }
+    static inline bool classof(const GenericConsEdgeTy *edge) {
+        return edge->getEdgeKind() == CallVal;
+    }
+    //@}
+
+    /// constructor
+    CallValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ConstraintEdge(s,d,CallVal,id) {
+    }
+};
+
+/*!
+ * Return Value edge
+ */
+class RetValCGEdge: public ConstraintEdge {
+private:
+    RetValCGEdge();                      ///< place holder
+    RetValCGEdge(const RetValCGEdge &);  ///< place holder
+    void operator=(const RetValCGEdge &); ///< place holder
+public:
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    //@{
+    static inline bool classof(const RetValCGEdge *) {
+        return true;
+    }
+    static inline bool classof(const ConstraintEdge *edge) {
+        return edge->getEdgeKind() == RetVal;
+    }
+    static inline bool classof(const GenericConsEdgeTy *edge) {
+        return edge->getEdgeKind() == RetVal;
+    }
+    //@}
+
+    /// constructor
+    RetValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ConstraintEdge(s,d,RetVal,id) {
     }
 };
 

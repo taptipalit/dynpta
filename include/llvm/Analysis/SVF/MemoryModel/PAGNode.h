@@ -84,6 +84,16 @@ public:
         return value;
     }
 
+    inline void setValue(llvm::Value* value) {
+        /*
+        assert((this->getNodeKind() != DummyValNode && this->getNodeKind() != DummyObjNode) && "dummy node do not have value!");
+        assert((SymbolTableInfo::isBlkObjOrConstantObj(this->getId())==false) && "blackhole and constant obj do not have value");
+        assert(value && "value is null!!");
+        */
+        this->value = value;
+    }
+
+
     inline bool hasValue() const {
         return (this->getNodeKind() != DummyValNode &&
                 this->getNodeKind() != DummyObjNode &&

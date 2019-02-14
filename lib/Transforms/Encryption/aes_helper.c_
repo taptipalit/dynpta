@@ -1,0 +1,744 @@
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <dirent.h>
+
+uint64_t lastAddr __attribute__ ((aligned (16)));
+int dirty __attribute__ ((aligned (16)));
+char asm_str[100] __attribute__ ((aligned (16)));
+char offset_str[2] __attribute__ ((aligned (16)));
+
+
+long aesenccount, aesdeccount;
+
+void encrypt_cache(void*);
+void decrypt_cache(void*);
+void encrypt_memory(void*);
+void encrypt_memory(void*);
+
+// The debug routines
+void encrypt_debug(void*);
+void decrypt_debug(void*);
+
+void writeback_cache() {
+    if (lastAddr > 0 && dirty) {
+        encrypt_cache((void*)lastAddr);
+    }
+    lastAddr = 0x0;
+    dirty = 0;
+}
+
+void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
+	int offset = (uint64_t)ptr % 16;
+
+	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
+
+    
+	// Align to 128 bit
+	if (aligned_ptr != (uint64_t) lastAddr) {
+		if (lastAddr > 0 && dirty) {
+
+			encrypt_cache((void*)lastAddr);
+		}
+		lastAddr = aligned_ptr;
+		decrypt_cache((void*)aligned_ptr);
+	}
+
+	int dword_arg = byte_arg;
+	dirty = 1;
+	switch(offset) {
+		case 0:
+			asm("pinsrb $0, %0, %%xmm13  \n\t":: "r"(dword_arg) : );
+			break;
+		case 1:
+			asm("pinsrb $1, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 2:
+			asm("pinsrb $2, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 3:
+			asm("pinsrb $3, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 4:
+			asm("pinsrb $4, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 5:
+			asm("pinsrb $5, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 6:
+			asm("pinsrb $6, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 7:
+			asm("pinsrb $7, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 8:
+			asm("pinsrb $8, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 9:
+			asm("pinsrb $9, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 10:
+			asm("pinsrb $10, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 11:
+			asm("pinsrb $11, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 12:
+			asm("pinsrb $12, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 13:
+			asm("pinsrb $13, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 14:
+			asm("pinsrb $14, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 15:
+			asm("pinsrb $15, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+	}
+}
+
+void setEncryptedValueWord(void* ptr, uint16_t word_arg) {
+	int offset = (uint64_t)ptr % 16;
+
+	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
+
+	// Align to 128 bit
+	if (aligned_ptr != (uint64_t) lastAddr) {
+
+		if (lastAddr > 0 && dirty) {
+
+			encrypt_cache((void*)lastAddr);
+		}
+		lastAddr = aligned_ptr;
+		decrypt_cache((void*)aligned_ptr);
+	}
+	dirty = 1;
+	offset = offset/2;
+
+	int dword_arg = word_arg;
+	switch(offset) {
+		case 0:
+			asm("pinsrw $0, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 1:
+			asm("pinsrw $1, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 2:
+			asm("pinsrw $2, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 3:
+			asm("pinsrw $3, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 4:
+			asm("pinsrw $4, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 5:
+			asm("pinsrw $5, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 6:
+			asm("pinsrw $6, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 7:
+			asm("pinsrw $7, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+	}
+}
+
+void setEncryptedValueDWord(void* ptr, uint32_t dword_arg) {
+	int offset = (uint64_t)ptr % 16;
+
+	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
+
+	// Align to 128 bit
+	if (aligned_ptr != (uint64_t) lastAddr) {
+
+		if (lastAddr > 0 && dirty) {
+
+
+
+			encrypt_cache((void*)lastAddr);
+		}
+		lastAddr = aligned_ptr;
+		decrypt_cache((void*)aligned_ptr);
+	}
+	dirty = 1;
+	offset = offset/4;
+	switch(offset) {
+		case 0:
+			asm("pinsrd $0, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 1:
+			asm("pinsrd $1, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 2:
+			asm("pinsrd $2, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 3:
+			asm("pinsrd $3, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 4:
+			asm("pinsrd $4, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 5:
+			asm("pinsrd $5, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 6:
+			asm("pinsrd $6, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+			break;
+		case 7:
+			asm("pinsrd $7, %0, %%xmm13\n\t":: "r"(dword_arg) : );
+			break;
+	}
+}
+
+void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
+	int offset = (uint64_t)ptr % 16;
+
+	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
+
+	// Align to 128 bit
+	if (aligned_ptr != (uint64_t) lastAddr) {
+
+		if (lastAddr > 0 && dirty) {
+			encrypt_cache((void*)lastAddr);
+		}
+		lastAddr = aligned_ptr;
+		decrypt_cache((void*)aligned_ptr);
+	}
+	dirty = 1;
+	offset = offset/8;
+	switch(offset) {
+		case 0:
+			asm("pinsrq $0, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+			break;
+		case 1:
+			asm("pinsrq $1, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+			break;
+		case 2:
+			asm("pinsrq $2, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+			break;
+		case 3:
+			asm("pinsrq $3, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+			break;
+		case 4:
+			asm("pinsrq $4, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+			break;
+		case 5:
+			asm("pinsrq $5, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+			break;
+		case 6:
+			asm("pinsrq $6, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+			break;
+		case 7:
+			asm("pinsrq $7, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+			break;
+	}
+}
+
+
+uint8_t getDecryptedValueByte(void* ptr) {
+	int offset = (uint64_t)ptr % 16;
+	register uint32_t result = 0;
+	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
+
+
+	// Align to 128 bit
+	if (aligned_ptr != (uint64_t) lastAddr) {
+		if (lastAddr > 0 && dirty) {
+
+			encrypt_cache((void*)lastAddr);
+			dirty = 0;
+		}
+		lastAddr = aligned_ptr;
+
+		decrypt_cache((void*)aligned_ptr);
+	}
+	switch(offset) {
+		case 0:
+			asm("pextrb $0, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 1:
+			asm("pextrb $1, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 2:
+			asm("pextrb $2, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 3:
+			asm("pextrb $3, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 4:
+			asm("pextrb $4, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 5:
+			asm("pextrb $5, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 6:
+			asm("pextrb $6, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 7:
+			asm("pextrb $7, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+
+		case 8:
+			asm("pextrb $8, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 9:
+			asm("pextrb $9, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 10:
+			asm("pextrb $10, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 11:
+			asm("pextrb $11, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 12:
+			asm("pextrb $12, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 13:
+			asm("pextrb $13, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 14:
+			asm("pextrb $14, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+		case 15:
+			asm("pextrb $15, %%xmm13, %0 \n\t": "=r"(result) : );
+			break;
+
+	}
+	return (uint8_t)result;
+
+}
+
+uint16_t getDecryptedValueWord(void* ptr) {
+	int offset = (uint64_t)ptr % 16;
+	register uint32_t result = 0;
+
+	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
+
+
+	// Align to 128 bit
+	if (aligned_ptr != (uint64_t) lastAddr) {
+		if (lastAddr > 0 && dirty) {
+			encrypt_cache((void*)lastAddr);
+			dirty = 0;
+		}
+		lastAddr = aligned_ptr;
+
+		decrypt_cache((void*)aligned_ptr);
+	}
+	offset = offset/2;
+	switch(offset) {
+		case 0:
+			asm("pextrw $0, %%xmm13, %0\n\t": "=r"(result) : );
+			break;
+		case 1:
+			asm("pextrw $1, %%xmm13, %0\n\t": "=r"(result) : );
+			break;
+		case 2:
+			asm("pextrw $2, %%xmm13, %0\n\t": "=r"(result) : );
+			break;
+		case 3:
+			asm("pextrw $3, %%xmm13, %0\n\t": "=r"(result) : );
+			break;
+		case 4:
+			asm("pextrw $4, %%xmm13, %0\n\t": "=r"(result) : );
+			break;
+		case 5:
+			asm("pextrw $5, %%xmm13, %0\n\t": "=r"(result) : );
+			break;
+		case 6:
+			asm("pextrw $6, %%xmm13, %0\n\t": "=r"(result) : );
+			break;
+		case 7:
+			asm("pextrw $7, %%xmm13, %0\n\t": "=r"(result) : );
+			break;
+	}
+	return (uint16_t)result;
+}
+
+uint32_t getDecryptedValueDWord(void* ptr) {
+	int offset = (uint64_t)ptr % 16;
+	register uint32_t dword_result;
+
+	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
+
+
+	// Align to 128 bit
+	if (aligned_ptr != (uint64_t) lastAddr) {
+
+		if (lastAddr > 0 && dirty) {
+
+
+			encrypt_cache((void*)lastAddr);
+			dirty = 0;
+		}
+		lastAddr = aligned_ptr;
+
+		decrypt_cache((void*)aligned_ptr);
+	}
+	offset = offset/4;
+	switch(offset) {
+		case 0:
+			asm("pextrd $0, %%xmm13, %0\n\t": "=r"(dword_result) : );
+			break;
+		case 1:
+			asm("pextrd $1, %%xmm13, %0\n\t": "=r"(dword_result) : );
+			break;
+		case 2:
+			asm("pextrd $2, %%xmm13, %0\n\t": "=r"(dword_result) : );
+			break;
+		case 3:
+			asm("pextrd $3, %%xmm13, %0\n\t": "=r"(dword_result) : );
+			break;
+		case 4:
+			asm("pextrd $4, %%xmm13, %0\n\t": "=r"(dword_result) : );
+			break;
+		case 5:
+			asm("pextrd $5, %%xmm13, %0\n\t": "=r"(dword_result) : );
+			break;
+		case 6:
+			asm("pextrd $6, %%xmm13, %0\n\t": "=r"(dword_result) : );
+			break;
+		case 7:
+			asm("pextrd $7, %%xmm13, %0\n\t": "=r"(dword_result) : );
+			break;
+	}
+	return dword_result;
+}
+
+uint64_t getDecryptedValueQWord(void* ptr) {
+	int offset = (uint64_t)ptr % 16;
+	register uint64_t qword_result;
+
+	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
+
+	// Align to 128 bit
+	if (aligned_ptr != (uint64_t) lastAddr) {
+
+		if (lastAddr > 0 && dirty) {
+			encrypt_cache((void*)lastAddr);
+			dirty = 0;
+		}
+		lastAddr = aligned_ptr;
+
+		decrypt_cache((void*)aligned_ptr);
+	}
+	offset = offset/8;
+	switch(offset) {
+		case 0:
+			asm("pextrq $0, %%xmm13, %0\n\t": "=r"(qword_result) : );
+			break;
+		case 1:
+			asm("pextrq $1, %%xmm13, %0\n\t": "=r"(qword_result) : );
+			break;
+		case 2:
+			asm("pextrq $2, %%xmm13, %0\n\t": "=r"(qword_result) : );
+			break;
+		case 3:
+			asm("pextrq $3, %%xmm13, %0\n\t": "=r"(qword_result) : );
+			break;
+		case 4:
+			asm("pextrq $4, %%xmm13, %0\n\t": "=r"(qword_result) : );
+			break;
+		case 5:
+			asm("pextrq $5, %%xmm13, %0\n\t": "=r"(qword_result) : );
+			break;
+		case 6:
+			asm("pextrq $6, %%xmm13, %0\n\t": "=r"(qword_result) : );
+			break;
+		case 7:
+			asm("pextrq $7, %%xmm13, %0\n\t": "=r"(qword_result) : );
+			break;
+	}
+	return qword_result;
+}
+
+
+void encrypt_globals(char* ptr, long numBytes) {
+    long numBlocks = (numBytes + (16 - 1)) / 16;
+    for (int i = 0; i < numBlocks; i++) {
+        encrypt_memory(ptr+(i*16));
+    }
+}
+
+int libcallcount;
+void encryptStringAfterLibCall(char *ptr) {
+//printf("%d\n", libcallcount++);
+
+    if (ptr == 0x0) return;
+    int i = 0;
+    int j = 0;
+    int break_next = 0;
+    // Align the pointer so that the encryption succeeds
+    ptr = (unsigned long) ptr & 0xFFFFFFFFFFFFFFF0;
+    if (lastAddr > 0 && dirty) {
+        encrypt_cache((void*)lastAddr);
+    }
+    /*
+    if (((unsigned long) ptr & 0xFFFFFFFFFFFFFFF0) != ptr) {
+        fprintf(stderr, "Unaligned ptr\n");
+        exit(-1);
+    }
+    */
+
+    // The next block is the NULL character
+    for (j = 0; j < 16; j++) {
+        if (*(ptr+j) == '\0') {
+            break_next = 1;
+        }
+    }
+
+    while (1) {
+        encrypt_memory(ptr);
+
+        if (break_next) break;
+        ptr+=16;
+       // The next block is the NULL character
+        for (j = 0; j < 16; j++) {
+            if (*(ptr+j) == '\0') {
+                break_next = 1;
+            }
+        }
+ 
+    }
+}
+
+void decryptStringBeforeLibCall(char *ptr) {
+//printf("%d\n", libcallcount++);
+
+    if (ptr == 0x0) return;
+    int i = 0;
+    int j = 0;
+    int break_now = 0;
+    // Align the pointer so that encryption succeeds
+    ptr = (unsigned long) ptr & 0xFFFFFFFFFFFFFFF0;
+    if (lastAddr > 0 && dirty) {
+        encrypt_cache((void*)lastAddr);
+    }
+    /*
+    if (((unsigned long) ptr & 0xFFFFFFFFFFFFFFF0) != ptr) {
+        fprintf(stderr, "Unaligned ptr\n");
+        exit(-1);
+    }
+    */
+    while (1) {
+        decrypt_memory(ptr);
+        // Did we see the NULL character already?
+        for (j = 0; j < 16; j++) {
+            if (*(ptr+j) == '\0') {
+                break_now = 1;
+            }
+        }
+        if (break_now) {
+            break;
+        }
+        ptr+=16;
+    }
+}
+void encryptStringPtrAfterLibCall(char **pptr) {
+    char* ptr = *pptr;
+    encryptStringAfterLibCall(ptr);
+}
+
+void encryptArrayForLibCall(char* ptr, int numBytes) {
+//printf("%d\n", libcallcount++);
+
+    if (ptr == 0x0) return;
+    // Align the pointer
+    char* ptrAligned = (unsigned long) ptr & 0xFFFFFFFFFFFFFFF0;
+    // Now because we've aligned the pointer, we have to update the number of bytes
+    numBytes += (ptr - ptrAligned);
+    if (lastAddr > 0 && dirty) {
+        encrypt_cache((void*)lastAddr);
+    }
+    /*
+    if (((unsigned long) ptr & 0xFFFFFFFFFFFFFFF0) != ptr) {
+        fprintf(stderr, "Unaligned ptr\n");
+        exit(-1);
+    }
+    */
+
+    long numBlocks = (numBytes + (16-1))/16;
+    for (int i = 0; i < numBlocks; i++) {
+        encrypt_memory(ptrAligned+(i*16));
+    }
+}
+ 
+void encryptArrayPtrAfterLibCall(char **pptr, long size) {
+    char* ptr = *pptr;
+    encryptArrayForLibCall(ptr, size);
+}
+
+void decryptVaArgListBeforeLibCall(const char* format, va_list ap) {
+    int va_count = 0;
+    va_list aq;
+    va_copy(aq, ap);
+    char *s = NULL;
+    while (*format) {
+        if (*format == '%') {
+            // assuming everything starting with % is a format specifier and has a corresponding vararg
+            va_count++;
+        }
+        format++;
+    }
+    for (int i = 0; i < va_count; i++) {
+        s = va_arg(aq, char *);
+        decryptStringBeforeLibCall(s);
+    }
+    va_end(aq);
+}
+
+void encryptVaArgListAfterLibCall(const char* format, va_list ap) {
+    va_list aq;
+    va_copy(aq, ap);
+    int va_count = 0;
+    char *s = NULL;
+    while (*format) {
+        if (*format == '%') {
+            // assuming everything starting with % is a format specifier and has a corresponding vararg
+            va_count++;
+        }
+        format++;
+    }
+    for (int i = 0; i < va_count; i++) {
+        s = va_arg(aq, char *);
+        encryptStringAfterLibCall(s);
+    }
+    va_end(aq);
+}
+
+void decryptArrayForLibCall(char* ptr, int numBytes) {
+//printf("%d\n", libcallcount++);
+    if (ptr == 0x0) return;
+    // Align the pointer
+    char* ptrAligned = (unsigned long) ptr & 0xFFFFFFFFFFFFFFF0;
+    // Now because we've aligned the pointer, we have to update the number of bytes
+    numBytes += (ptr - ptrAligned);
+    if (lastAddr > 0 && dirty) {
+        encrypt_cache((void*)lastAddr);
+    }
+    /*
+    if (((unsigned long) ptr & 0xFFFFFFFFFFFFFFF0) != ptr) {
+        fprintf(stderr, "Unaligned ptr\n");
+        exit(-1);
+    }
+    */
+    long numBlocks = (numBytes + (16-1))/16;
+    for (int i = 0; i < numBlocks; i++) {
+        decrypt_memory(ptrAligned+(i*16));
+    }
+}
+
+
+void* aes_malloc(long size) {
+    long roundedSize = -1;
+    if (size % 16 == 0) {
+        roundedSize = size;
+    } else {
+        roundedSize = size + 16;
+    }
+    void* Ptr = aligned_alloc(16, roundedSize);
+    //fprintf(stderr, "Malloc ptr = %p for size = %d bytes.\n", Ptr, roundedSize);
+    return Ptr;
+}
+
+void* aes_calloc(long nmem, long elem_size) {
+    long size = nmem*elem_size;
+    long roundedSize = -1;
+    if (size % 16 == 0) {
+        roundedSize = size;
+    } else {
+        roundedSize = size + 16;
+    }
+    void* Ptr = aligned_alloc(16, roundedSize);
+    memset(Ptr, 0, roundedSize);
+    //fprintf(stderr, "Calloc ptr = %p\n", Ptr);
+    return Ptr;
+}
+
+
+void dec_debug(void *ptr, int numBytes) {
+    unsigned  long ptrLong = (unsigned long)(ptr);
+    if (lastAddr > 0 && dirty) {
+        encrypt_cache((void*)lastAddr);
+    }
+    lastAddr = -1;
+    dirty = 0;
+
+    ptrLong &= 0xFFFFFFFFFFFFFFF0;
+
+    if (ptrLong % 16 != 0) {
+        fprintf(stderr, "Unaligned pointer passed\n");
+        return;
+    }
+
+    int numBlocks = (numBytes + (16 - 1)) / 16;
+    for (int i = 0; i < numBlocks; i++) {
+        decrypt_debug((ptr+i*16));
+    }
+}
+
+void enc_debug(void *ptr, int numBytes) {
+    unsigned long ptrLong = (unsigned long)(ptr);
+
+    if (lastAddr > 0 && dirty) {
+        encrypt_cache((void*)lastAddr);
+    }
+    lastAddr = -1;
+    dirty = 0;
+
+    ptrLong &= 0xFFFFFFFFFFFFFFF0;
+
+    int numBlocks = (numBytes + (16 - 1)) / 16;
+    for (int i = 0; i < numBlocks; i++) {
+        encrypt_debug((ptr+i*16));
+    }
+}
+
+struct dirent* clonereaddir(DIR *dir) {
+   struct dirent* readDir = readdir(dir);
+   struct dirent* clonedCopy = aes_malloc(sizeof(struct dirent));
+   memcpy(clonedCopy, readDir, sizeof(struct dirent));
+   return clonedCopy;
+}
+
+char* aes_strdup(const char* str) {
+    char* dup = aes_malloc(strlen(str));
+    strcpy(dup, str);
+    return dup;
+}
+
+char* cloneenv(const char* name) {
+    char* env = getenv(name);
+    if (env) {
+        return aes_strdup(getenv(name));
+    } else {
+        return NULL;
+    }
+}
+
+int asprintf128(char **strp, const char *fmt, ...) {
+    va_list arg;
+    va_start(arg, fmt);
+    int ret = vasprintf(strp, fmt, arg);
+    // allocate a rounded-and-aligned buffer
+    char * retptr = aes_calloc(strlen(*strp), sizeof(char));
+    // Duplicate it
+    strcpy(retptr, *strp);
+    free(*strp); // Free the non-rounded-and-non-aligned version
+    *strp = retptr; // Return pointer to the freshly minted string
+    return ret;
+}
+
+int vasprintf128(char **strp, const char *fmt, va_list arg) {
+    int ret = vasprintf(strp, fmt, arg);
+    char * retptr = aes_calloc(strlen(*strp), sizeof(char));
+    strcpy(retptr, *strp);
+    free(*strp);
+    *strp = retptr;
+    return ret;
+}

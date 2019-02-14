@@ -1,0 +1,11 @@
+add_llvm_library(LLVMEncryption
+	AESBasic.cpp
+	AESCache.cpp
+	Encryption.cpp
+	ExtLibraryHandler.cpp
+	ASMParser.cpp
+	ADDITIONAL_HEADER_DIRS
+	${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms
+    DEPENDS
+    intrinsics_gen
+	)

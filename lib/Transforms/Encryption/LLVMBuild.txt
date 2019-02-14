@@ -1,4 +1,4 @@
-;===- ./lib/Transforms/LLVMBuild.txt ---------------------------*- Conf -*--===;
+;===- ./lib/Transforms/Encryption/LLVMBuild.txt --------------------*- Conf -*--===;
 ;
 ;                     The LLVM Compiler Infrastructure
 ;
@@ -15,9 +15,9 @@
 ;
 ;===------------------------------------------------------------------------===;
 
-[common]
-subdirectories = AggressiveInstCombine Coroutines IPO InstCombine Instrumentation Scalar Utils Vectorize ObjCARC LibcTransform FunctionPointerAnalysis Encryption
 [component_0]
-type = Group
-name = Transforms
-parent = Libraries
+type = Library
+name = Encryption
+parent = Transforms
+library_name = Encryption 
+required_libraries = Analysis Core Support TransformUtils LibcTransform SVF

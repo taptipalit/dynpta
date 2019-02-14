@@ -399,13 +399,16 @@ void PAGBuilder::visitLoadInst(LoadInst &inst) {
         pag->addLoadEdge(src, dst);
         
     } else {
-        DBOUT(DPAGBuild, outs() << "process load value  " << inst << " \n");
+        if (!isa<Constant>(inst)) {
 
-        NodeID dst = getValueNode(&inst);
+            DBOUT(DPAGBuild, outs() << "process load value  " << inst << " \n");
 
-        NodeID src = getValueNode(inst.getPointerOperand());
+            NodeID dst = getValueNode(&inst);
 
-        pag->addLoadValEdge(src, dst);
+            NodeID src = getValueNode(inst.getPointerOperand());
+
+            pag->addLoadValEdge(src, dst);
+        }
     }
 }
 
@@ -428,13 +431,15 @@ void PAGBuilder::visitStoreInst(StoreInst &inst) {
         pag->addStoreEdge(src, dst);
         
     } else {
-        DBOUT(DPAGBuild, outs() << "process store val " << inst << " \n");
+        if (!isa<Constant>(inst.getValueOperand())) {
+            DBOUT(DPAGBuild, outs() << "process store val " << inst << " \n");
 
-        NodeID dst = getValueNode(inst.getPointerOperand());
+            NodeID dst = getValueNode(inst.getPointerOperand());
 
-        NodeID src = getValueNode(inst.getValueOperand());
+            NodeID src = getValueNode(inst.getValueOperand());
 
-        pag->addStoreValEdge(src, dst);
+            pag->addStoreValEdge(src, dst);
+        }
      
     }
 }
@@ -564,21 +569,32 @@ void PAGBuilder::visitReturnInst(ReturnInst &inst) {
     assert(!isa<PointerType>(inst.getType()));
 
     //ignore void and non-ptr return statements
-    if (inst.getNumOperands()
-            && (isa<PointerType>(inst.getOperand(0)->getType()))) {
+    if (inst.getNumOperands()) {
+        if (isa<PointerType>(inst.getOperand(0)->getType())) {
 
-        DBOUT(DPAGBuild, outs() << "process return  " << inst << " \n");
+            DBOUT(DPAGBuild, outs() << "process return  " << inst << " \n");
 
-        Value *src = inst.getReturnValue();
-        if (!isa<PointerType>(src->getType()))
-            return;
+            Value *src = inst.getReturnValue();
+            if (!isa<PointerType>(src->getType()))
+                return;
 
-        Function *F = inst.getParent()->getParent();
+            Function *F = inst.getParent()->getParent();
 
-        NodeID rnF = getReturnNode(F);
-        NodeID vnS = getValueNode(src);
-        //vnS may be null if src is a null ptr
-        pag->addCopyEdge(vnS, rnF);
+            NodeID rnF = getReturnNode(F);
+            NodeID vnS = getValueNode(src);
+            //vnS may be null if src is a null ptr
+            pag->addCopyEdge(vnS, rnF);
+        } else {
+            DBOUT(DPAGBuild, outs() << "process return value " << inst << " \n");
+    
+            Value* src = inst.getReturnValue();
+
+            Function* F = inst.getParent()->getParent();
+
+            NodeID rnF = getReturnNode(F);
+            NodeID vnS = getValueNode(src);
+            pag->addRetValEdge(vnS, rnF);
+        }
     }
 }
 
@@ -638,7 +654,10 @@ void PAGBuilder::handleDirectCall(CallSite cs, const Function *F) {
         }
 
     } else {
-        DBOUT(DPAGBuild, outs() << "not a pointer, ignored\n");
+        DBOUT(DPAGBuild, outs() << "not a pointer, added a retval edge\n");
+        NodeID dstrec = getValueNode(cs.getInstruction());
+        NodeID srcret = getReturnNode(F);
+        pag->addRetValEdge(srcret, dstrec);
     }
     //Iterators for the actual and formal parameters
     CallSite::arg_iterator itA = cs.arg_begin(), ieA = cs.arg_end();
@@ -652,9 +671,13 @@ void PAGBuilder::handleDirectCall(CallSite cs, const Function *F) {
             break;
         }
         const Value *AA = *itA, *FA = &*itF; //current actual/formal arg
-        //Non-ptr formal args don't need constraints.
-        if (!isa<PointerType>(FA->getType()))
+        //Non-ptr formal args need only Value constraints (not pointer)
+        if (!isa<PointerType>(FA->getType())) {
+            NodeID srcAA = getValueNode(AA);
+            NodeID dstFA = getValueNode(FA);
+            pag->addCallValEdge(srcAA, dstFA);
             continue;
+        }
 
         DBOUT(DPAGBuild, outs() << "process actual parm  " << *AA << " \n");
 

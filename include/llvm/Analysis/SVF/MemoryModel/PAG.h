@@ -634,6 +634,10 @@ public:
     bool addLoadValEdge(NodeID src, NodeID dst);
     /// Add StoreVal edge
     bool addStoreValEdge(NodeID src, NodeID dst);
+    /// Add Call Value edge
+    bool addCallValEdge(NodeID src, NodeID dst);
+    /// Add Ret Value edge
+    bool addRetValEdge(NodeID src, NodeID dst);
     //@}
 
     /// Add global edges
