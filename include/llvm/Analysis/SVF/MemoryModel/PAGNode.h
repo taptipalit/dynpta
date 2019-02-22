@@ -60,6 +60,8 @@ public:
         DummyObjNode
     };
 
+    bool vfaVisited;
+
 
 protected:
     const llvm::Value* value; ///< value of this PAG node

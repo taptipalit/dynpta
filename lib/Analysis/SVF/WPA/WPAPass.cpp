@@ -140,7 +140,7 @@ PAG* WPAPass::getPAG() {
 PointerAnalysis* WPAPass::getPTA() {
 	return _pta;
 }
-/*
+
 void WPAPass::buildResultMaps(void) {
     PAG* pag = _pta->getPAG();
     for (PAG::iterator it = pag->begin(), eit = pag->end(); it != eit; it++) {
@@ -166,24 +166,27 @@ void WPAPass::buildResultMaps(void) {
     //std::map<PAGNode*, std::set<PAGNode*>> pagPtsToMap;
     //std::map<PAGNode*, std::set<PAGNode*>> pagPtsFromMap;
 
-            pagPtsToMap[node].insert(ptNode);
-            //pagPtsToMap[node] = ptNode;
-    //std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap;
-            pagPtsFromMap[ptNode].insert(node);
+            if (node != ptNode) {
+                pagPtsToMap[node].insert(ptNode);
+                //pagPtsToMap[node] = ptNode;
+                //std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap;
+                pagPtsFromMap[ptNode].insert(node);
+            }
            // pagPtsFromMap.insert(ptNode, node);
+           /*
 
             if (node->getValue() != ptNode->getValue()) {
-		const llvm::Value* a = node->getValue();
-                ptsToMap[(llvm::Value*)(a)].insert((std::set<llvm::Value*>)(ptNode->getValue()));
+		        llvm::Value* a = const_cast<Value*>(node->getValue());
+                ptsToMap[(llvm::Value*)(a)].insert((std::set<llvm::Value*>)(const_cast<Value*>(ptNode->getValue())));
                 //ptsToMap.insert(pair<llvm::Value*, std::set<llvm::Value*>>(a, ptNode->getValue()));
                 //ptsFromMap[ptNode->getValue()].insert(node->getValue());
                 ptsFromMap.insert(ptNode->getValue(), node->getValue());
             }
+            */
         }
     }
 }
 	
-*/
 /*!
  * Create pointer analysis according to a specified kind and then analyze the module.
  */

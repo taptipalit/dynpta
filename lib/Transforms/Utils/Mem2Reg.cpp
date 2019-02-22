@@ -82,8 +82,10 @@ struct PromoteLegacyPass : public FunctionPass {
   // runOnFunction - To run this pass, first we calculate the alloca
   // instructions that are safe for promotion, then we promote each one.
   bool runOnFunction(Function &F) override {
+      /*
     if (skipFunction(F))
       return false;
+      */
 
     DominatorTree &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
     AssumptionCache &AC =

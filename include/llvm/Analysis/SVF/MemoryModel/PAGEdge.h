@@ -524,10 +524,16 @@ public:
     //@}
 };
 
+class ValFlowPE: public PAGEdge {
+    public:
+        ValFlowPE(PAGNode* s, PAGNode* d, GEdgeFlag k) : PAGEdge(s, d, k) {
+        }
+};
+
 /*!
  * Return non-pointer values
  */
-class RetValPE: public PAGEdge {
+class RetValPE: public ValFlowPE {
 private:
     RetValPE();
     RetValPE(const RetValPE&);
@@ -547,7 +553,7 @@ public:
     //@}
 
     /// constructor
-    RetValPE(PAGNode* s, PAGNode* d) : PAGEdge(s,d,PAGEdge::RetVal) {
+    RetValPE(PAGNode* s, PAGNode* d) : ValFlowPE(s,d,PAGEdge::RetVal) {
     }
 
 };
@@ -555,7 +561,7 @@ public:
 /*!
  * Call with non-pointer values
  */
-class CallValPE: public PAGEdge {
+class CallValPE: public ValFlowPE {
 private:
     CallValPE();
     CallValPE(const CallValPE&);
@@ -575,7 +581,7 @@ public:
     //@}
 
     /// constructor
-    CallValPE(PAGNode* s, PAGNode* d) : PAGEdge(s,d,PAGEdge::CallVal) {
+    CallValPE(PAGNode* s, PAGNode* d) : ValFlowPE(s,d,PAGEdge::CallVal) {
     }
 
 };
@@ -584,7 +590,7 @@ public:
 /*!
  * Load non-pointer values
  */
-class LoadValPE: public PAGEdge {
+class LoadValPE: public ValFlowPE {
 private:
     LoadValPE();
     LoadValPE(const LoadValPE&);
@@ -604,7 +610,7 @@ public:
     //@}
 
     /// constructor
-    LoadValPE(PAGNode* s, PAGNode* d) : PAGEdge(s,d,PAGEdge::LoadVal) {
+    LoadValPE(PAGNode* s, PAGNode* d) : ValFlowPE(s,d,PAGEdge::LoadVal) {
     }
 
 };
@@ -612,7 +618,7 @@ public:
 /*!
  * Load non-pointer values
  */
-class StoreValPE: public PAGEdge {
+class StoreValPE: public ValFlowPE {
 private:
     StoreValPE();
     StoreValPE(const StoreValPE&);
@@ -632,7 +638,7 @@ public:
     //@}
 
     /// constructor
-    StoreValPE(PAGNode* s, PAGNode* d) : PAGEdge(s,d,PAGEdge::StoreVal) {
+    StoreValPE(PAGNode* s, PAGNode* d) : ValFlowPE(s,d,PAGEdge::StoreVal) {
     }
 
 };

@@ -614,6 +614,7 @@ PAGNode::PAGNode(const llvm::Value* val, NodeID i, PNODEK k) :
 
     assert( ValNode <= k && k<= DummyObjNode && "new PAG node kind?");
 
+    vfaVisited = false;
     switch (k) {
     case ValNode:
     case GepValNode: {

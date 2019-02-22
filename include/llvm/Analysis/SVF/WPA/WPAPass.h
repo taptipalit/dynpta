@@ -133,7 +133,7 @@ public:
         return pagPtsFromMap;
     }
 
-    //virtual void buildResultMaps(); 
+    virtual void buildResultMaps(); 
     
      virtual std::map<llvm::Value*, std::set<llvm::Value*>>& getPtsToMap() {
         return ptsToMap;

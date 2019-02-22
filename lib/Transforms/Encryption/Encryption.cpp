@@ -134,7 +134,9 @@ namespace {
         void collectSensitiveTypes(Module &);
         void performSourceSinkAnalysis(Module &);
         bool isaConstantValue(Value*);
-        void findSinkSites(PAGNode*, std::set<PAGNode*>&, bool);
+        void findDirectSinkSites(PAGNode*, std::set<PAGNode*>&);
+        void findIndirectSinkSites(PAGNode*, std::set<PAGNode*>&);
+
         Value* findObjFromCast(Value*);
 
         Function* findSimpleFunArgFor(Value*);
@@ -197,7 +199,7 @@ char EncryptionPass::ID = 0;
 
 //cl::opt<bool> NullEnc("null-enc", cl::desc("XOR Encryption"), cl::init(false), cl::Hidden);
 cl::opt<bool> AesEncCache("aes-enc-cache", cl::desc("AES Encryption - Cache"), cl::init(false), cl::Hidden);
-cl::opt<bool> SkipVFA("skip-vfa-enc", cl::desc("Skip VFA"), cl::init(false), cl::Hidden);
+//cl::opt<bool> SkipVFA("skip-vfa-enc", cl::desc("Skip VFA"), cl::init(false), cl::Hidden);
 
 
 void EncryptionPass::collectLoadStoreStats(Module& M) {
@@ -490,193 +492,31 @@ bool EncryptionPass::isaConstantValue(Value* value) {
 }
 
 
-void EncryptionPass::findSinkSites(PAGNode* source, std::set<PAGNode*>& sinkSites, bool ind /* source is a pointer. Use this flag to track value flows *through* this pointer, and not *of* this pointer */) {
-    /*
+void EncryptionPass::findIndirectSinkSites(PAGNode* source, std::set<PAGNode*>& sinkSites) {
     std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
-    std::vector<Value*> valueWorkList;
 
-    if (GepObjPN* gepSource = dyn_cast<GepObjPN>(source)) {
-        // Find the set of GetElementPtrInst instructions that correspond to this gepSource
-        std::vector<GetElementPtrInst*> gepInstList;
-        findGepInstFromGepNode(gepSource, gepInstList);
+    std::vector<PAGNode*> valueWorkList;
 
-        for (GetElementPtrInst* gepInst: gepInstList) {
-            // Find everywhere these guys can flow to
-            valueWorkList.push_back(gepInst);
-        }
-    } else {
-        if (!ind) {
-            assert(isa<ObjPN>(source) && "We want to find sink sites of ObjPNs only");
-        }
-        valueWorkList.push_back(source->getValue());
-    }
+    valueWorkList.push_back(source);
 
     while (!valueWorkList.empty()) {
-        Value* workNode = valueWorkList.back();
+        PAGNode* workNode = valueWorkList.back();
         valueWorkList.pop_back();
-        for (Value::user_iterator userItr = workNode->user_begin(), userEnd = workNode->user_end(); userItr != userEnd; userItr++) {
-            Value* UserValue = dyn_cast<Value>(*userItr);
-            if (UserValue == source->getValue()) // handle the situation where I'm my own user
-                continue;
-            if (StoreInst* storeInst = dyn_cast<StoreInst>(UserValue)) {
-                Value* storePointer = storeInst->getPointerOperand();
-                // If this is a pointer, then ignore! TODO - is this the right way?
-                if (PointerType* ptrType = dyn_cast<PointerType>(storePointer->getType())) {
-                    if (isa<PointerType>(ptrType->getPointerElementType())) {
-                        continue;
-                    }
-                }
-                if (isa<AllocaInst>(storePointer) || isa<GlobalVariable> (storePointer) || isa<CallInst>(storePointer)) {
-                    if (storePointer != source->getValue()) {
-                        if (ind) {
-                            if (!isaCPointer(storePointer) && !isaConstantValue(storePointer)) {
-                                sinkSites.insert(getPAGObjNodeFromValue(storePointer));
-                            }
-                        } else {
-                            if (!isaConstantValue(storePointer)) {
-                                sinkSites.insert(getPAGObjNodeFromValue(storePointer));
-                            }
-                        }
-                    }
-                } else if (CastInst* castInst = dyn_cast<CastInst>(storePointer)) {
-                    Value* allocSite = findObjFromCast(castInst);
-                    assert(allocSite && "Could not find allocation site from CastInst\n");
-                    if (allocSite != source->getValue()) {
-                        if (ind) {
-                            if (!isaCPointer(allocSite) && !isaConstantValue(allocSite)) {
-                                sinkSites.insert(getPAGObjNodeFromValue(allocSite));
-                            }
-                        } else {
-                            if (!isaConstantValue(allocSite)) {
-                                sinkSites.insert(getPAGObjNodeFromValue(allocSite));
-                            }
-                        }
-                    }
-                } else if (GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(storePointer)) {
-                    // The easiest way to deal with finding the right PAGNode is to just take a look at the points to map?
-                    PAGNode* ptrNode = getPAGValNodeFromValue(gepInst);
-                    for (PAGNode* ptsToNode: ptsToMap[ptrNode]) {
-                        Value* ptsToVal = ptsToNode->getValue();
-                        if (isa<Function>(ptsToVal) || isaConstantValue(ptsToVal)) {
-                            continue;
-                        }
-                        sinkSites.insert(ptsToNode);
-                    }
-                } else if (LoadInst* loadInst = dyn_cast<LoadInst>(storePointer)){ 
-                    PAGNode* loadPointerNode = getPAGValNodeFromValue(loadInst);
-                    // This is a pointer, so we need to find which allocation sites it can point to
-                    // Find the PAGNode/s p1 for loadInst 
-                    if (filterDataFlowPointersByType(loadInst)) {
-                        continue;
-                    }
-                    for (PAGNode* ptsToNode : ptsToMap[loadPointerNode]) {
-                        Value* ptsToVal = ptsToNode->getValue();
-                        if (isaConstantValue(ptsToVal) || isa<Function>(ptsToVal)) { // Clearly you can't write to a constant
-                            continue;
-                        }
-                        PAGNode* objNode = nullptr;
-                        if (isa<CastInst>(ptsToVal)) {
-                            Value* obj = findObjFromCast(ptsToVal);
-                            objNode = getPAGObjNodeFromValue(obj);
-                        } else if (GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(ptsToVal)) {
-                            objNode = getGepOrFINodeFromGEPInst(gepInst);
-                        } else {
-                            //errs() << *pagValue << "\n";
-                            assert((isa<AllocaInst>(ptsToVal) || isa<GlobalVariable> (ptsToVal) || isa<CallInst>(ptsToVal)) && "Expected to see a valid memory object here!") ;
-                            objNode = getPAGObjNodeFromValue(ptsToVal);
-                        }
-                        assert(objNode && "Should be an allocation memory location");
-                        if (isa<Function>(ptsToVal) || isa<CallInst>(ptsToVal)) {
-                            continue;
-                        }
-                        //errs() << "Loaded pointer : " << *loadInst << " can point to ... should be object ... " << *allocSite << "\n";
 
-                        if (!isaCPointer(ptsToVal) && !isaConstantValue(ptsToVal)) { // Should not be a constant
-                            sinkSites.insert(objNode);
-                        }
-                    }
-                } else {
-                    //errs() << *(storePointer) << "\n";
-                    assert(false && "Found store pointer of unknown type!\n");
-                }
-            } else if (CallInst* callInst = dyn_cast<CallInst>(UserValue)) {
-                // Manually match the call operand number to the function's formal parameters
-                int numArgs = callInst->getNumArgOperands();
-                int argIndex = -1; // the index of the use value
-                for (int i = 0; i < numArgs; i++) {
-                    Value* arg = callInst->getArgOperand(i);
-                    if (arg == workNode) {
-                        // Found it!
-                        argIndex = i;
-                        break;
-                    }
-                }
-                if (Function* calledFunction = callInst->getCalledFunction()) {
-                    if (containsSet(calledFunction, AllFunctions)) {
-                        int i = 0;
-                        for (Argument& arg: calledFunction->args()) {
-                            if (argIndex == i) {
-                                // This is our guy!
-                                valueWorkList.push_back(&arg);
-                                break;
-                            }
+        // Find all outgoing edges, except StoreVal edges
+        // Add them to valueWorkList
+        
+        // If it is a StoreVal edge, then 
+        //  ---- if it is 
 
-                            i++;
-                        }
-                    }
-                } else if (ConstantExpr* consExpr = dyn_cast<ConstantExpr>(callInst->getCalledValue())) {
-                    Function* calledFunction = dyn_cast<Function>(consExpr->getOperand(0));
-                    if (containsSet(calledFunction, AllFunctions)) {
-                        int i = 0;
-                        for (Argument& arg: calledFunction->args()) {
-                            if (argIndex == i) {
-                                // This is our guy!
-                                valueWorkList.push_back(&arg);
-                                break;
-                            }
-
-                            i++;
-                        }
-                    }
-                } else if (Value* calledValue = callInst->getCalledValue()) {
-                    PAGNode* fptrNode = getPAGValNodeFromValue(calledValue);
-                    // For all possible called Function, add their argIndex'th formal parameter
-                    for (PAGNode* funcNode: ptsToMap[fptrNode]) {
-                        Value* funcVal = funcNode->getValue();
-                        if (!isa<Function>(funcVal)) {
-                            continue;
-                        }
-                        Function* function = dyn_cast<Function>(funcVal);
-                        if (containsSet(function, AllFunctions)) {
-                            int i = 0;
-                            for (Argument& arg: function->args()) {
-                                if (argIndex == i) {
-                                    // This is our guy!
-                                    valueWorkList.push_back(&arg);
-                                    break;
-                                }
-
-                                i++;
-                            }
-                        }
-                    }
-                }
-            } else if (ReturnInst* returnInst = dyn_cast<ReturnInst>(UserValue)) {
-                // We've stored the mapping between the returns and the call already
-                // Track all of these
-                for(CallInst* callInst : retCallMap[returnInst]) {
-                    valueWorkList.push_back(callInst);
-                }
-            } else {
-                if (UserValue != workNode) {
-                    if (isa<BinaryOperator>(UserValue))
-                        continue; // any binary operation done, then we don't care
-                    valueWorkList.push_back(UserValue);
-                }
-            }
-        }
     }
-*/
+}
+
+/**
+ * Find all the sink sites that this value directly flows to
+ */
+void EncryptionPass::findDirectSinkSites(PAGNode* source, std::set<PAGNode*>& sinkSites) {
+    
 }
 
 void EncryptionPass::buildRetCallMap(Module& M) {
@@ -946,53 +786,23 @@ void EncryptionPass::performSourceSinkAnalysis(Module& M) {
     while (!workList.empty()) {
         PAGNode* work = workList.back();
         workList.pop_back();
-        tempSinkSites.clear();
-        errs() << "items remaining " << workList.size() << "\n";
 
-        errs() << "To do sink analysis for value node: " << ptsFromMap[work].size() << " pointers \n";
-        
-        int count = 0;
         for (PAGNode* ptsFrom: ptsFromMap[work]) {
-            count ++; 
-            if (std::find(analyzedPtrList.begin(), analyzedPtrList.end(), ptsFrom) == analyzedPtrList.end()) {
-                // TODO
-                findSinkSites(ptsFrom, tempSinkSites, true); // indirect stores
-                analyzedPtrList.push_back(ptsFrom);
-
-                // Check if these are source arguments to memcpy, strcpy functions, and handle the destination arguments if they are TODO @tpalit
-                //trackExternalFunctionFlows(ptsFrom, tempSinkSites);
-              
-                errs() << "Found indirect flows: " << tempSinkSites.size() << " count = " << count << "\n";
+            if (!(ptsFrom->vfaVisited)) {
+                findDirectSinkSites(ptsFrom, tempSinkSites);
+                ptsFrom->vfaVisited = true;
             }
         }
 
-        findSinkSites(work, tempSinkSites, false);
-        //errs() << "Direct flows : found " << tempSinkSites.size() << " nodes \n";
+        findIndirectSinkSites(work, tempSinkSites);
+
         for (PAGNode* sinkSiteNode: tempSinkSites) {
             SensitiveObjList.push_back(sinkSiteNode);
-            if (std::find(analyzedList.begin(), analyzedList.end(), work) == analyzedList.end()) {
-                // not analyzed already
-                workList.push_back(sinkSiteNode);
+            if (!(work->vfaVisited)) {
+                workList.push_back(sinkSiteNode); 
             }
         }
-        analyzedList.push_back(work);
     }
-
-    std::vector<PAGNode*> wholeObjs;
-    for (PAGNode* sensValNode: SensitiveObjList) {
-        Value* val = const_cast<Value*>(sensValNode->getValue());
-        NodeID objID = pag->getObjectNode(val);
-        PAGNode* objNode = pag->getPAGNode(objID);
-        wholeObjs.push_back(objNode);
-        // Find all Field-edges and corresponding field nodes
-        NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
-        for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
-            PAGNode* fldNode = pag->getPAGNode(*fIt);
-            wholeObjs.push_back(fldNode);
-        }
-    }
-
-    std::copy (wholeObjs.begin(), wholeObjs.end(), std::back_inserter(SensitiveObjList));
 
     errs() << "After dataflow analysis:\n";
     for (PAGNode* sensValNode: SensitiveObjList) {
@@ -3967,7 +3777,7 @@ bool EncryptionPass::runOnModule(Module &M) {
 
 	DoAESEncCache = true;
     // Do Alias Analysis for pointers
-    //getAnalysis<WPAPass>().buildResultMaps();
+    getAnalysis<WPAPass>().buildResultMaps();
 	std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
 	std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
 
@@ -3990,11 +3800,10 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     errs() << "Begin: Perform dataflow analysis\n";
 
- 
     preprocessSensitiveAnnotatedPointers(M);
-    if (!SkipVFA) {
-        //performSourceSinkAnalysis(M);
-    }
+    //if (!SkipVFA) {
+    performSourceSinkAnalysis(M);
+    //}
 
     // Remove duplicates and copy back to SensitiveObjList
 	SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());

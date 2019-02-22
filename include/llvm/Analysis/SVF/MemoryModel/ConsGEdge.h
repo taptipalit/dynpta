@@ -197,10 +197,16 @@ public:
     }
 };
 
+class ValFlowCGEdge: public ConstraintEdge {
+    public:
+        ValFlowCGEdge(ConstraintNode* s, ConstraintNode* d, ConstraintEdgeK k, EdgeID id) : ConstraintEdge(s, d, k, id) {
+        }
+};
+
 /*!
  * Store Value edge
  */
-class StoreValCGEdge: public ConstraintEdge {
+class StoreValCGEdge: public ValFlowCGEdge {
 private:
     StoreValCGEdge();                      ///< place holder
     StoreValCGEdge(const StoreValCGEdge &);  ///< place holder
@@ -218,16 +224,15 @@ public:
         return edge->getEdgeKind() == StoreVal;
     }
     //@}
-
     /// constructor
-    StoreValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ConstraintEdge(s,d,StoreVal,id) {
+    StoreValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ValFlowCGEdge(s,d,StoreVal,id) {
     }
 };
 
 /*!
  * Load Value edge
  */
-class LoadValCGEdge: public ConstraintEdge {
+class LoadValCGEdge: public ValFlowCGEdge {
 private:
     LoadValCGEdge();                      ///< place holder
     LoadValCGEdge(const LoadValCGEdge &);  ///< place holder
@@ -247,14 +252,14 @@ public:
     //@}
 
     /// constructor
-    LoadValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ConstraintEdge(s,d,LoadVal,id) {
+    LoadValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ValFlowCGEdge(s,d,LoadVal,id) {
     }
 };
 
 /*!
  * Call Value edge
  */
-class CallValCGEdge: public ConstraintEdge {
+class CallValCGEdge: public ValFlowCGEdge {
 private:
     CallValCGEdge();                      ///< place holder
     CallValCGEdge(const CallValCGEdge &);  ///< place holder
@@ -274,14 +279,14 @@ public:
     //@}
 
     /// constructor
-    CallValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ConstraintEdge(s,d,CallVal,id) {
+    CallValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ValFlowCGEdge(s,d,CallVal,id) {
     }
 };
 
 /*!
  * Return Value edge
  */
-class RetValCGEdge: public ConstraintEdge {
+class RetValCGEdge: public ValFlowCGEdge {
 private:
     RetValCGEdge();                      ///< place holder
     RetValCGEdge(const RetValCGEdge &);  ///< place holder
@@ -301,7 +306,7 @@ public:
     //@}
 
     /// constructor
-    RetValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ConstraintEdge(s,d,RetVal,id) {
+    RetValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ValFlowCGEdge(s,d,RetVal,id) {
     }
 };
 
