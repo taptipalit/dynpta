@@ -16,6 +16,7 @@
 #define LLVM_TRANSFORMS_ENCRYPTION_H
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Analysis/SVF/MemoryModel/PAGEdge.h"
 #include <functional>
 
 namespace llvm {

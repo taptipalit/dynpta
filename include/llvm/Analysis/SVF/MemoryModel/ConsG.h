@@ -241,6 +241,14 @@ public:
     void removeLoadEdge(LoadCGEdge* edge);
     /// Remove store edge from their src and dst edge sets
     void removeStoreEdge(StoreCGEdge* edge);
+    /// Remove load value edge from their src and dst edge sets
+    void removeLoadValEdge(LoadValCGEdge* edge);
+    /// Remove store value edge from their src and dst edge sets
+    void removeStoreValEdge(StoreValCGEdge* edge);
+    /// Remove a call value edge from their src and dst edge sets
+    void removeCallValEdge(CallValCGEdge* edge);
+    /// Remove a return value edge from their src and dst edge sets
+    void removeRetValEdge(RetValCGEdge* edge);
     //@}
 
     /// SCC rep/sub nodes methods

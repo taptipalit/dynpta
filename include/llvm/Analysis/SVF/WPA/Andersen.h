@@ -355,7 +355,7 @@ public:
         ConstraintGraph* sensitiveSubGraph = findSensitiveSubGraph(consCG);
         consCG = sensitiveSubGraph;
         setGraph(consCG);
-
+        
         /// Create statistic class
         stat = new AndersenStat(this);
 

@@ -592,6 +592,18 @@ void ConstraintGraph::reTargetDstOfEdge(ConstraintEdge* edge, ConstraintNode* ne
     /// non object node flows to points-to set of a pointer (src of the edge maybe non object node after scc)
     else if(AddrCGEdge* addr = dyn_cast<AddrCGEdge>(edge)) {
         removeAddrEdge(addr);
+    } else if (LoadValCGEdge* loadval = dyn_cast<LoadValCGEdge>(edge)) {
+        removeLoadValEdge(loadval);
+        addLoadValCGEdge(srcId,newDstNodeID);
+    } else if (StoreValCGEdge* storeval = dyn_cast<StoreValCGEdge>(edge)) {
+        removeStoreValEdge(storeval);
+        addStoreValCGEdge(srcId,newDstNodeID);
+    } else if (CallValCGEdge* callval = dyn_cast<CallValCGEdge>(edge)) {
+        removeCallValEdge(callval);
+        addCallValCGEdge(srcId,newDstNodeID);
+    } else if (RetValCGEdge* retval = dyn_cast<RetValCGEdge>(edge)) {
+        removeRetValEdge(retval);
+        addRetValCGEdge(srcId,newDstNodeID);
     }
     else
         assert(false && "no other edge type!!");
@@ -632,6 +644,18 @@ void ConstraintGraph::reTargetSrcOfEdge(ConstraintEdge* edge, ConstraintNode* ne
     /// non object node flows to points-to set of a pointer (src of the edge maybe non object node after scc)
     else if(AddrCGEdge* addr = dyn_cast<AddrCGEdge>(edge)) {
         removeAddrEdge(addr);
+    } else if (LoadValCGEdge* loadval = dyn_cast<LoadValCGEdge>(edge)) {
+        removeLoadValEdge(loadval);
+        addLoadValCGEdge(newSrcNodeID, dstId);
+    } else if (StoreValCGEdge* storeval = dyn_cast<StoreValCGEdge>(edge)) {
+        removeStoreValEdge(storeval);
+        addStoreValCGEdge(newSrcNodeID, dstId);
+    } else if (CallValCGEdge* callval = dyn_cast<CallValCGEdge>(edge)) {
+        removeCallValEdge(callval);
+        addCallValCGEdge(newSrcNodeID, dstId);
+    } else if (RetValCGEdge* retval = dyn_cast<RetValCGEdge>(edge)) {
+        removeRetValEdge(retval);
+        addRetValCGEdge(newSrcNodeID, dstId);
     }
     else
         assert(false && "no other edge type!!");
@@ -670,6 +694,49 @@ void ConstraintGraph::removeStoreEdge(StoreCGEdge* edge) {
     assert(num && "edge not in the set, can not remove!!!");
 }
 
+/*!
+ * Remove load value edge from their src and dst edge sets
+ */
+void ConstraintGraph::removeLoadValEdge(LoadValCGEdge* edge) {
+    getConstraintNode(edge->getSrcID())->removeOutgoingLoadValEdge(edge);
+    getConstraintNode(edge->getDstID())->removeIncomingLoadValEdge(edge);
+    Size_t num = LoadValCGEdgeSet.erase(edge);
+    delete edge;
+    assert(num && "edge not in the set, can not remove!!!");
+}
+
+/*!
+ * Remove store value edge from their src and dst edge sets
+ */
+void ConstraintGraph::removeStoreValEdge(StoreValCGEdge* edge) {
+    getConstraintNode(edge->getSrcID())->removeOutgoingStoreValEdge(edge);
+    getConstraintNode(edge->getDstID())->removeIncomingStoreValEdge(edge);
+    Size_t num = StoreValCGEdgeSet.erase(edge);
+    delete edge;
+    assert(num && "edge not in the set, can not remove!!!");
+}
+
+/*!
+ * Remove call value edge from their src and dst edge sets
+ */
+void ConstraintGraph::removeCallValEdge(CallValCGEdge* edge) {
+    getConstraintNode(edge->getSrcID())->removeOutgoingCallValEdge(edge);
+    getConstraintNode(edge->getDstID())->removeIncomingCallValEdge(edge);
+    Size_t num = CallValCGEdgeSet.erase(edge);
+    delete edge;
+    assert(num && "edge not in the set, can not remove!!!");
+}
+
+/*!
+ * Remove return value edge from their src and dst edge sets
+ */
+void ConstraintGraph::removeRetValEdge(RetValCGEdge* edge) {
+    getConstraintNode(edge->getSrcID())->removeOutgoingRetValEdge(edge);
+    getConstraintNode(edge->getDstID())->removeIncomingRetValEdge(edge);
+    Size_t num = RetValCGEdgeSet.erase(edge);
+    delete edge;
+    assert(num && "edge not in the set, can not remove!!!");
+}
 /*!
  * Remove edges from their src and dst edge sets
  */

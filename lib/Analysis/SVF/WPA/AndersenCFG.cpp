@@ -115,7 +115,7 @@ void AndersenCFG::processAllAddr() {
                     //if (isSensitiveObj(src) || isSensitiveObj(dst)) {
                     if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(srcType)) 
                             || sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(dstType))) {
-                        errs() << "Pushed " << dst << " to work list at processAllAddr\n";
+                        //errs() << "Pushed " << dst << " to work list at processAllAddr\n";
                         pushIntoWorklist(dst);
                     } 
                 } /*else {

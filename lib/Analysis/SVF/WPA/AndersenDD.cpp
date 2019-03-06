@@ -76,8 +76,16 @@ ConstraintGraph*  AndersenDD::findSensitiveSubGraph(ConstraintGraph* fullGraph) 
             sensitiveWork.push(nodeId);
         }
     }
+    errs() << "================== Full Constraint Graph =======================\n";
+    errs() << "Number of nodes: " << fullGraph->getTotalNodeNum() << "\n";
+    errs() << "Number of edges: " << fullGraph->getTotalEdgeNum() << "\n";
 
     sensitiveSubGraph->createSubGraphReachableFrom(fullGraph, sensitiveWork);
+
+    errs() << "================== Selective Constraint Graph =======================\n";
+    errs() << "Number of nodes: " << sensitiveSubGraph->getTotalNodeNum() << "\n";
+    errs() << "Number of edges: " << sensitiveSubGraph->getTotalEdgeNum() << "\n";
+
     return sensitiveSubGraph;
 
 }
@@ -109,7 +117,7 @@ void AndersenDD::analyze(SVFModule svfModule) {
  * Start constraint solving
  */
 void AndersenDD::processNode(NodeID nodeId) {
-    errs() << "Processing node: " << nodeId << "\n";
+    //errs() << "Processing node: " << nodeId << "\n";
 
     numOfIteration++;
     if (0 == numOfIteration % OnTheFlyIterBudgetForStat) {

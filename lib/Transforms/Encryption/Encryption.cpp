@@ -492,30 +492,46 @@ bool EncryptionPass::isaConstantValue(Value* value) {
 }
 
 
-void EncryptionPass::findIndirectSinkSites(PAGNode* source, std::set<PAGNode*>& sinkSites) {
-    std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
-
-    std::vector<PAGNode*> valueWorkList;
-
-    valueWorkList.push_back(source);
-
-    while (!valueWorkList.empty()) {
-        PAGNode* workNode = valueWorkList.back();
-        valueWorkList.pop_back();
-
-        // Find all outgoing edges, except StoreVal edges
-        // Add them to valueWorkList
-        
-        // If it is a StoreVal edge, then 
-        //  ---- if it is 
-
-    }
+void EncryptionPass::findIndirectSinkSites(PAGNode* ptsFrom, std::set<PAGNode*>& sinkSites) {
+    // tpalit: There's no difference between a direct and a indirect flow
+    // Because in the algorithm for the indirect flow, we only track the Value
+    // Flow edges, that capture only the non-pointer flows
+    findDirectSinkSites(ptsFrom, sinkSites);
 }
 
 /**
  * Find all the sink sites that this value directly flows to
  */
 void EncryptionPass::findDirectSinkSites(PAGNode* source, std::set<PAGNode*>& sinkSites) {
+    std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
+
+    PAG* pag = getAnalysis<WPAPass>().getPAG();
+
+    std::vector<PAGNode*> workList;
+
+    workList.push_back(source);
+
+    // Find the outgoing value flow edges, keep adding them until you find the store edges
+    while (!workList.empty()) {
+        PAGNode* work = workList.back();
+        workList.pop_back();
+
+        for (PAGEdge* outEdge: work->getOutgoingValFlowEdges()) {
+            if (StoreValPE* storeValEdge = dyn_cast<StoreValPE>(outEdge)) {
+                PAGNode* sinkStorePtr = pag->getPAGNode(storeValEdge->getDstID());
+                // Find everything this can point to
+                // This will take care of non-pointers too, because
+                // non-pointers point to itself
+                for (PAGNode* ptsTo: ptsToMap[sinkStorePtr]) {
+                    sinkSites.insert(ptsTo);
+                }
+            } else {
+                // Store the destination in the workList
+                PAGNode* intermediateNode = pag->getPAGNode(outEdge->getDstID());
+                workList.push_back(intermediateNode);
+            }
+        }
+    }
     
 }
 
@@ -789,12 +805,12 @@ void EncryptionPass::performSourceSinkAnalysis(Module& M) {
 
         for (PAGNode* ptsFrom: ptsFromMap[work]) {
             if (!(ptsFrom->vfaVisited)) {
-                findDirectSinkSites(ptsFrom, tempSinkSites);
+                findIndirectSinkSites(ptsFrom, tempSinkSites);
                 ptsFrom->vfaVisited = true;
             }
         }
 
-        findIndirectSinkSites(work, tempSinkSites);
+        findDirectSinkSites(work, tempSinkSites);
 
         for (PAGNode* sinkSiteNode: tempSinkSites) {
             SensitiveObjList.push_back(sinkSiteNode);
@@ -802,11 +818,17 @@ void EncryptionPass::performSourceSinkAnalysis(Module& M) {
                 workList.push_back(sinkSiteNode); 
             }
         }
+        tempSinkSites.clear();
+        work->vfaVisited = true;
     }
 
     errs() << "After dataflow analysis:\n";
     for (PAGNode* sensValNode: SensitiveObjList) {
-        errs() << "Sensitive value: " << *sensValNode << "\n";
+        if (GepObjPN* gepObjPN = dyn_cast<GepObjPN>(sensValNode)) {
+            errs() << "Sensitive value: " << *gepObjPN << "\n";
+        } else {
+            errs() << "Sensitive value: " << *sensValNode << "\n";
+        }
     }
 }
 
@@ -867,7 +889,8 @@ void EncryptionPass::collectGlobalSensitiveAnnotations(Module& M) {
                         SensitiveObjList.push_back(fldNode);
                     }
                     SensitiveObjList.push_back(objNode);
-                } else if (pag->hasValueNode(GV)) {
+                } 
+                if (pag->hasValueNode(GV)) {
                     SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(GV)));
                 }
 			}
@@ -908,7 +931,8 @@ void EncryptionPass::collectLocalSensitiveAnnotations(Module &M) {
                                                 SensitiveObjList.push_back(fldNode);
                                             }
                                             SensitiveObjList.push_back(objNode);
-                                        } else if (pag->hasValueNode(UseValue)) {
+                                        } 
+                                        if (pag->hasValueNode(UseValue)) {
 										    SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(UseValue)));
                                         }
 									}
@@ -942,7 +966,8 @@ void EncryptionPass::collectLocalSensitiveAnnotations(Module &M) {
                                             SensitiveObjList.push_back(fldNode);
                                         }
                                         SensitiveObjList.push_back(objNode);
-                                    } else if (pag->hasValueNode(val)) {
+                                    } 
+                                    if (pag->hasValueNode(val)) {
 									    SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(val)));
                                     }
 								}

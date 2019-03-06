@@ -21,6 +21,7 @@ set(LLVM_LINK_COMPONENTS
   FunctionPointerAnalysis
   LibcTransform
   SVF
+  Encryption
   )
 
 # Support plugins.

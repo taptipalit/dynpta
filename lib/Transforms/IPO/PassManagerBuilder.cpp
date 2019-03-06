@@ -32,6 +32,8 @@
 #include "llvm/Transforms/AggressiveInstCombine/AggressiveInstCombine.h"
 #include "llvm/Transforms/FunctionPointerAnalysis.h"
 #include "llvm/Transforms/LibcTransform.h"
+#include "llvm/Transforms/Encryption.h"
+#include "llvm/Transforms/Utils/Mem2Reg.h"
 #include "llvm/Analysis/SVF/WPA/WPAPass.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/ForceFunctionAttrs.h"
@@ -954,6 +956,14 @@ void PassManagerBuilder::populateLTOPassManager(legacy::PassManagerBase &PM) {
 
   if (OptLevel != 0)
     addLateLTOOptimizationPasses(PM);
+
+  PM.add(createPromoteMemoryToRegisterPass());
+  if (Inliner) {
+      PM.add(Inliner);
+      Inliner = nullptr;
+  }
+
+  PM.add(createEncryptionPass());
 
   if (VerifyOutput)
     PM.add(createVerifierPass());

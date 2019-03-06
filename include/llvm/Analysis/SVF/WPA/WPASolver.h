@@ -159,7 +159,7 @@ protected:
         return sccRepNode(worklist.pop());
     }
     inline void pushIntoWorklist(NodeID id) {
-        llvm::errs() << "pushed id = " << id << "\n";
+        //llvm::errs() << "pushed id = " << id << "\n";
         worklist.push(sccRepNode(id));
     }
     inline bool isWorklistEmpty() {

@@ -1,108 +1,861 @@
-rm: cannot remove '*.png': No such file or directory
-rm: cannot remove '*.dot': No such file or directory
 + LLVMROOT=/mnt/Projects/LLVM-custom/install/bin
-+ /mnt/Projects/LLVM-custom/install/bin/clang -O1 -mllvm -debug-pass=Arguments -c -emit-llvm testmem2reg.c -S -o testmem2reg.ll
-testmem2reg.c:22:30: warning: implicitly declaring library function 'malloc' with type 'void *(unsigned long)' [-Wimplicit-function-declaration]
-    struct Dummy* dummyptr = malloc(sizeof(struct Dummy));
-                             ^
-testmem2reg.c:22:30: note: include the header <stdlib.h> or explicitly provide a declaration for 'malloc'
-Pass Arguments:  -tti -targetlibinfo -tbaa -scoped-noalias -assumption-cache-tracker -verify -ee-instrument -simplifycfg -domtree -sroa -early-cse -lower-expect
-Dumping function:
-
-; Function Attrs: nounwind uwtable
-define dso_local i32 @fn1() #0 {
-entry:
-  %a = alloca i32, align 4
-  %b = alloca i32, align 4
-  %c = alloca i32, align 4
-  %d = alloca i32, align 4
-  %0 = bitcast i32* %a to i8*
-  call void @llvm.lifetime.start.p0i8(i64 4, i8* %0) #3
-  %1 = bitcast i32* %b to i8*
-  call void @llvm.lifetime.start.p0i8(i64 4, i8* %1) #3
-  %call = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @.str, i32 0, i32 0), i32* %a)
-  %call1 = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @.str, i32 0, i32 0), i32* %b)
-  %c.0..sroa_cast = bitcast i32* %c to i8*
-  call void @llvm.lifetime.start.p0i8(i64 4, i8* %c.0..sroa_cast)
-  %2 = load i32, i32* %a, align 4, !tbaa !2
-  %3 = load i32, i32* %b, align 4, !tbaa !2
-  %add = add nsw i32 %2, %3
-  store i32 %add, i32* %c, align 4, !tbaa !2
-  %d.0..sroa_cast = bitcast i32* %d to i8*
-  call void @llvm.lifetime.start.p0i8(i64 4, i8* %d.0..sroa_cast)
-  %4 = load i32, i32* %b, align 4, !tbaa !2
-  %5 = load i32, i32* %a, align 4, !tbaa !2
-  %sub = sub nsw i32 %4, %5
-  store i32 %sub, i32* %d, align 4, !tbaa !2
-  %c.0.load = load i32, i32* %c, align 4
-  %d.0.load = load i32, i32* %d, align 4
-  %mul = mul nsw i32 %c.0.load, %d.0.load
-  %d.0..sroa_cast2 = bitcast i32* %d to i8*
-  call void @llvm.lifetime.end.p0i8(i64 4, i8* %d.0..sroa_cast2)
-  %c.0..sroa_cast3 = bitcast i32* %c to i8*
-  call void @llvm.lifetime.end.p0i8(i64 4, i8* %c.0..sroa_cast3)
-  %6 = bitcast i32* %b to i8*
-  call void @llvm.lifetime.end.p0i8(i64 4, i8* %6) #3
-  %7 = bitcast i32* %a to i8*
-  call void @llvm.lifetime.end.p0i8(i64 4, i8* %7) #3
-  ret i32 %mul
-}
-
-Dumping function:
-
-; Function Attrs: nounwind uwtable
-define dso_local %struct.Dummy* @getDummy() #0 {
-entry:
-  %dummyptr = alloca %struct.Dummy*, align 8
-  %dummyptr.0..sroa_cast = bitcast %struct.Dummy** %dummyptr to i8*
-  call void @llvm.lifetime.start.p0i8(i64 8, i8* %dummyptr.0..sroa_cast)
-  %call = call i8* @malloc(i64 16)
-  %0 = bitcast i8* %call to %struct.Dummy*
-  store %struct.Dummy* %0, %struct.Dummy** %dummyptr, align 8, !tbaa !6
-  %dummyptr.0. = load %struct.Dummy*, %struct.Dummy** %dummyptr, align 8, !tbaa !6
-  %fptr2 = getelementptr inbounds %struct.Dummy, %struct.Dummy* %dummyptr.0., i32 0, i32 1
-  store i32 (...)* bitcast (i32 ()* @fn1 to i32 (...)*), i32 (...)** %fptr2, align 8, !tbaa !8
-  %dummyptr.0.1 = load %struct.Dummy*, %struct.Dummy** %dummyptr, align 8, !tbaa !6
-  %dummyptr.0..sroa_cast2 = bitcast %struct.Dummy** %dummyptr to i8*
-  call void @llvm.lifetime.end.p0i8(i64 8, i8* %dummyptr.0..sroa_cast2)
-  ret %struct.Dummy* %dummyptr.0.1
-}
-
-Dumping function:
-
-; Function Attrs: nounwind uwtable
-define dso_local i32 @main() #0 {
-entry:
-  %retval = alloca i32, align 4
-  %dptr = alloca %struct.Dummy*, align 8
-  %k = alloca i32, align 4
-  store i32 0, i32* %retval, align 4
-  %dptr.0..sroa_cast = bitcast %struct.Dummy** %dptr to i8*
-  call void @llvm.lifetime.start.p0i8(i64 8, i8* %dptr.0..sroa_cast)
-  %call = call %struct.Dummy* @getDummy()
-  store %struct.Dummy* %call, %struct.Dummy** %dptr, align 8, !tbaa !9
-  %k.0..sroa_cast = bitcast i32* %k to i8*
-  call void @llvm.lifetime.start.p0i8(i64 4, i8* %k.0..sroa_cast)
-  %dptr.0. = load %struct.Dummy*, %struct.Dummy** %dptr, align 8, !tbaa !9
-  %fptr2 = getelementptr inbounds %struct.Dummy, %struct.Dummy* %dptr.0., i32 0, i32 1
-  %0 = load i32 (...)*, i32 (...)** %fptr2, align 8, !tbaa !6
-  %call1 = call i32 (...) %0()
-  store i32 %call1, i32* %k, align 4, !tbaa !2
-  %k.0.load = load i32, i32* %k, align 4
-  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([8 x i8], [8 x i8]* @.str.1, i32 0, i32 0), i32 %k.0.load)
-  %k.0..sroa_cast3 = bitcast i32* %k to i8*
-  call void @llvm.lifetime.end.p0i8(i64 4, i8* %k.0..sroa_cast3)
-  %dptr.0..sroa_cast4 = bitcast %struct.Dummy** %dptr to i8*
-  call void @llvm.lifetime.end.p0i8(i64 8, i8* %dptr.0..sroa_cast4)
-  ret i32 0
-}
-
-Pass Arguments:  -tti -targetlibinfo -tbaa -scoped-noalias -assumption-cache-tracker -profile-summary-info -forceattrs -inferattrs -ipsccp -called-value-propagation -globalopt -domtree -mem2reg -deadargelim -domtree -basicaa -aa -loops -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -instcombine -simplifycfg -basiccg -globals-aa -prune-eh -always-inline -functionattrs -domtree -sroa -basicaa -aa -memoryssa -early-cse-memssa -domtree -basicaa -aa -lazy-value-info -jump-threading -correlated-propagation -simplifycfg -domtree -basicaa -aa -loops -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -instcombine -libcalls-shrinkwrap -loops -branch-prob -block-freq -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -pgo-memop-opt -domtree -basicaa -aa -loops -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -tailcallelim -simplifycfg -reassociate -domtree -loops -loop-simplify -lcssa-verification -lcssa -basicaa -aa -scalar-evolution -loop-rotate -licm -loop-unswitch -simplifycfg -domtree -basicaa -aa -loops -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -instcombine -loop-simplify -lcssa-verification -lcssa -scalar-evolution -indvars -loop-idiom -loop-deletion -memdep -memcpyopt -sccp -domtree -demanded-bits -bdce -basicaa -aa -loops -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -instcombine -lazy-value-info -jump-threading -correlated-propagation -domtree -basicaa -aa -memdep -dse -loops -loop-simplify -lcssa-verification -lcssa -aa -scalar-evolution -licm -postdomtree -adce -simplifycfg -domtree -basicaa -aa -loops -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -instcombine -barrier -basiccg -rpo-functionattrs -globalopt -globaldce -basiccg -globals-aa -float2int -domtree -loops -loop-simplify -lcssa-verification -lcssa -basicaa -aa -scalar-evolution -loop-rotate -loop-accesses -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -loop-distribute -branch-prob -block-freq -scalar-evolution -basicaa -aa -loop-accesses -demanded-bits -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -loop-vectorize -loop-simplify -scalar-evolution -aa -loop-accesses -loop-load-elim -basicaa -aa -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -instcombine -simplifycfg -domtree -basicaa -aa -loops -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -instcombine -scalar-evolution -alignment-from-assumptions -strip-dead-prototypes -domtree -loops -branch-prob -block-freq -loop-simplify -lcssa-verification -lcssa -basicaa -aa -scalar-evolution -branch-prob -block-freq -loop-sink -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -instsimplify -div-rem-pairs -simplifycfg
-Pass Arguments:  -targetlibinfo -domtree -loops -branch-prob -block-freq
-Pass Arguments:  -targetlibinfo -domtree -loops -branch-prob -block-freq
-Pass Arguments:  -tti
-1 warning generated.
++ GGDB=-ggdb
++ /mnt/Projects/LLVM-custom/install/bin/clang -O0 -c -ggdb -emit-llvm testvfa.c -S -o testvfa.ll
 + '[' 0 -ne 0 ']'
-+ /mnt/Projects/LLVM-custom/install/bin/opt -mem2reg testmem2reg.ll -o testmem2reg_opt.bc
-+ /mnt/Projects/LLVM-custom/install/bin/llvm-dis testmem2reg_opt.bc -o testmem2reg_opt.ll
++ /mnt/Projects/LLVM-custom/install/bin/opt -encryption -print-all-pts -dump-pag -dump-consG testvfa.ll -o testvfa_inst.bc
+AndersenCFG
+Pushed 32 to work list at processAllAddr
+pushed id = 32
+Pushed 46 to work list at processAllAddr
+pushed id = 46
+Pushed 53 to work list at processAllAddr
+pushed id = 53
+Pushed 13 to work list at processAllAddr
+pushed id = 13
+Running one iteration:
+Calling solve ... 
+Useless iteration
+Writing 'pag_initial.dot'...
+Writing 'callgraph_initial.dot'...
+Writing 'consCG_final.dot'...
+Writing 'pag_final.dot'...
+----------------------------------------------
+##<Dummy Obj > id:0
+Ptr 0 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<call> Source Loc: ln: 24 fl: testvfa.c
+Ptr 45 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.1> Source Loc: Glob 
+Ptr 7 		PointsTo: { 9 }
+
+!!Target NodeID 9	 [<.str.1> Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 34 fl: testvfa.c
+Ptr 52 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<main> Source Loc: in line: 9 file: testvfa.c
+Ptr 14 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> Source Loc: 
+Ptr 59 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<b> Source Loc: ln: 11 fl: testvfa.c
+Ptr 21 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 0th arg printf 
+Ptr 66 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 28 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 13 fl: testvfa.c
+Ptr 35 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 23 fl: testvfa.c
+Ptr 42 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str> Source Loc: Glob 
+Ptr 4 		PointsTo: { 6 }
+
+!!Target NodeID 6	 [<.str> Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 25 fl: testvfa.c
+Ptr 49 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 11 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 0th arg llvm.dbg.declare 
+Ptr 56 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<a> Source Loc: ln: 10 fl: testvfa.c
+Ptr 18 		PointsTo: { 19 }
+
+!!Target NodeID 19	 [<a> Source Loc: ln: 10 fl: testvfa.c] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 3rd arg llvm.var.annotation 
+Ptr 63 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 25 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> Source Loc: 
+Ptr 32 		PointsTo: { 33 }
+
+!!Target NodeID 33	 [<llvm.var.annotation> Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<id> Source Loc: ln: 15 fl: testvfa.c
+Ptr 39 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<Dummy Obj > id:1
+Ptr 1 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<printf> Source Loc: 
+Ptr 46 		PointsTo: { 47 }
+
+!!Target NodeID 47	 [<printf> Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 8 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> Source Loc: 
+Ptr 53 		PointsTo: { 54 }
+
+!!Target NodeID 54	 [<llvm.dbg.declare> Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<main> Source Loc: in line: 9 file: testvfa.c
+Ptr 15 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 0th arg llvm.var.annotation 
+Ptr 60 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<s> Source Loc: ln: 13 fl: testvfa.c
+Ptr 22 		PointsTo: { 23 }
+
+!!Target NodeID 23	 [<s> Source Loc: ln: 13 fl: testvfa.c] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 29 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 14 fl: testvfa.c
+Ptr 36 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 24 fl: testvfa.c
+Ptr 43 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 5 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 50 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.2> Source Loc: Glob 
+Ptr 12 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 1st arg llvm.dbg.declare 
+Ptr 57 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<a> Source Loc: ln: 10 fl: testvfa.c
+Ptr 19 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<printf> Source Loc: 
+Ptr 64 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 10 fl: testvfa.c
+Ptr 26 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> Source Loc: 
+Ptr 33 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 15 fl: testvfa.c
+Ptr 40 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+
+Ptr 2 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<printf> Source Loc: 
+Ptr 47 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.1> Source Loc: Glob 
+Ptr 9 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> Source Loc: 
+Ptr 54 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<retval> Source Loc: 
+Ptr 16 		PointsTo: { 17 }
+
+!!Target NodeID 17	 [<retval> Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 1st arg llvm.var.annotation 
+Ptr 61 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<s> Source Loc: ln: 13 fl: testvfa.c
+Ptr 23 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 10 fl: testvfa.c
+Ptr 30 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source locationCloning node: 19
+Cloning node: 18
+Cloning addr edge: 19 --> 18
+Cloning addr edge: 19 --> 18
+Cloning node: 38
+Cloning load value edge: 18 --> 38
+Cloning node: 41
+Cloning load value edge: 18 --> 41
+Cloning node: 27
+Cloning copy edge: 18 --> 27
+Cloning copy edge: 18 --> 27
+Cloning load value edge: 18 --> 38
+Cloning node: 39
+Cloning store value edge: 38 --> 39
+Cloning load value edge: 18 --> 41
+Cloning node: 20
+Cloning store value edge: 41 --> 20
+Cloning store value edge: 38 --> 39
+Cloning node: 22
+Cloning ngep edge: 22 --> 39
+Cloning node: 21
+Cloning addr edge: 21 --> 20
+Cloning store value edge: 41 --> 20
+Cloning node: 43
+Cloning load value edge: 20 --> 43
+Cloning node: 23
+Cloning addr edge: 23 --> 22
+Cloning ngep edge: 22 --> 39
+Cloning node: 48
+Cloning ngep edge: 22 --> 48
+Cloning addr edge: 21 --> 20
+Cloning load value edge: 20 --> 43
+Cloning addr edge: 23 --> 22
+Cloning ngep edge: 22 --> 48
+Cloning node: 49
+Cloning load value edge: 48 --> 49
+Cloning load value edge: 48 --> 49
+pushed id = 18
+Processing node: 19
+Processing node: 38
+Processing node: 43
+Processing node: 22
+pushed id = 39
+pushed id = 48
+Processing node: 48
+Processing node: 41
+Processing node: 20
+Processing node: 39
+Processing node: 18
+pushed id = 27
+Processing node: 27
+Processing node: 49
+Processing node: 23
+Processing node: 21
+Processing node: 18
+Processing node: 39
+Processing node: 48
+Processing node: 27
+ for instruction, argument, global var or function.
+Ptr 37 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 44 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str> Source Loc: Glob 
+Ptr 6 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<call3> Source Loc: ln: 25 fl: testvfa.c
+Ptr 51 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<main> Source Loc: in line: 9 file: testvfa.c
+Ptr 13 		PointsTo: { 14 }
+
+!!Target NodeID 14	 [<main> Source Loc: in line: 9 file: testvfa.c] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 2nd arg llvm.dbg.declare 
+Ptr 58 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<b> Source Loc: ln: 11 fl: testvfa.c
+Ptr 20 		PointsTo: { 21 }
+
+!!Target NodeID 21	 [<b> Source Loc: ln: 11 fl: testvfa.c] 
+----------------------------------------------
+----------------------------------------------
+##<printf> Source Loc: 
+Ptr 65 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<a1> Source Loc: ln: 10 fl: testvfa.c
+Ptr 27 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 11 fl: testvfa.c
+Ptr 34 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 23 fl: testvfa.c
+Ptr 41 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+
+Ptr 3 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<id2> Source Loc: ln: 25 fl: testvfa.c
+Ptr 48 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.2> Source Loc: Glob 
+Ptr 10 		PointsTo: { 12 }
+
+!!Target NodeID 12	 [<.str.2> Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> Source Loc: 
+Ptr 55 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<retval> Source Loc: 
+Ptr 17 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 2nd arg llvm.var.annotation 
+Ptr 62 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 24 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 31 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 15 fl: testvfa.c
+Ptr 38 		PointsTo: {empty}
+
+----------------------------------------------
+Writing 'callgraph_final.dot'...
+Writing 'callgraph_initial.dot'...
+Writing 'consCG_selective_final.dot'...
+Writing 'pag_final.dot'...
+----------------------------------------------
+##<Dummy Obj > id:0
+Ptr 0 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<call> Source Loc: ln: 24 fl: testvfa.c
+Ptr 45 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.1> Source Loc: Glob 
+Ptr 7 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 34 fl: testvfa.c
+Ptr 52 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<main> Source Loc: in line: 9 file: testvfa.c
+Ptr 14 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> Source Loc: 
+Ptr 59 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<b> Source Loc: ln: 11 fl: testvfa.c
+Ptr 21 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 0th arg printf 
+Ptr 66 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 28 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 13 fl: testvfa.c
+Ptr 35 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 23 fl: testvfa.c
+Ptr 42 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str> Source Loc: Glob 
+Ptr 4 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 25 fl: testvfa.c
+Ptr 49 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 11 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 0th arg llvm.dbg.declare 
+Ptr 56 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<a> Source Loc: ln: 10 fl: testvfa.c
+Ptr 18 		PointsTo: { 19 }
+
+!!Target NodeID 19	 [<a> Source Loc: ln: 10 fl: testvfa.c] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 3rd arg llvm.var.annotation 
+Ptr 63 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 25 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> Source Loc: 
+Ptr 32 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<id> Source Loc: ln: 15 fl: testvfa.c
+Ptr 39 		PointsTo: { 67 }
+
+!!Target NodeID 67	 [<s> Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 13 fl: testvfa.c] 
+----------------------------------------------
+----------------------------------------------
+##<Dummy Obj > id:1
+Ptr 1 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<printf> Source Loc: 
+Ptr 46 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 8 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> Source Loc: 
+Ptr 53 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<main> Source Loc: in line: 9 file: testvfa.c
+Ptr 15 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 0th arg llvm.var.annotation 
+Ptr 60 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<s> Source Loc: ln: 13 fl: testvfa.c
+Ptr 22 		PointsTo: { 23 }
+
+!!Target NodeID 23	 [<s> Source Loc: ln: 13 fl: testvfa.c] 
+----------------------------------------------
+----------------------------------------------
+##<s> Source Loc: ln: 13 fl: testvfa.cField sensitive object found ... 
+Offset ... 1
+
+Ptr 67 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 29 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 14 fl: testvfa.c
+Ptr 36 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 24 fl: testvfa.c
+Ptr 43 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 5 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 50 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.2> Source Loc: Glob 
+Ptr 12 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 1st arg llvm.dbg.declare 
+Ptr 57 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<a> Source Loc: ln: 10 fl: testvfa.c
+Ptr 19 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<printf> Source Loc: 
+Ptr 64 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 10 fl: testvfa.c
+Ptr 26 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> Source Loc: 
+Ptr 33 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 15 fl: testvfa.c
+Ptr 40 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+
+Ptr 2 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<printf> Source Loc: 
+Ptr 47 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.1> Source Loc: Glob 
+Ptr 9 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> Source Loc: 
+Ptr 54 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<retval> Source Loc: 
+Ptr 16 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 1st arg llvm.var.annotation 
+Ptr 61 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<s> Source Loc: ln: 13 fl: testvfa.c
+Ptr 23 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 10 fl: testvfa.c
+Ptr 30 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 37 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 44 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str> Source Loc: Glob 
+Ptr 6 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<call3> Source Loc: ln: 25 fl: testvfa.c
+Ptr 51 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<main> Source Loc: in line: 9 file: testvfa.c
+Ptr 13 		PointsTo: {empty}
+
+----------------------------------------------
+----Performed Pointer Analysis
+Begin: Perform dataflow analysis
+Sensitive value:   %a = alloca i32, align 4
+Popped type: i32
+Sensitive value:   %a = alloca i32, align 4
+Sensitive value:   %a = alloca i32, align 4
+Sensitive value:   %a = alloca i32, align 4
+Sensitive type: i32
+Sensitive type: i32
+Sensitive type: i32
+Sensitive type: i32
+Sensitive type: i32
+Before dataflow, sensitive value: NodeID: 19	, Node Kind: ObjPN
+Value:   %a = alloca i32, align 4
+Before dataflow, sensitive value: NodeID: 19	, Node Kind: ObjPN
+Value:   %a = alloca i32, align 4
+Before dataflow, sensitive value: NodeID: 19	, Node Kind: ObjPN
+Value:   %a = alloca i32, align 4
+Before dataflow, sensitive value: NodeID: 18	, Node Kind: ValPN
+Value:   %a = alloca i32, align 4
+After dataflow analysis:
+Sensitive value: NodeID: 19	, Node Kind: ObjPN
+Value:   %a = alloca i32, align 4
+Sensitive value: NodeID: 19	, Node Kind: ObjPN
+Value:   %a = alloca i32, align 4
+Sensitive value: NodeID: 19	, Node Kind: ObjPN
+Value:   %a = alloca i32, align 4
+Sensitive value: NodeID: 18	, Node Kind: ValPN
+Value:   %a = alloca i32, align 4
+Sensitive value: NodeID: 21	, Node Kind: ObjPN
+Value:   %b = alloca i32, align 4
+Sensitive value: NodeID: 67	, Node Kind: GepObjPN
+Value:   %s = alloca %struct.Student, align 4
+End: Perform dataflow analysis: 4 memory objects found
+NodeID: 18	, Node Kind: ValPN
+Value:   %a = alloca i32, align 4
+NodeID: 21	, Node Kind: ObjPN
+Value:   %b = alloca i32, align 4
+NodeID: 19	, Node Kind: ObjPN
+Value:   %a = alloca i32, align 4
+NodeID: 67	, Node Kind: GepObjPN
+Value:   %s = alloca %struct.Student, align 4
+4 New allocation sites found ... 
+Processed 0 site
+Processed 1 site
+Processed 2 site
+Processed 3 site
+1 New allocation sites found ... 
+Processed 0 site
+Collected sensitive points-to info (Phase 1) 
+Total sensitive allocation sites: 5
+Sensitive Allocation site: NodeID: 18	, Node Kind: ValPN
+Value:   %a = alloca i32, align 4
+Sensitive Allocation site: NodeID: 23	, Node Kind: ObjPN
+Value:   %s = alloca %struct.Student, align 4
+Sensitive Allocation site: NodeID: 21	, Node Kind: ObjPN
+Value:   %b = alloca i32, align 4
+Sensitive Allocation site: NodeID: 19	, Node Kind: ObjPN
+Value:   %a = alloca i32, align 4
+Sensitive Allocation site: NodeID: 67	, Node Kind: GepObjPN
+Value:   %s = alloca %struct.Student, align 4
+Initialized AES, widened buffers to multiples of 128 bits
+Collected sensitive GEP instructions
+Collected sensitive load instructions
+Collected sensitive External Library calls
+Unsupported Sensitive External Function: 
+Inserted 4 calls to decryption routines.
+Inserted 3 calls to encryption routines.
+Statistics: 
+% of Loads accessing sensitive memory regions: 100.000
+
+% of Stores accessing sensitive memory regions: 75.000
+
+------------------------------------------
+##<> Source Loc: 2nd arg llvm.dbg.declare 
+Ptr 58 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<b> Source Loc: ln: 11 fl: testvfa.c
+Ptr 20 		PointsTo: { 21 }
+
+!!Target NodeID 21	 [<b> Source Loc: ln: 11 fl: testvfa.c] 
+----------------------------------------------
+----------------------------------------------
+##<printf> Source Loc: 
+Ptr 65 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<a1> Source Loc: ln: 10 fl: testvfa.c
+Ptr 27 		PointsTo: { 19 }
+
+!!Target NodeID 19	 [<a> Source Loc: ln: 10 fl: testvfa.c] 
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 11 fl: testvfa.c
+Ptr 34 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 23 fl: testvfa.c
+Ptr 41 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+
+Ptr 3 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<id2> Source Loc: ln: 25 fl: testvfa.c
+Ptr 48 		PointsTo: { 67 }
+
+!!Target NodeID 67	 [<s> Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 13 fl: testvfa.c] 
+----------------------------------------------
+----------------------------------------------
+##<.str.2> Source Loc: Glob 
+Ptr 10 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> Source Loc: 
+Ptr 55 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<retval> Source Loc: 
+Ptr 17 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 2nd arg llvm.var.annotation 
+Ptr 62 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: 
+Ptr 24 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 31 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> Source Loc: ln: 15 fl: testvfa.c
+Ptr 38 		PointsTo: {empty}
+
+----------------------------------------------
+Writing 'callgraph_final.dot'...
++ /mnt/Projects/LLVM-custom/install/bin/llvm-dis testvfa_inst.bc -o testvfa_inst.ll
++ dot -Tpng pag_final.dot -o testvfa_pag_final.png
++ dot -Tpng pag_initial.dot -o testvfa_pag_initial.png
++ dot -Tpng consCG_final.dot -o testvfa_consg_full_final.png
++ dot -Tpng consCG_selective_final.dot -o testvfa_consg_selective_final.png
 + '[' 0 -ne 0 ']'

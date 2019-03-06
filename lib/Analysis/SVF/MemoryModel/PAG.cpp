@@ -653,6 +653,10 @@ PAGNode::PAGNode(const llvm::Value* val, NodeID i, PNODEK k) :
  * Dump this PAG
  */
 void PAG::dump(std::string name) {
+    /*
+    errs() << "Number of nodes: " << this->getTotalNodeNum() << "\n";
+    errs() << "Number of edges: " << this->getTotalEdgeNum() << "\n";
+    */
     GraphPrinter::WriteGraphToFile(llvm::outs(), name, this);
 }
 

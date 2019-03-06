@@ -36,7 +36,12 @@
  * PAG node
  */
 typedef GenericNode<PAGNode,PAGEdge> GenericPAGNodeTy;
+class GepObjPN;
 class PAGNode : public GenericPAGNodeTy {
+
+private:
+    std::vector<PAGEdge*> IncomingValFlowEdgesSet;
+    std::vector<PAGEdge*> OutgoingValFlowEdgesSet;
 
 public:
     /// Nine kinds of PAG nodes
@@ -126,6 +131,14 @@ public:
         return OutEdgeKindToSetMap[kind];
     }
 
+    inline std::vector<PAGEdge*> getOutgoingValFlowEdges() {
+        return OutgoingValFlowEdgesSet;
+    }
+
+    inline std::vector<PAGEdge*> getIncomingValFlowEdges() {
+        return IncomingValFlowEdgesSet;
+    }
+
     /// Has incoming PAG edges
     inline bool hasIncomingEdges(PAGEdge::PEDGEK kind) const {
         PAGEdge::PAGKindToEdgeSetMapTy::const_iterator it = InEdgeKindToSetMap.find(kind);
@@ -187,29 +200,42 @@ public:
     inline void addInEdge(PAGEdge* inEdge) {
         GNodeK kind = inEdge->getEdgeKind();
         InEdgeKindToSetMap[kind].insert(inEdge);
+        if (kind == PAGEdge::RetVal || kind == PAGEdge::CallVal
+                || kind == PAGEdge::LoadVal || kind == PAGEdge::StoreVal) {
+            IncomingValFlowEdgesSet.push_back(inEdge);
+        }
         addIncomingEdge(inEdge);
     }
 
     inline void addOutEdge(PAGEdge* outEdge) {
         GNodeK kind = outEdge->getEdgeKind();
         OutEdgeKindToSetMap[kind].insert(outEdge);
+        if (kind == PAGEdge::RetVal || kind == PAGEdge::CallVal
+                || kind == PAGEdge::LoadVal || kind == PAGEdge::StoreVal) {
+            OutgoingValFlowEdgesSet.push_back(outEdge);
+        }
         addOutgoingEdge(outEdge);
     }
+
+    virtual void printSpecific(llvm::raw_ostream &o, const PAGNode &node) {
+    }
+
     //@}
     /// Overloading operator << for dumping PAGNode value
     //@{
     friend llvm::raw_ostream& operator<< (llvm::raw_ostream &o, const PAGNode &node) {
         o << "NodeID: " << node.getId() << "\t, Node Kind: ";
-        if (node.getNodeKind() == ValNode ||
-                node.getNodeKind() == GepValNode ||
-                node.getNodeKind() == DummyValNode) {
+        if (node.getNodeKind() == PAGNode::ValNode ||
+                node.getNodeKind() == PAGNode::GepValNode ||
+                node.getNodeKind() == PAGNode::DummyValNode) {
             o << "ValPN\n";
-        } else if (node.getNodeKind() == ObjNode ||
-                   node.getNodeKind() == GepObjNode ||
-                   node.getNodeKind() == FIObjNode ||
-                   node.getNodeKind() == DummyObjNode) {
+        } else if (node.getNodeKind() == PAGNode::GepObjNode) {
+            o << "GepObjPN\n";
+        } else if (node.getNodeKind() == PAGNode::ObjNode ||
+                node.getNodeKind() == PAGNode::FIObjNode ||
+                node.getNodeKind() == PAGNode::DummyObjNode) {
             o << "ObjPN\n";
-        } else if (node.getNodeKind() == RetNode) {
+        } else if (node.getNodeKind() == PAGNode::RetNode) {
             o << "RetPN\n";
         } else {
             o << "otherPN\n";
@@ -218,16 +244,16 @@ public:
             const llvm::Value *val = node.getValue();
             if (const llvm::Function *fun = llvm::dyn_cast<llvm::Function>(val))
                 o << "Value: function " << fun->getName().str();
-            else
+            else 
                 o << "Value: " << *val;
         } else {
             o << "Empty Value";
         }
         return o;
     }
-    //@}
-};
 
+       //@}
+};
 
 
 /*
@@ -408,7 +434,23 @@ public:
             return value->getName().str() + "_" + llvm::itostr(ls.getOffset());
         return "offset_" + llvm::itostr(ls.getOffset());
     }
+
+    virtual void printSpecific(llvm::raw_ostream &o) {
+        o << "NodeID: " << this->getId() << "\t, Node Kind: ";
+        o << "GepObjPN\n";
+        const llvm::Value *val = this->getValue();
+
+        o << "Value: " << *val;
+        o << "Offset: " << this->getLocationSet().getOffset() << "\n";
+    }
+
+    friend llvm::raw_ostream& operator<< (llvm::raw_ostream &o, const GepObjPN &gepObjNode) {
+        (const_cast<GepObjPN&>(gepObjNode)).printSpecific(o);
+        return o;
+    }
 };
+
+
 
 /*
  * Field-insensitive Gep Obj node, this is dynamic generated for field sensitive analysis
