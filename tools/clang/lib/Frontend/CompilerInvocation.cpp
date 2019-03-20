@@ -526,7 +526,7 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   // At O0 we want to fully disable inlining outside of cases marked with
   // 'alwaysinline' that are required for correctness.
   Opts.setInlining((Opts.OptimizationLevel == 0)
-                       ? CodeGenOptions::OnlyAlwaysInlining
+                       ? CodeGenOptions::NormalInlining
                        : CodeGenOptions::NormalInlining);
   // Explicit inlining flags can disable some or all inlining even at
   // optimization levels above zero.

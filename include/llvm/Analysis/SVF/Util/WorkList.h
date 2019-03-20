@@ -168,6 +168,10 @@ public:
         data_set.clear();
     }
 
+    inline int size() {
+        return data_set.size();
+    }
+
 private:
     DataSet data_set;	///< store all data in the work list.
     DataDeque data_list;	///< work list using std::vector.

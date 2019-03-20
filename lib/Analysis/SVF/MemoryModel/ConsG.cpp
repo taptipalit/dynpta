@@ -35,6 +35,8 @@
 using namespace llvm;
 using namespace analysisUtil;
 
+#define DEBUG_TYPE "svf"
+
 static cl::opt<bool> ConsCGDotGraph("dump-consG", cl::init(false),
                                     cl::desc("Dump dot graph of Constraint Graph"));
 
@@ -43,35 +45,35 @@ void ConstraintGraph::cloneAddrEdge(ConstraintEdge* edge) {
     NodeID srcID = edge->getSrcID();
     NodeID dstID = edge->getDstID();
     addAddrCGEdge(srcID, dstID);
-    errs() << "Cloning addr edge: " << srcID << " --> " << dstID << "\n";
+    LLVM_DEBUG(dbgs() << "Cloning addr edge: " << srcID << " --> " << dstID << "\n";);
 }
 
 void ConstraintGraph::cloneStoreValEdge(ConstraintEdge* edge) {
     NodeID srcID = edge->getSrcID();
     NodeID dstID = edge->getDstID();
     addStoreValCGEdge(srcID, dstID);
-    errs() << "Cloning store value edge: " << srcID << " --> " << dstID << "\n";
+    LLVM_DEBUG(dbgs() << "Cloning store value edge: " << srcID << " --> " << dstID << "\n";);
 }
 
 void ConstraintGraph::cloneStoreEdge(ConstraintEdge* edge) {
     NodeID srcID = edge->getSrcID();
     NodeID dstID = edge->getDstID();
     addStoreCGEdge(srcID, dstID);
-    errs() << "Cloning store edge: " << srcID << " --> " << dstID << "\n";
+    LLVM_DEBUG(dbgs() << "Cloning store edge: " << srcID << " --> " << dstID << "\n";);
 }
 
 void ConstraintGraph::cloneLoadValEdge(ConstraintEdge* edge) {
     NodeID srcID = edge->getSrcID();
     NodeID dstID = edge->getDstID();
     addLoadValCGEdge(srcID, dstID);
-    errs() << "Cloning load value edge: " << srcID << " --> " << dstID << "\n";
+    LLVM_DEBUG(dbgs() << "Cloning load value edge: " << srcID << " --> " << dstID << "\n";);
 }
 
 void ConstraintGraph::cloneLoadEdge(ConstraintEdge* edge) {
     NodeID srcID = edge->getSrcID();
     NodeID dstID = edge->getDstID();
     addLoadCGEdge(srcID, dstID);
-    errs() << "Cloning load edge: " << srcID << " --> " << dstID << "\n";
+    LLVM_DEBUG(dbgs() << "Cloning load edge: " << srcID << " --> " << dstID << "\n";);
 }
 
 void ConstraintGraph::cloneCallValEdge(ConstraintEdge* edge) {
@@ -91,13 +93,13 @@ void ConstraintGraph::cloneDirectEdge(ConstraintEdge* edge) {
     NodeID dstID = edge->getDstID();
     if (VariantGepCGEdge* vgepCGEdge = dyn_cast<VariantGepCGEdge>(edge)) {
         addVariantGepCGEdge(srcID, dstID);
-        errs() << "Cloning vgep edge: " << srcID << " --> " << dstID << "\n";
+        LLVM_DEBUG(dbgs() << "Cloning vgep edge: " << srcID << " --> " << dstID << "\n";);
     } else if (NormalGepCGEdge* ngepCGEdge = dyn_cast<NormalGepCGEdge>(edge)) {
         addNormalGepCGEdge(srcID, dstID, ngepCGEdge->getLocationSet());
-        errs() << "Cloning ngep edge: " << srcID << " --> " << dstID << "\n";
+        LLVM_DEBUG(dbgs() << "Cloning ngep edge: " << srcID << " --> " << dstID << "\n";);
     } else {
         addCopyCGEdge(srcID, dstID);
-        errs() << "Cloning copy edge: " << srcID << " --> " << dstID << "\n";
+        LLVM_DEBUG(dbgs() << "Cloning copy edge: " << srcID << " --> " << dstID << "\n";);
     }
 }
 
@@ -105,7 +107,7 @@ void ConstraintGraph::testAndAddNode(NodeID nodeID, llvm::SparseBitVector<>& add
     if (!addedNodes.test(nodeID)) {
         addConstraintNode(new ConstraintNode(nodeID), nodeID);
         addedNodes.set(nodeID);
-        errs() << "Cloning node: " << nodeID << "\n";
+        LLVM_DEBUG(dbgs() << "Cloning node: " << nodeID << "\n";);
     }
 }
 
@@ -127,6 +129,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 workList.push((*it)->getSrcID());
             }
 
+            /*
             // Incoming store values
             for (ConstraintNode::const_iterator it = node->incomingStoreValsBegin(),
                     eit = node->incomingStoreValsEnd(); it != eit; ++it) {
@@ -142,6 +145,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 cloneCallValEdge(*it);
                 workList.push((*it)->getSrcID());
             }
+            */
 
             // Incoming stores
             for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
@@ -151,6 +155,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 workList.push((*it)->getSrcID());
             }
 
+            /*
             // Incoming load values
             for (ConstraintNode::const_iterator it = node->incomingLoadValsBegin(),
                     eit = node->incomingLoadValsEnd(); it != eit; ++it) {
@@ -166,6 +171,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 cloneRetValEdge(*it);
                 workList.push((*it)->getSrcID());
             }
+            */
 
 
             // Incoming loads
@@ -365,6 +371,11 @@ void ConstraintGraph::buildCG() {
         addRetValCGEdge(edge->getSrcID(), edge->getDstID());
     }
 
+    errs() << "================== Full Constraint Graph =======================\n";
+    errs() << "Number of nodes: " << this->getTotalNodeNum() << "\n";
+    errs() << "Number of edges: " << this->getTotalEdgeNum() << "\n";
+    errs() << "Number of Variant Gep edges: " << this->getVariableGepEdgeNum() << "\n";
+    errs() << "Number of Normal Gep edges: " << this->getNormalGepEdgeNum() << "\n";
 
 }
 
@@ -944,6 +955,10 @@ void ConstraintGraph::dump() {
             GraphPrinter::WriteGraphToFile(llvm::outs(), "consCG_final", this);
         }
     }
+}
+
+void ConstraintGraph::dumpSensitiveGraph() {
+    GraphPrinter::WriteGraphToFile(llvm::outs(), "consCG_sensitive_presolving", this);
 }
 
 /*!

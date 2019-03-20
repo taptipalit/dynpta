@@ -535,6 +535,9 @@ bool Andersen::collapseNodePts(NodeID nodeId)
         if (collapseField(*ptsIt))
             changed = true;
     }
+    if (changed) {
+        problematicPWC++;
+    }
     return changed;
 }
 

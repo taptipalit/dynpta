@@ -57,7 +57,8 @@ private:
         }
     }
 
-
+protected:
+    int problematicPWC;
 
 public:
     typedef std::set<const ConstraintEdge*> EdgeSet;
@@ -93,6 +94,7 @@ public:
         :  BVDataPTAImpl(type), consCG(NULL)
     {
         reanalyze = false;
+        problematicPWC = 0;
     }
 
     /// Destructor
@@ -354,6 +356,7 @@ public:
         // Now, we build the sensitive sub-graph
         ConstraintGraph* sensitiveSubGraph = findSensitiveSubGraph(consCG);
         consCG = sensitiveSubGraph;
+        consCG->dumpSensitiveGraph();
         setGraph(consCG);
         
         /// Create statistic class

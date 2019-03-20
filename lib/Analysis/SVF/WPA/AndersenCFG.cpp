@@ -139,10 +139,12 @@ bool AndersenCFG::updateCallGraph(const CallSiteToFunPtrMap& callsites) {
     for(NodePairSet::iterator it = cpySrcNodes.begin(), eit = cpySrcNodes.end(); it!=eit; ++it) {
         // Only process these if these are potentially function pointer types
         PAGNode* srcNode = pag->getPAGNode(it->first);
-        Value* srcValue = const_cast<Value*>(srcNode->getValue());
-        Type* srcType = srcValue->getType();
-        if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(srcType))) {
-            pushIntoWorklist(it->first);
+        if (srcNode->hasValue()) {
+            Value* srcValue = const_cast<Value*>(srcNode->getValue());
+            Type* srcType = srcValue->getType();
+            if (sensitiveHelper->isFunctionPtrType(dyn_cast<PointerType>(srcType))) {
+                pushIntoWorklist(it->first);
+            }
         }
     }
     if(!newEdges.empty())

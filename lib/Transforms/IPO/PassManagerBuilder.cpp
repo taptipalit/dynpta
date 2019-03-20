@@ -928,7 +928,7 @@ void PassManagerBuilder::populateThinLTOPassManager(
 
 void PassManagerBuilder::populateLTOPassManager(legacy::PassManagerBase &PM) {
   //PM.add(createLibcTransformPass());
-  PM.add(createFunctionPointerAnalysisPass());
+  //PM.add(createFunctionPointerAnalysisPass());
   //PM.add(createWPAPass());
   if (LibraryInfo)
     PM.add(new TargetLibraryInfoWrapperPass(*LibraryInfo));
@@ -957,7 +957,7 @@ void PassManagerBuilder::populateLTOPassManager(legacy::PassManagerBase &PM) {
   if (OptLevel != 0)
     addLateLTOOptimizationPasses(PM);
 
-  PM.add(createPromoteMemoryToRegisterPass());
+  //PM.add(createPromoteMemoryToRegisterPass());
   if (Inliner) {
       PM.add(Inliner);
       Inliner = nullptr;

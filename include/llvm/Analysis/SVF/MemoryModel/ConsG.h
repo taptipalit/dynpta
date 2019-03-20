@@ -125,6 +125,42 @@ public:
         destroy();
     }
 
+    virtual inline Size_t getVariableGepEdgeNum() {
+        int vargep = 0;
+        for(ConstraintEdge::ConstraintEdgeSetTy::iterator it = this->getDirectCGEdges().begin(),
+                eit = this->getDirectCGEdges().end(); it!=eit; ++it) {
+            ConstraintEdge* edge = *it;
+            if (edge->getEdgeKind() == ConstraintEdge::VariantGep) {
+                vargep++;
+            }
+        }
+        return vargep;
+    }
+
+    virtual inline Size_t getNormalGepEdgeNum() {
+        int normalgep = 0;
+        for(ConstraintEdge::ConstraintEdgeSetTy::iterator it = this->getDirectCGEdges().begin(),
+                eit = this->getDirectCGEdges().end(); it!=eit; ++it) {
+            ConstraintEdge* edge = *it;
+            if (edge->getEdgeKind() == ConstraintEdge::NormalGep) {
+                normalgep++;
+            }
+        }
+        return normalgep;
+    }
+
+    virtual inline Size_t getTotalEdgeNum() const {
+        int addrSize = AddrCGEdgeSet.size();
+        int directSize = directEdgeSet.size();
+        int loadSize = LoadCGEdgeSet.size();
+        int storeSize = StoreCGEdgeSet.size();
+        int storeValSize = StoreValCGEdgeSet.size();
+        int callSize = CallValCGEdgeSet.size();
+        int retSize = RetValCGEdgeSet.size();
+        return addrSize + directSize + loadSize + storeSize + storeValSize + callSize + retSize;
+    }
+
+
     void createSubGraphReachableFrom(ConstraintGraph*, WorkList&);
     /// Get/add/remove constraint node
     //@{
@@ -374,6 +410,9 @@ public:
 
     /// Dump graph into dot file
     void dump();
+
+    /// Dump sensitive graph into dot file
+    void dumpSensitiveGraph();
 };
 
 

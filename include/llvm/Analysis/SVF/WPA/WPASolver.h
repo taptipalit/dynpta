@@ -87,6 +87,10 @@ protected:
         return getSCCDetector()->topoNodeStack();
     }
 
+    int getWorklistSize() {
+        return worklist.size();
+    }
+
     virtual bool isSensitiveObj(NodeID nodeID) {
         return false;
     }
@@ -97,7 +101,9 @@ protected:
         /// SCC detection
         /// Nodes in nodeStack are in topological order by default.
         /// This order can be changed by overwritten SCCDetect() in sub-classes
+        llvm::errs() << "SCC Detect start\n";
         NodeStack& nodeStack = SCCDetect();
+        llvm::errs() << "SCC Detect complete\n";
 
         /// initial worklist
         /// process nodes in nodeStack.
@@ -114,11 +120,13 @@ protected:
             }
             */
         }
+        llvm::errs() << "Processed all nodes once\n";
 
         /// start solving
         /// New nodes may be inserted into work list during processing.
         /// Keep solving until it's empty.
         while (!isWorklistEmpty()) {
+            //llvm::errs() << "Remaining elements: " << getWorklistSize() << "\n";
             NodeID nodeId = popFromWorklist();
             postProcessNode(nodeId);
         }

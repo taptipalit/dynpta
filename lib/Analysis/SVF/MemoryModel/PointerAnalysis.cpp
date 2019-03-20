@@ -633,13 +633,15 @@ void PointerAnalysis::printIndCSTargets()
 void BVDataPTAImpl::onTheFlyCallGraphSolve(const CallSiteToFunPtrMap& callsites, CallEdgeMap& newEdges,CallGraph* callgraph) {
     for(CallSiteToFunPtrMap::const_iterator iter = callsites.begin(), eiter = callsites.end(); iter!=eiter; ++iter) {
         CallSite cs = iter->first;
+        /*
         if (isVirtualCallSite(cs)) {
             const Value *vtbl = getVCallVtblPtr(cs);
             assert(pag->hasValueNode(vtbl));
             NodeID vtblId = pag->getValueNode(vtbl);
-            assert(false && "Haven't implemented value flow analysis for this yet!\n");
+            //assert(false && "Haven't implemented value flow analysis for this yet!\n");
             resolveCPPIndCalls(cs, getPts(vtblId), newEdges,callgraph);
         } else
+        */
             resolveIndCalls(iter->first,getPts(iter->second),newEdges,callgraph);
     }
 }

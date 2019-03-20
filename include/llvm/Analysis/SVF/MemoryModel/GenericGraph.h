@@ -362,7 +362,7 @@ public:
     inline Size_t getTotalNodeNum() const {
         return nodeNum;
     }
-    inline Size_t getTotalEdgeNum() const {
+    virtual inline Size_t getTotalEdgeNum() const {
         return edgeNum;
     }
     /// Increase number of node/edge

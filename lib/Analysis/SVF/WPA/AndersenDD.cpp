@@ -76,15 +76,22 @@ ConstraintGraph*  AndersenDD::findSensitiveSubGraph(ConstraintGraph* fullGraph) 
             sensitiveWork.push(nodeId);
         }
     }
+
+    /*
     errs() << "================== Full Constraint Graph =======================\n";
     errs() << "Number of nodes: " << fullGraph->getTotalNodeNum() << "\n";
     errs() << "Number of edges: " << fullGraph->getTotalEdgeNum() << "\n";
+    errs() << "Number of Variant Gep edges: " << fullGraph->getVariableGepEdgeNum() << "\n";
+    errs() << "Number of Normal Gep edges: " << fullGraph->getNormalGepEdgeNum() << "\n";
+    */
 
     sensitiveSubGraph->createSubGraphReachableFrom(fullGraph, sensitiveWork);
 
     errs() << "================== Selective Constraint Graph =======================\n";
     errs() << "Number of nodes: " << sensitiveSubGraph->getTotalNodeNum() << "\n";
     errs() << "Number of edges: " << sensitiveSubGraph->getTotalEdgeNum() << "\n";
+    errs() << "Number of Variant Gep edges: " << sensitiveSubGraph->getVariableGepEdgeNum() << "\n";
+    errs() << "Number of Normal Gep edges: " << sensitiveSubGraph->getNormalGepEdgeNum() << "\n";
 
     return sensitiveSubGraph;
 
@@ -102,14 +109,20 @@ void AndersenDD::analyze(SVFModule svfModule) {
 
     DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Start Solving Constraints\n"));
 
+    errs() << "Preprocessing all addresses: start\n";
     preprocessAllAddr();
+    errs() << "Preprocessing all addresses: end\n";
 
+    errs() << "Solve:start\n";
     solve();
+    errs() << "Solve:end\n";
     
     DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Finish Solving Constraints\n"));
 
     /// finalize the analysis
     finalize();
+
+    errs() << "Number of Positive Weight Cycles: " << problematicPWC << "\n";
 }
 
 
@@ -117,8 +130,8 @@ void AndersenDD::analyze(SVFModule svfModule) {
  * Start constraint solving
  */
 void AndersenDD::processNode(NodeID nodeId) {
-    //errs() << "Processing node: " << nodeId << "\n";
 
+    //errs() << "Processing node: " << nodeId << "\n";
     numOfIteration++;
     if (0 == numOfIteration % OnTheFlyIterBudgetForStat) {
         dumpStat();
@@ -126,50 +139,13 @@ void AndersenDD::processNode(NodeID nodeId) {
 
     ConstraintNode* node = consCG->getConstraintNode(nodeId);
 
+    node->incNumTimesVisited();
+    //errs() << "Node getId(): " << node->getId() << " nodeId: " << nodeId << " for node: " << node <<  " visited " << node->getNumTimesVisited() << "\n";
+
     for (ConstraintNode::const_iterator it = node->outgoingAddrsBegin(), eit =
                 node->outgoingAddrsEnd(); it != eit; ++it) {
         processAddr(cast<AddrCGEdge>(*it));
     }
-
-    // Demand driven 
-    // If we're storing something to another location
-    // We need to process the other location as well
-    for (ConstraintNode::const_iterator it = node->outgoingStoresBegin(),
-            eit = node->outgoingStoresEnd(); it != eit; ++it) {
-        NodeID src = nodeId;
-        NodeID dst = (*it)->getDstID();
-        ConstraintNode* dstNode = consCG->getConstraintNode(dst);
-        // Check if this is a constraint node corresponding to a
-        // field-sensitive PAG node
-        for (ConstraintNode::const_iterator it = dstNode->directInEdgeBegin(), eit =
-                dstNode->directInEdgeEnd(); it != eit; ++it) {
-            if (GepCGEdge* gepEdge = llvm::dyn_cast<GepCGEdge>(*it)) {
-                pushIntoWorklist(gepEdge->getSrcID());
-            }
-        }
-        pushIntoWorklist(dst);
-    }
-
-    /*
-    // If we're loading from somewhere else
-
-    for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
-            eit = node->incomingStoresEnd(); it != eit; ++it) {
-        NodeID src = (*it)->getSrcID();
-        NodeID dst = (*it)->getDstID();
-        ConstraintNode* srcNode = consCG->getConstraintNode(src);
-        ConstraintNode* dstNode = consCG->getConstraintNode(dst);
-        // Check if this is a constraint node corresponding to a
-        // field-sensitive PAG node
-        for (ConstraintNode::const_iterator it = dstNode->directInEdgeBegin(), eit =
-                dstNode->directInEdgeEnd(); it != eit; ++it) {
-            if (GepCGEdge* gepEdge = llvm::dyn_cast<GepCGEdge>(*it)) {
-                pushIntoWorklist(gepEdge->getSrcID());
-            }
-        }
-        pushIntoWorklist(dst);
-    }
-    */
 
     for (PointsTo::iterator piter = getPts(nodeId).begin(), epiter =
                 getPts(nodeId).end(); piter != epiter; ++piter) {

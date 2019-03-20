@@ -101,10 +101,13 @@ void WPAPass::runOnModule(SVFModule svfModule) {
         _pta = new Andersen();
         _pta->analyze(svfModule);
     } else {
+        errs() << "Started running AndersenCFG\n";
         AndersenCFG* awcfg = new AndersenCFG();
         _pta = awcfg;
         awcfg->analyze(svfModule);
+        errs() << "Finished running AndersenCFG\n";
 
+        errs() << "Started running AndersenDD\n";
         PAG::CallSiteToFunPtrMap& callSiteToFunPtrMap = const_cast<PAG::CallSiteToFunPtrMap&>(awcfg->getIndirectCallsites());
         AndersenDD* anderdd = new AndersenDD();
         _pta = anderdd;
@@ -116,6 +119,7 @@ void WPAPass::runOnModule(SVFModule svfModule) {
         //anderdd->updateCallGraph(callSiteToFunPtrMap);
         // Glue end
         anderdd->analyze(svfModule);
+        errs() << "Ended running AndersenDD\n";
     }
 }
 

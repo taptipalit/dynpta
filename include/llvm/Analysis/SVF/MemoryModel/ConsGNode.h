@@ -42,6 +42,7 @@ public:
 private:
     bool _isPWCNode;
 
+    int numTimesVisited;
     ConstraintEdge::ConstraintEdgeSetTy loadInEdges; ///< all incoming load edge of this node
     ConstraintEdge::ConstraintEdgeSetTy loadOutEdges; ///< all outgoing load edge of this node
     
@@ -70,8 +71,16 @@ private:
 
 public:
 
-    ConstraintNode(NodeID i): GenericConsNodeTy(i,0), _isPWCNode(false) {
+    ConstraintNode(NodeID i): GenericConsNodeTy(i,0), _isPWCNode(false), numTimesVisited(0) {
 
+    }
+
+    inline int getNumTimesVisited() {
+        return numTimesVisited;
+    }
+
+    inline void incNumTimesVisited() {
+        numTimesVisited++;
     }
 
     /// Whether a node involves in PWC, if so, all its points-to elements should become field-insensitive.

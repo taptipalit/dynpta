@@ -47,6 +47,7 @@ using namespace analysisUtil;
  * Start building PAG here
  */
 PAG* PAGBuilder::build(SVFModule svfModule) {
+    errs() << "Started building PAG\n";
     svfMod = svfModule;
     sensitiveHelper = SensitiveDataHelper::getSensitiveDataHelper();
     sensitiveHelper->collectFuncPtrTypes(svfModule.getModuleRef(0));
@@ -100,6 +101,7 @@ PAG* PAGBuilder::build(SVFModule svfModule) {
     sanityCheck();
 
     pag->initialiseCandidatePointers();
+    errs() << "Ended building PAG\n";
 
     return pag;
 }
