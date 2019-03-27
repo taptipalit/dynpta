@@ -173,12 +173,11 @@ dh_pmeth.o: ../../e_os.h ../../include/openssl/asn1.h
 dh_pmeth.o: ../../include/openssl/asn1t.h ../../include/openssl/bio.h
 dh_pmeth.o: ../../include/openssl/bn.h ../../include/openssl/buffer.h
 dh_pmeth.o: ../../include/openssl/crypto.h ../../include/openssl/dh.h
-dh_pmeth.o: ../../include/openssl/dsa.h ../../include/openssl/e_os2.h
-dh_pmeth.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
-dh_pmeth.o: ../../include/openssl/ecdsa.h ../../include/openssl/err.h
-dh_pmeth.o: ../../include/openssl/evp.h ../../include/openssl/lhash.h
-dh_pmeth.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
-dh_pmeth.o: ../../include/openssl/opensslconf.h
+dh_pmeth.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h
+dh_pmeth.o: ../../include/openssl/ecdh.h ../../include/openssl/ecdsa.h
+dh_pmeth.o: ../../include/openssl/err.h ../../include/openssl/evp.h
+dh_pmeth.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
+dh_pmeth.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
 dh_pmeth.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 dh_pmeth.o: ../../include/openssl/pkcs7.h ../../include/openssl/safestack.h
 dh_pmeth.o: ../../include/openssl/sha.h ../../include/openssl/stack.h

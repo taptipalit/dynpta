@@ -1689,13 +1689,20 @@ Error BitcodeReader::parseTypeTableBody() {
       TypeName.clear();
 
       SmallVector<Type*, 8> EltTys;
-      for (unsigned i = 1, e = Record.size(); i != e; ++i) {
+      // Check for sensitive fields
+      int numOfSensitiveFields = Record[1];
+      for (unsigned i = 0; i < numOfSensitiveFields; i++) {
+          int offset = Record[i+1];
+          Res->addSensitiveFieldOffset(offset);
+      }
+
+      for (unsigned i = 2+numOfSensitiveFields, e = Record.size(); i != e; ++i) {
         if (Type *T = getTypeByID(Record[i]))
           EltTys.push_back(T);
         else
           break;
       }
-      if (EltTys.size() != Record.size()-1)
+      if (EltTys.size() + numOfSensitiveFields != Record.size()-2)
         return error("Invalid record");
       Res->setBody(EltTys, Record[0]);
       ResultTy = Res;

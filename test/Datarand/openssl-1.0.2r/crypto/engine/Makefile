@@ -224,21 +224,22 @@ eng_list.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
 eng_list.o: ../../include/openssl/x509_vfy.h ../cryptlib.h eng_int.h eng_list.c
 eng_openssl.o: ../../e_os.h ../../include/openssl/asn1.h
 eng_openssl.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
-eng_openssl.o: ../../include/openssl/crypto.h ../../include/openssl/dso.h
-eng_openssl.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h
-eng_openssl.o: ../../include/openssl/ecdh.h ../../include/openssl/ecdsa.h
-eng_openssl.o: ../../include/openssl/engine.h ../../include/openssl/err.h
-eng_openssl.o: ../../include/openssl/evp.h ../../include/openssl/lhash.h
-eng_openssl.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
+eng_openssl.o: ../../include/openssl/crypto.h ../../include/openssl/dh.h
+eng_openssl.o: ../../include/openssl/dso.h ../../include/openssl/e_os2.h
+eng_openssl.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
+eng_openssl.o: ../../include/openssl/ecdsa.h ../../include/openssl/engine.h
+eng_openssl.o: ../../include/openssl/err.h ../../include/openssl/evp.h
+eng_openssl.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
+eng_openssl.o: ../../include/openssl/objects.h
 eng_openssl.o: ../../include/openssl/opensslconf.h
 eng_openssl.o: ../../include/openssl/opensslv.h
 eng_openssl.o: ../../include/openssl/ossl_typ.h ../../include/openssl/pem.h
 eng_openssl.o: ../../include/openssl/pem2.h ../../include/openssl/pkcs7.h
-eng_openssl.o: ../../include/openssl/rand.h ../../include/openssl/rc4.h
-eng_openssl.o: ../../include/openssl/rsa.h ../../include/openssl/safestack.h
-eng_openssl.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
-eng_openssl.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
-eng_openssl.o: ../../include/openssl/x509_vfy.h ../cryptlib.h eng_openssl.c
+eng_openssl.o: ../../include/openssl/rand.h ../../include/openssl/rsa.h
+eng_openssl.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
+eng_openssl.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+eng_openssl.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h
+eng_openssl.o: ../cryptlib.h eng_openssl.c
 eng_pkey.o: ../../e_os.h ../../include/openssl/asn1.h
 eng_pkey.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
 eng_pkey.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h

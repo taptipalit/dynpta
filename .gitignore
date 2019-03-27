@@ -20,6 +20,15 @@
 .sw?
 #OS X specific files.
 .DS_store
+#object files
+*.o
+#Bitcode files
+*.bc
+*.ll
+#Graph dot files
+*.dot
+#Image files
+*.png
 
 # Nested build directory
 /build

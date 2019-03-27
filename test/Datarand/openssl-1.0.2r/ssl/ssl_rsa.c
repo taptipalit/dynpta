@@ -625,7 +625,7 @@ int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type)
     int j;
     int ret = 0;
     BIO *in;
-    SENSITIVE EVP_PKEY *pkey = NULL;
+    EVP_PKEY *pkey = NULL;
 
     in = BIO_new(BIO_s_file_internal());
     if (in == NULL) {

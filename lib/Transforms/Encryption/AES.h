@@ -81,7 +81,7 @@ namespace external{
 		public:
 			void initializeAes(llvm::Module&);
 
-            void widenSensitiveComplexType(GepObjPN*);
+            bool  widenSensitiveComplexType(GepObjPN*);
 			// For AES Cache
 			void widenSensitiveAllocationSites(llvm::Module&, std::vector<PAGNode*>&,
 				std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);

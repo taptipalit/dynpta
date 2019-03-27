@@ -201,6 +201,8 @@ public:
 class StructType : public CompositeType {
   StructType(LLVMContext &C) : CompositeType(C, StructTyID) {}
 
+  std::vector<int>  sensitiveOffsets;
+
   enum {
     /// This is the contents of the SubClassData field.
     SCDB_HasBody = 1,
@@ -256,6 +258,23 @@ public:
     LLVMContext &Ctx = elt1->getContext();
     SmallVector<llvm::Type *, 8> StructFields({elt1, elts...});
     return llvm::StructType::get(Ctx, StructFields);
+  }
+
+  int getNumSensitiveFields() {
+      return sensitiveOffsets.size();
+  }
+
+  std::vector<int>& getSensitiveFieldOffsets() {
+      return sensitiveOffsets;
+  }
+
+  void addSensitiveFieldOffset(int offset) {
+      sensitiveOffsets.push_back(offset);
+  }
+
+  bool isSensitiveField(int off) {
+    bool isSensitiveField = (std::find(sensitiveOffsets.begin(), sensitiveOffsets.end(), off) != sensitiveOffsets.end());
+    return isSensitiveField;
   }
 
   bool isPacked() const { return (getSubclassData() & SCDB_Packed) != 0; }

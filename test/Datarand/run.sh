@@ -8,8 +8,8 @@ set -x
 
 LLVMROOT=/mnt/Projects/LLVM-custom/install/bin
 
-GGDB=-ggdb 
-$LLVMROOT/clang -O0 -c $GGDB  -emit-llvm $file.c  -S -o $file.ll
+#GGDB=-ggdb 
+$LLVMROOT/clang -O0 -c $GGDB  -emit-llvm $file.c -o $file.bc
 if [ $? -ne 0 ]
 then
     exit 1
@@ -19,7 +19,7 @@ fi
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $fileinst.bc 
-$LLVMROOT/opt -encryption -print-all-pts -dump-pag -dump-consG $file.ll -o $fileinst.bc 
+$LLVMROOT/opt -encryption -print-all-pts -dump-pag -debug-only=encryption -dump-consG $file.bc -o $fileinst.bc 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc
 $LLVMROOT/llvm-dis $fileinst.bc -o $fileinst.ll

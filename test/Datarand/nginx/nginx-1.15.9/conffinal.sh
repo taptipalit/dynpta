@@ -1,4 +1,10 @@
+#!/bin/bash
+
 ./configure                         \
+  --prefix=/mnt/Projects/LLVM-custom/test/Datarand/nginx/nginx-1.15.9/install   \
+  --with-cc=/mnt/Projects/LLVM-custom/install/bin/clang \
+  --with-cc-opt='-O0 -flto'         \
+  --with-ld-opt="-O0 -flto -L/mnt/Projects/LLVM-custom/test/Datarand/openssl-1.0.2r"  \
   --without-http_charset_module      \
   --without-http_gzip_module         \
   --without-http_ssi_module          \
@@ -9,7 +15,7 @@
   --without-http_autoindex_module    \
   --without-http_geo_module          \
   --without-http_map_module          \
-  --without-http_split_clients_module\
+  --without-http_split_clients_module \
   --without-http_referer_module      \
   --without-http_rewrite_module      \
   --without-http_proxy_module        \
@@ -28,8 +34,7 @@
   --without-http_upstream_random_module             \
   --without-http_upstream_keepalive_module          \
   --without-http_upstream_zone_module               \
-  --without-mail_pop3_module                        \
-  --without-mail_imap_module                        \                  
+  --without-mail_pop3_module                        --without-mail_imap_module \
   --without-mail_smtp_module                        \
   --without-stream_limit_conn_module                \
   --without-stream_access_module                    \
@@ -41,4 +46,5 @@
   --without-stream_upstream_least_conn_module       \
   --without-stream_upstream_random_module           \
   --without-stream_upstream_zone_module             \
-  --without-pcre 
+  --without-pcre                                    \
+  --with-http_ssl_module 

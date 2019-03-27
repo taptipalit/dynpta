@@ -3849,6 +3849,10 @@ bool EncryptionPass::runOnModule(Module &M) {
 
 	for (PAGNode* sensitivePAGNode: SensitiveObjList) {
 		dbgs() << "Sensitive Allocation site: " << *sensitivePAGNode << "\n";
+        if (GepObjPN* senGep = dyn_cast<GepObjPN>(sensitivePAGNode)) {
+            dbgs() << "Gep offset: " << senGep->getLocationSet().getOffset() << "\n";
+            
+        }
 	}
 
 	);
@@ -3861,11 +3865,14 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     for (PAGNode* sensitivePAGNode: *SensitiveObjSet) {
         dbgs() << "Sensitive Allocation site: " << *sensitivePAGNode << "\n";
+        if (GepObjPN* senGep = dyn_cast<GepObjPN>(sensitivePAGNode)) {
+            dbgs() << "Gep offset: " << senGep->getLocationSet().getOffset() << "\n";
+        }
     }
 
 	if (DoAESEncCache) {
 		AESCache.initializeAes(M);
-		//AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
+		AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
 		dbgs() << "Initialized AES, widened buffers to multiples of 128 bits\n";
 	}
 

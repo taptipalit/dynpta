@@ -654,6 +654,14 @@ void TypePrinting::printStructBody(StructType *STy, raw_ostream &OS) {
   }
   if (STy->isPacked())
     OS << '>';
+
+  int numSensitiveFields = STy->getNumSensitiveFields();
+  OS << " { [ " << numSensitiveFields << " ] ";
+  for (int offset: STy->getSensitiveFieldOffsets()) {
+      OS << offset << ", ";
+  }
+  OS << " }";
+
 }
 
 namespace llvm {
@@ -4014,11 +4022,13 @@ void Type::print(raw_ostream &OS, bool /*IsForDebug*/, bool NoDetails) const {
     return;
 
   // If the type is a named struct type, print the body as well.
-  if (StructType *STy = dyn_cast<StructType>(const_cast<Type*>(this)))
+  if (StructType *STy = dyn_cast<StructType>(const_cast<Type*>(this))) {
     if (!STy->isLiteral()) {
       OS << " = type ";
       TP.printStructBody(STy, OS);
     }
+
+  }
 }
 
 static bool isReferencingMDNode(const Instruction &I) {

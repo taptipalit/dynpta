@@ -119,52 +119,21 @@ namespace external {
 		addExternAESFuncDecls(M);
 	}
 
-    void AESCache::widenSensitiveComplexType(GepObjPN* gepObjPN) {
-        /*
+    bool AESCache::widenSensitiveComplexType(GepObjPN* gepObjPN) {
         assert(gepObjPN->getLocationSet().isConstantOffset() && "can't handle non constant offsets in gep yet");
         int offset = gepObjPN->getLocationSet().getOffset();
-        // Get the type and set its sensitive field offset
-        Type* type = gepObjPN->getValue()->getType();
-        if (PointerType* ptrType = dyn_cast<PointerType>(type)) {
-            type = ptrType->getPointerElementType();
+        // Extract the true type
+        PointerType* pointerType = dyn_cast<PointerType>(gepObjPN->getValue()->getType());
+        if (pointerType) {
+            // Pointer to what?
+            Type* trueType = pointerType->getPointerElementType();
+            if (StructType* stType = dyn_cast<StructType>(trueType)) {
+                // Widen the field
+                stType->addSensitiveFieldOffset(offset);
+                return true;
+            }
         }
-        StructType* stType = dyn_cast<StructType>(type);
-        if (stType) {
-            stType->addSensitiveFieldOffset(offset);
-        } else {
-            Value* senVal = gepObjPN->getValue();
-			if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
-				// Is an alloca instruction
-				IRBuilder<> Builder(allocInst);
-				AllocaInst* paddingAllocaInst1 = new AllocaInst (I128Ty, 0, "padding");
-				MDNode* N1 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
-				paddingAllocaInst1->setMetadata("PADDING", N1);
-				paddingAllocaInst1->insertAfter(allocInst);
-				AllocaInst* paddingAllocaInst2 = Builder.CreateAlloca(I128Ty, 0, "padding");
-				MDNode* N2 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
-				paddingAllocaInst2->setMetadata("PADDING", N2);
-
-				// Find insertion point for the store
-				BasicBlock* parentBB = allocInst->getParent();
-				Instruction* insertionPoint = nullptr;
-				for (BasicBlock::iterator BBIterator = parentBB->begin(); BBIterator != parentBB->end(); BBIterator++) {
-					if (Instruction* Inst = dyn_cast<Instruction>(BBIterator)) {
-						if (!isa<AllocaInst>(Inst)) {
-							insertionPoint = Inst;
-							break;
-						}
-					}
-				}
-
-				// Create a volatile store at the insertion Point
-				//if (insertionPoint) {
-				//	IRBuilder<> StoreBuilder(insertionPoint);
-				//	StoreBuilder.CreateStore(ConstantInt::get(I128Ty, 0), paddingAllocaInst1, true); // A volatile store to save me from myself
-				//	StoreBuilder.CreateStore(ConstantInt::get(I128Ty, 0), paddingAllocaInst2, true); // A volatile store to save me from myself
-				//}
-			}
-        }
-        */
+        return false;
     }
 
 	/*
@@ -173,10 +142,12 @@ namespace external {
 	void AESCache::widenSensitiveAllocationSites(Module &M, std::vector<PAGNode*>& SensitiveAllocaList,
             std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
         for (PAGNode* senNode: SensitiveAllocaList) {
+            bool widenedStructType = false;
             // If it is a GepObjPN we need to be careful about what to widen in it
             if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
-                //widenSensitiveComplexType(gepNode);
-            } else {
+                widenedStructType = widenSensitiveComplexType(gepNode);
+            } 
+            if (!widenedStructType) {
                 assert(senNode->hasValue());
                 // Easy stuff
 				Value* senVal = const_cast<Value*>(senNode->getValue());
@@ -202,15 +173,6 @@ namespace external {
 							}
 						}
 					}
-
-					// Create a volatile store at the insertion Point
-                    /*
-					if (insertionPoint) {
-						IRBuilder<> StoreBuilder(insertionPoint);
-						StoreBuilder.CreateStore(ConstantInt::get(I128Ty, 0), paddingAllocaInst1, true); // A volatile store to save me from myself
-						StoreBuilder.CreateStore(ConstantInt::get(I128Ty, 0), paddingAllocaInst2, true); // A volatile store to save me from myself
-					}
-                    */
 				}
 			}
         }
