@@ -43,6 +43,8 @@ private:
     bool _isPWCNode;
 
     int numTimesVisited;
+    llvm::BitVector sensitiveFieldFlows;
+
     ConstraintEdge::ConstraintEdgeSetTy loadInEdges; ///< all incoming load edge of this node
     ConstraintEdge::ConstraintEdgeSetTy loadOutEdges; ///< all outgoing load edge of this node
     
@@ -71,8 +73,44 @@ private:
 
 public:
 
-    ConstraintNode(NodeID i): GenericConsNodeTy(i,0), _isPWCNode(false), numTimesVisited(0) {
+    ConstraintNode(NodeID i): GenericConsNodeTy(i,0), _isPWCNode(false), numTimesVisited(0), sensitiveFieldFlows(1000, false) {
+    }
 
+    inline bool fieldUnion(int idx) {
+        llvm::BitVector oldBV(this->sensitiveFieldFlows);
+        this->sensitiveFieldFlows.set(idx); 
+        if (oldBV == this->sensitiveFieldFlows) {
+            return false; // not updated
+        } else {
+            return true;
+        }
+    }
+
+    inline bool fieldUnion(ConstrainNode* neighbor) {
+        llvm::BitVector oldBV(this->sensitiveFieldFlows);
+        this->sensitiveFieldFlows |= neighbor->getSensitiveFieldFlows();
+        if (oldBV == this->sensitiveFieldFlows) {
+            return false; // not updated
+        } else {
+            return true;
+        }
+    }
+
+    inline llvm::BitVector& getSensitiveFieldFlows() {
+        return sensitiveFieldFlows;
+    }
+
+    inline bool isSensitiveFieldFlow(int field) {
+        return this->sensitiveFieldFlows.test(field);
+    }
+
+    inline void setSensitiveFieldFlow(int field) {
+        this->sensitiveFieldFlows.set(field);
+    }
+
+    inline void setAllSensitiveFieldFlows() {
+        // Set all
+        this->sensitiveFieldFlows.set();
     }
 
     inline int getNumTimesVisited() {

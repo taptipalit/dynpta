@@ -172,6 +172,13 @@ public:
         return data_set.size();
     }
 
+    inline static void copyWorkList(FIFOWorkList& src, FIFOWorkList& dst) {
+        std::set<Data>::iterator it;
+        for (it = src.data_set.begin(); it != src.data_set.end(); it++) {
+            dst->push(*it);
+        }
+    }
+
 private:
     DataSet data_set;	///< store all data in the work list.
     DataDeque data_list;	///< work list using std::vector.

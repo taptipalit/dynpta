@@ -22,6 +22,7 @@ fi
 $LLVMROOT/opt -encryption -print-all-pts -dump-pag -debug-only=encryption -dump-consG $file.bc -o $fileinst.bc 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc
+$LLVMROOT/llvm-dis $file.bc -o $file.ll
 $LLVMROOT/llvm-dis $fileinst.bc -o $fileinst.ll
 #exit 0
 dot -Tpng pag_final.dot -o $file"_pag_final.png"

@@ -161,6 +161,7 @@ public:
     }
 
 
+    void createMinSubGraphReachableFrom(fullGraph, sensitiveWork);
     void createSubGraphReachableFrom(ConstraintGraph*, WorkList&);
     /// Get/add/remove constraint node
     //@{

@@ -111,6 +111,287 @@ void ConstraintGraph::testAndAddNode(NodeID nodeID, llvm::SparseBitVector<>& add
     }
 }
 
+void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, WorkList& initList) {
+    bool updated = true;
+    WorkList workList;
+    // The initial worklist --> set them to ALL fields sensitive
+    while (!initList.empty()) {
+        NodeID nodeId = initList.pop();
+        ConstraintNode* initNode = oldCG->getConstraintNode(nodeId);
+        initNode->setAllSensitiveFieldFlows();
+        workList.push(nodeId);
+    }
+
+    while (updated) {
+        updated = false;
+        while (!workList.empty()) {
+            NodeID nodeId = workList.pop();
+            ConstraintNode* node = oldCG->getConstraintNode(nodeId);
+
+            // Propapagate field specific flows through all non-field specific
+            // edges
+            //
+            // Find all incoming edges for this node
+            for (ConstraintNode::const_iterator it = node->incomingAddrsBegin(),
+                    eit = node->incomingAddrsEnd(); it != eit; ++it) {
+                ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getSrcID());
+                updated |= node->fieldUnion(neighborNode);
+                workList.push((*it)->getSrcID());
+                (*it)->setSensitive();
+            }
+
+            // Incoming stores
+            for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
+                    eit = node->incomingStoresEnd(); it != eit; ++it) {
+                ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getSrcID());
+                updated |= node->fieldUnion(neighborNode);
+                workList.push((*it)->getSrcID());
+                (*it)->setSensitive();
+            }
+
+            // Incoming loads
+            for (ConstraintNode::const_iterator it = node->incomingLoadsBegin(),
+                    eit = node->incomingLoadsEnd(); it != eit; ++it) {
+                ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getSrcID());
+                updated |= node->fieldUnion(neighborNode);
+                workList.push((*it)->getSrcID());
+                (*it)->setSensitive();
+            }
+
+
+            for (ConstraintNode::const_iterator it = node->directInEdgeBegin(),
+                    eit = node->directInEdgeEnd(); it != eit; ++it) {
+                if (NormalGepCGEdge* ngepEdge = dyn_cast<NormalGepCGEdge>(*it)) {
+                    // For incoming field specific edge
+                    // Then, src (field-specific) <---- non-field-specific node
+                    // The path that led to this sensitive node is annotated with the
+                    // field offset
+                    // Gep/copy edges
+                    ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getSrcID());
+                    // The neighbor has to be updated with the field offset
+                    updated |= neighbor->fieldUnion(ngepEdge->getLocationSet().getOffset());
+                    // Own sensitive field flows don't get affected
+                    workList.push((*it)->getSrcID());
+                } else if (VarGepCGEdge* vgepEdge = dyn_cast<VarGepCGEdge>(*it)) {
+                    ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getSrcID());
+                    updated |= node->fieldUnion(neighborNode);
+                    workList.push((*it)->getSrcID());
+                } else {
+                    ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getSrcID());
+                    updated |= node->fieldUnion(neighborNode);
+                    workList.push((*it)->getSrcID());
+                }
+                (*it)->setSensitive(); 
+            }
+
+            // Find all outgoing edges for this node
+            for (ConstraintNode::const_iterator it = node->outgoingAddrsBegin(),
+                    eit = node->outgoingAddrsEnd(); it != eit; ++it) {
+                ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getDstID());
+                updated |= node->fieldUnion(neighborNode);
+                workList.push((*it)->getDstID());
+                (*it)->setSensitive(); 
+            }
+
+            // Outgoing stores
+            for (ConstraintNode::const_iterator it = node->outgoingStoresBegin(),
+                    eit = node->outgoingStoresEnd(); it != eit; ++it) {
+                ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getDstID());
+                updated |= node->fieldUnion(neighborNode);
+                workList.push((*it)->getDstID());
+                (*it)->setSensitive(); 
+            }
+
+            // Outgoing loads
+            for (ConstraintNode::const_iterator it = node->outgoingLoadsBegin(),
+                    eit = node->outgoingLoadsEnd(); it != eit; ++it) {
+                ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getDstID());
+                updated |= node->fieldUnion(neighborNode);
+                workList.push((*it)->getDstID());
+                (*it)->setSensitive(); 
+            }
+
+
+            for (ConstraintNode::const_iterator it = node->directInEdgeBegin(),
+                    eit = node->directInEdgeEnd(); it != eit; ++it) {
+                if (NormalGepCGEdge* ngepEdge = dyn_cast<NormalGepCGEdge>(*it)) {
+                    // For outgoing numbered field specific edge
+                    // Then, src (non field-specific) ----> field-specific node
+                    // Follow the field specific path only if the field is a sensitive
+                    // field
+                    // Nothing to update
+                    // Gep/copy edges
+                    int offset = ngepEdge->getLocationSet().getOffset();
+                    if (node->isSensitiveFieldFlow(offset)) {
+                        // The neighbor has to be updated with all set
+                        // TODO - This is a hack, because there can be multi level
+                        // nesting of fields. This will track only one 
+                        // But still should see some improvements
+                        updated |= neighbor->setAllSensitiveFieldFlows();
+                        workList.push((*it)->getDstID());
+                        (*it)->setSensitive(); 
+                    }
+                    // Own sensitive field flows don't get affected
+                } else if (VarGepCGEdge* vgepEdge = dyn_cast<VarGepCGEdge>(*it)) {
+                    ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getDstID());
+                    // Always traverse them, because outgoing VarGep
+                    workList.push((*it)->getSrcID());
+                    workList.push((*it)->getDstID());
+                    (*it)->setSensitive(); 
+                } else {
+                    ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getDstID());
+                    updated |= node->fieldUnion(neighborNode);
+                    workList.push((*it)->getDstID());
+                    (*it)->setSensitive(); 
+                }
+            }
+        }
+}
+
+void ConstraintGraph::createMinSubGraphReachableFrom(ConstraintGraph* oldCG, WorkList& initList) {
+    // Annotate the graph with the sensitive flows to consider
+    WorkList* initList2;
+    WorkList::copyWorkList(initList, initList2);
+    annotateGraphWithSensitiveFlows(oldCG, initList2);
+
+    // Now, start with the initList
+    // Follow the edge only if the edge is marked as sensitive
+    llvm::SparseBitVector<> addedConsNodeList;          // Nodes which are just added to the constraint graph
+    llvm::SparseBitVector<> fullyProcessedConsNodeList; // Nodes whose edges are fully processed
+    while (!workList.empty()) {
+        NodeID nodeId = workList.pop();
+        ConstraintNode* node = oldCG->getConstraintNode(nodeId);
+        if (!fullyProcessedConsNodeList.test(nodeId)) {
+
+            testAndAddNode(nodeId, addedConsNodeList);
+
+            // Find all incoming edges for this node
+            for (ConstraintNode::const_iterator it = node->incomingAddrsBegin(),
+                    eit = node->incomingAddrsEnd(); it != eit; ++it) {
+                if ((*it)->isSensitive()) {
+                    testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                    cloneAddrEdge(*it);
+                    workList.push((*it)->getSrcID());
+                }
+            }
+
+            // Incoming stores
+            for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
+                    eit = node->incomingStoresEnd(); it != eit; ++it) {
+                if ((*it)->isSensitive()) {
+                    testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                    cloneStoreEdge(*it);
+                    workList.push((*it)->getSrcID());
+                }
+            }
+
+
+            // Incoming loads
+            for (ConstraintNode::const_iterator it = node->incomingLoadsBegin(),
+                    eit = node->incomingLoadsEnd(); it != eit; ++it) {
+                if ((*it)->isSensitive()) {
+                    testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                    cloneLoadEdge(*it);
+                    workList.push((*it)->getSrcID());
+                }
+            }
+
+            // Gep/copy edges
+            for (ConstraintNode::const_iterator it = node->directInEdgeBegin(),
+                    eit = node->directInEdgeEnd(); it != eit; ++it) {
+                if ((*it)->isSensitive()) {
+                    testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                    cloneDirectEdge(*it);
+                    workList.push((*it)->getSrcID());
+                }
+            }
+
+            // Find all outgoing edges for this node
+            for (ConstraintNode::const_iterator it = node->outgoingAddrsBegin(),
+                    eit = node->outgoingAddrsEnd(); it != eit; ++it) {
+                if ((*it)->isSensitive()) {
+                    testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                    cloneAddrEdge(*it); 
+                    workList.push((*it)->getDstID());
+                }
+            }
+
+            // Outgoing stores
+            for (ConstraintNode::const_iterator it = node->outgoingStoresBegin(),
+                    eit = node->outgoingStoresEnd(); it != eit; ++it) {
+                if ((*it)->isSensitive()) {
+                    testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                    cloneStoreEdge(*it); 
+                    workList.push((*it)->getDstID());
+                }
+            }
+
+            // Outgoing store vals
+            for (ConstraintNode::const_iterator it = node->outgoingStoreValsBegin(),
+                    eit = node->outgoingStoreValsEnd(); it != eit; ++it) {
+                if ((*it)->isSensitive()) {
+                    testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                    cloneStoreValEdge(*it); 
+                    workList.push((*it)->getDstID());
+                }
+            }
+
+            // Outgoing call values
+            for (ConstraintNode::const_iterator it = node->outgoingCallValsBegin(),
+                    eit = node->outgoingCallValsEnd(); it != eit; ++it) {
+                if ((*it)->isSensitive()) {
+                    testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                    cloneCallValEdge(*it);
+                    workList.push((*it)->getDstID());
+                }
+            }
+
+
+            // Outgoing loads
+            for (ConstraintNode::const_iterator it = node->outgoingLoadsBegin(),
+                    eit = node->outgoingLoadsEnd(); it != eit; ++it) {
+                if ((*it)->isSensitive()) {
+                    testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                    cloneLoadEdge(*it); 
+                    workList.push((*it)->getDstID());
+                }
+            }
+
+            // Outgoing load vals
+            for (ConstraintNode::const_iterator it = node->outgoingLoadValsBegin(),
+                    eit = node->outgoingLoadValsEnd(); it != eit; ++it) {
+                if ((*it)->isSensitive()) {
+                    testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                    cloneLoadValEdge(*it); 
+                    workList.push((*it)->getDstID());
+                }
+            }
+
+            // Outgoing return values
+            for (ConstraintNode::const_iterator it = node->outgoingRetValsBegin(),
+                    eit = node->outgoingRetValsEnd(); it != eit; ++it) {
+                if ((*it)->isSensitive()) {
+                    testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                    cloneRetValEdge(*it);
+                    workList.push((*it)->getDstID());
+                }
+            }
+
+
+            for (ConstraintNode::const_iterator it = node->directOutEdgeBegin(),
+                    eit = node->directOutEdgeEnd(); it != eit; ++it) {
+                if ((*it)->isSensitive()) {
+                    testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                    cloneDirectEdge(*it); 
+                    workList.push((*it)->getDstID());
+                }
+            }
+
+            fullyProcessedConsNodeList.set(nodeId);
+        }
+    }
+}
+
 void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkList& workList) {
     llvm::SparseBitVector<> addedConsNodeList;          // Nodes which are just added to the constraint graph
     llvm::SparseBitVector<> fullyProcessedConsNodeList; // Nodes whose edges are fully processed
@@ -129,24 +410,6 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 workList.push((*it)->getSrcID());
             }
 
-            /*
-            // Incoming store values
-            for (ConstraintNode::const_iterator it = node->incomingStoreValsBegin(),
-                    eit = node->incomingStoreValsEnd(); it != eit; ++it) {
-                testAndAddNode((*it)->getSrcID(), addedConsNodeList);
-                cloneStoreValEdge(*it);
-                workList.push((*it)->getSrcID());
-            }
-
-            // Incoming call values
-            for (ConstraintNode::const_iterator it = node->incomingCallValsBegin(),
-                    eit = node->incomingCallValsEnd(); it != eit; ++it) {
-                testAndAddNode((*it)->getSrcID(), addedConsNodeList);
-                cloneCallValEdge(*it);
-                workList.push((*it)->getSrcID());
-            }
-            */
-
             // Incoming stores
             for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
                     eit = node->incomingStoresEnd(); it != eit; ++it) {
@@ -154,24 +417,6 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
                 cloneStoreEdge(*it);
                 workList.push((*it)->getSrcID());
             }
-
-            /*
-            // Incoming load values
-            for (ConstraintNode::const_iterator it = node->incomingLoadValsBegin(),
-                    eit = node->incomingLoadValsEnd(); it != eit; ++it) {
-                testAndAddNode((*it)->getSrcID(), addedConsNodeList);
-                cloneLoadValEdge(*it);
-                workList.push((*it)->getSrcID());
-            }
-
-            // Incoming return values
-            for (ConstraintNode::const_iterator it = node->incomingRetValsBegin(),
-                    eit = node->incomingRetValsEnd(); it != eit; ++it) {
-                testAndAddNode((*it)->getSrcID(), addedConsNodeList);
-                cloneRetValEdge(*it);
-                workList.push((*it)->getSrcID());
-            }
-            */
 
 
             // Incoming loads
