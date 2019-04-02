@@ -173,9 +173,9 @@ public:
     }
 
     inline static void copyWorkList(FIFOWorkList& src, FIFOWorkList& dst) {
-        std::set<Data>::iterator it;
+        typename std::set<Data>::iterator it;
         for (it = src.data_set.begin(); it != src.data_set.end(); it++) {
-            dst->push(*it);
+            dst.push(*it);
         }
     }
 

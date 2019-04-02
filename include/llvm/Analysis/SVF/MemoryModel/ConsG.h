@@ -161,7 +161,9 @@ public:
     }
 
 
-    void createMinSubGraphReachableFrom(fullGraph, sensitiveWork);
+    void annotateGraphWithSensitiveFlows(ConstraintGraph*, WorkList&);
+    void createMinSubGraphReachableFrom(ConstraintGraph*, WorkList&);
+
     void createSubGraphReachableFrom(ConstraintGraph*, WorkList&);
     /// Get/add/remove constraint node
     //@{

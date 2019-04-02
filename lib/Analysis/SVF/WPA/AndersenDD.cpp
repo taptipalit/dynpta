@@ -85,7 +85,7 @@ ConstraintGraph*  AndersenDD::findSensitiveSubGraph(ConstraintGraph* fullGraph) 
     errs() << "Number of Normal Gep edges: " << fullGraph->getNormalGepEdgeNum() << "\n";
     */
 
-    sensitiveSubGraph->createSubGraphReachableFrom(fullGraph, sensitiveWork);
+    sensitiveSubGraph->createMinSubGraphReachableFrom(fullGraph, sensitiveWork);
 
     errs() << "================== Selective Constraint Graph =======================\n";
     errs() << "Number of nodes: " << sensitiveSubGraph->getTotalNodeNum() << "\n";

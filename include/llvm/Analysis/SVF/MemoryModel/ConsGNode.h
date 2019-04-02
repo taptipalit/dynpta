@@ -30,6 +30,7 @@
 #ifndef CONSGNODE_H_
 #define CONSGNODE_H_
 
+#include <llvm/ADT/BitVector.h>
 /*!
  * Constraint node
  */
@@ -40,10 +41,68 @@ public:
     typedef ConstraintEdge::ConstraintEdgeSetTy::iterator iterator;
     typedef ConstraintEdge::ConstraintEdgeSetTy::const_iterator const_iterator;
 private:
+    static const int MAX_FIELDS = 10;
     bool _isPWCNode;
 
     int numTimesVisited;
-    llvm::BitVector sensitiveFieldFlows;
+
+    class SensitiveFlowBV;
+
+    class SensitiveFlowBV {
+        public:
+            llvm::BitVector sensitiveFieldFlows; // A short-cut to avoid traversing the individual lists in the nested struct
+            SensitiveFlowBV* nestedSensitiveFieldFlows[MAX_FIELDS];
+
+
+            /*
+             * Should be used only at the beginning to mark everything
+             * sensitive
+             */
+            void setAllSensitiveFieldFlows() {
+                sensitiveFieldFlows.set();
+            }
+
+            bool setSensitiveFieldFlow(int field) {
+                if (!sensitiveFieldFlows.test(field)) {
+                    nestedSensitiveFieldFlows[field] = new SensitiveFlowBV();
+                    sensitiveFieldFlows.set(field);
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+
+            bool unionBV(llvm::BitVector& newBV) {
+                llvm::BitVector oldBV(sensitiveFieldFlows);
+                sensitiveFieldFlows |= newBV;
+                if (sensitiveFieldFlows != oldBV) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+
+            llvm::BitVector& getSensitiveFieldFlows() {
+                return sensitiveFieldFlows;
+            }
+
+            bool isSensitiveFieldFlow(int field) {
+                return sensitiveFieldFlows.test(field);
+            }
+
+            SensitiveFlowBV* getChildSfbv(int offset) {
+                assert(offset < MAX_FIELDS);
+                return nestedSensitiveFieldFlows[offset];
+            }
+
+            SensitiveFlowBV(): sensitiveFieldFlows(MAX_FIELDS, false) {
+                for (int i = 0; i < MAX_FIELDS; i++) {
+                    nestedSensitiveFieldFlows[i] = nullptr;
+                }
+            }
+    };
+
+    SensitiveFlowBV* sensitiveFlowBV;
 
     ConstraintEdge::ConstraintEdgeSetTy loadInEdges; ///< all incoming load edge of this node
     ConstraintEdge::ConstraintEdgeSetTy loadOutEdges; ///< all outgoing load edge of this node
@@ -73,44 +132,73 @@ private:
 
 public:
 
-    ConstraintNode(NodeID i): GenericConsNodeTy(i,0), _isPWCNode(false), numTimesVisited(0), sensitiveFieldFlows(1000, false) {
+    ConstraintNode(NodeID i): GenericConsNodeTy(i,0), _isPWCNode(false), numTimesVisited(0) {
+        sensitiveFlowBV = new SensitiveFlowBV();
     }
 
-    inline bool fieldUnion(int idx) {
-        llvm::BitVector oldBV(this->sensitiveFieldFlows);
-        this->sensitiveFieldFlows.set(idx); 
-        if (oldBV == this->sensitiveFieldFlows) {
-            return false; // not updated
-        } else {
-            return true;
+    void setSensitiveFlowBV(SensitiveFlowBV* sensitiveFlowBV) {
+        this->sensitiveFlowBV = sensitiveFlowBV;
+    }
+
+    SensitiveFlowBV* getSensitiveFlowBV() {
+        return sensitiveFlowBV;
+    }
+
+    /*
+     * Invoked by the target of an incoming field sensitive edge
+     * Propagate the sensitivity
+     */
+    inline bool appendFieldSensitivePath(int idx, SensitiveFlowBV* incomingSfbv) {
+        bool changed = false;
+        changed |= this->sensitiveFlowBV->setSensitiveFieldFlow(idx);
+        changed |= doDeepUnion(this->sensitiveFlowBV->getChildSfbv(idx), incomingSfbv);
+        return changed;
+    }
+
+    inline bool doDeepUnion(SensitiveFlowBV* dstSfbv, SensitiveFlowBV* srcSfbv) {
+        bool changed = false;
+        // Union the pointers
+
+        if (srcSfbv && dstSfbv) {
+            for (int i = 0; i < MAX_FIELDS; i++) {
+                if (srcSfbv->getSensitiveFieldFlows().test(i)) {
+                    if (!dstSfbv->getSensitiveFieldFlows().test(i)) {
+                        // Create new Object
+                        dstSfbv->nestedSensitiveFieldFlows[i] = new SensitiveFlowBV();
+                        changed = true;
+                    }
+                    changed |= doDeepUnion(dstSfbv->nestedSensitiveFieldFlows[i],
+                            srcSfbv->nestedSensitiveFieldFlows[i]);
+                }
+            }
+            changed |= dstSfbv->unionBV(srcSfbv->getSensitiveFieldFlows());
         }
+        llvm::errs() << "Returning changed: " << changed << "\n";
+        return changed;
     }
 
-    inline bool fieldUnion(ConstrainNode* neighbor) {
-        llvm::BitVector oldBV(this->sensitiveFieldFlows);
-        this->sensitiveFieldFlows |= neighbor->getSensitiveFieldFlows();
-        if (oldBV == this->sensitiveFieldFlows) {
-            return false; // not updated
-        } else {
-            return true;
-        }
-    }
-
-    inline llvm::BitVector& getSensitiveFieldFlows() {
-        return sensitiveFieldFlows;
+    inline bool fieldUnion(SensitiveFlowBV* srcSfbv) {
+        return doDeepUnion(this->sensitiveFlowBV, srcSfbv); // srcSfbv can't be null
     }
 
     inline bool isSensitiveFieldFlow(int field) {
-        return this->sensitiveFieldFlows.test(field);
+        return sensitiveFlowBV->isSensitiveFieldFlow(field);
     }
 
-    inline void setSensitiveFieldFlow(int field) {
-        this->sensitiveFieldFlows.set(field);
+    inline bool updateChildSensitiveFieldFlow(ConstraintNode* parent, int childOffset) {
+        bool changed = false;
+        SensitiveFlowBV* childSfbv = parent->getSensitiveFlowBV()->getChildSfbv(childOffset);
+        changed |= doDeepUnion(this->sensitiveFlowBV, childSfbv); // srcSfbv can't be null
+        return changed;
     }
 
     inline void setAllSensitiveFieldFlows() {
-        // Set all
-        this->sensitiveFieldFlows.set();
+        // Set all fields, to two levels
+        this->sensitiveFlowBV->setAllSensitiveFieldFlows();
+        for (int i = 0; i < MAX_FIELDS; i++) {
+            this->sensitiveFlowBV->nestedSensitiveFieldFlows[i] = new SensitiveFlowBV();
+            this->sensitiveFlowBV->nestedSensitiveFieldFlows[i]->setAllSensitiveFieldFlows();
+        }
     }
 
     inline int getNumTimesVisited() {

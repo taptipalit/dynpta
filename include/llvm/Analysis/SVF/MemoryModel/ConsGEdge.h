@@ -86,7 +86,7 @@ public:
         return sensitive;
     }
 
-    bool setSensitive() {
+    void setSensitive() {
         sensitive = true;
     }
 
