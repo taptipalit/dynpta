@@ -577,6 +577,8 @@ void PointerAnalysis::printIndCSTargets(const llvm::CallSite cs, const FunctionS
     llvm::outs() << "\nNodeID: " << getFunPtr(cs);
     llvm::outs() << "\nCallSite: ";
     cs.getInstruction()->print(llvm::outs());
+    llvm::outs() << "\nParent function: ";
+    llvm::outs() << cs.getInstruction()->getParent()->getParent()->getName() << "\n";
     llvm::outs() << "\tLocation: " << analysisUtil::getSourceLoc(cs.getInstruction());
     llvm::outs() << "\t with Targets: ";
 
@@ -619,6 +621,8 @@ void PointerAnalysis::printIndCSTargets()
             llvm::outs() << "\nNodeID: " << csIt->second;
             llvm::outs() << "\nCallSite: ";
             cs.getInstruction()->print(llvm::outs());
+            llvm::outs() << "\nParent function: ";
+            llvm::outs() << cs.getInstruction()->getParent()->getParent()->getName() << "\n";
             llvm::outs() << "\tLocation: " << analysisUtil::getSourceLoc(cs.getInstruction());
             llvm::outs() << "\n\t!!!has no targets!!!\n";
         }

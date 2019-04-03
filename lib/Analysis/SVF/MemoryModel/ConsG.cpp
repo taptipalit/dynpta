@@ -127,12 +127,16 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
         NodeID nodeId = workList.pop();
         ConstraintNode* node = oldCG->getConstraintNode(nodeId);
 
-        /*
         errs() << "Current Node = " << nodeId << " Worklist size = " << workList.size() << "\n";
         if (const Argument* arg = dyn_cast<const Argument>(pag->getPAGNode(nodeId)->getValue())) {
             errs() << "Function's arg: " << arg->getParent()->getName() << "\n";
         }
 
+        if (const Function* fn = dyn_cast<const Function>(pag->getPAGNode(nodeId)->getValue())) {
+            errs() << "---------- Function : ------------------- " << fn->getName() << "\n";
+        }
+
+        /*
         if (nodeId == 158757) {
             errs() << "158757: \n";
             const Value* v = pag->getPAGNode(nodeId)->getValue();
