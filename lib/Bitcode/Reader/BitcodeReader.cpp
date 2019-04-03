@@ -1690,26 +1690,38 @@ Error BitcodeReader::parseTypeTableBody() {
 
       SmallVector<Type*, 8> EltTys;
       // Check for sensitive fields
-      int numOfSensitiveFields = Record[1];
-      for (unsigned i = 0; i < numOfSensitiveFields; i++) {
-          int offset = Record[i+1];
-          Res->addSensitiveFieldOffset(offset);
-      }
+      if (!Res->isLiteral()) {
+          int numOfSensitiveFields = Record[1];
+          for (unsigned i = 0; i < numOfSensitiveFields; i++) {
+              int offset = Record[i+1];
+              Res->addSensitiveFieldOffset(offset);
+          }
 
-      for (unsigned i = 2+numOfSensitiveFields, e = Record.size(); i != e; ++i) {
-        if (Type *T = getTypeByID(Record[i]))
-          EltTys.push_back(T);
-        else
-          break;
+          for (unsigned i = 2+numOfSensitiveFields, e = Record.size(); i != e; ++i) {
+              if (Type *T = getTypeByID(Record[i]))
+                  EltTys.push_back(T);
+              else
+                  break;
+          }
+
+          if (EltTys.size() + numOfSensitiveFields != Record.size()-2)
+              return error("Invalid record");
+      } else {
+          for (unsigned i = 1, e = Record.size(); i != e; ++i) {
+              if (Type *T = getTypeByID(Record[i]))
+                  EltTys.push_back(T);
+              else
+                  break;
+          }
+          if (EltTys.size() != Record.size()-1)
+              return error("Invalid record");
       }
-      if (EltTys.size() + numOfSensitiveFields != Record.size()-2)
-        return error("Invalid record");
       Res->setBody(EltTys, Record[0]);
       ResultTy = Res;
       break;
     }
     case bitc::TYPE_CODE_OPAQUE: {       // OPAQUE: []
-      if (Record.size() != 1)
+      if (Record.size() != 2) // For the sensitive fields
         return error("Invalid record");
 
       if (NumRecords >= TypeList.size())

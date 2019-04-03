@@ -881,9 +881,18 @@ void ModuleBitcodeWriter::writeTypeTable() {
       StructType *ST = cast<StructType>(T);
       // STRUCT: [ispacked, numSensitiveOffset, offset X numSensitiveOffset, eltty x N]
       TypeVals.push_back(ST->isPacked());
-      TypeVals.push_back(ST->getNumSensitiveFields());
-      for (int senOffset: ST->getSensitiveFieldOffsets()) {
-          TypeVals.push_back(senOffset);
+      /*
+      if (ST->hasName()) {
+        errs() << ST->getName() << " has " << ST->getNumSensitiveFields() << " sensitive!\n";
+      } else {
+        errs() << "Unnamed struct has " << ST->getNumSensitiveFields() << " sensitive!\n";
+      }
+      */
+      if (!ST->isLiteral()) {
+          TypeVals.push_back(ST->getNumSensitiveFields());
+          for (int senOffset: ST->getSensitiveFieldOffsets()) {
+              TypeVals.push_back(senOffset);
+          }
       }
       // Output all of the element types.
       for (StructType::element_iterator I = ST->element_begin(),

@@ -41,7 +41,7 @@ public:
     typedef ConstraintEdge::ConstraintEdgeSetTy::iterator iterator;
     typedef ConstraintEdge::ConstraintEdgeSetTy::const_iterator const_iterator;
 private:
-    static const int MAX_FIELDS = 10;
+    static const int MAX_FIELDS = 120;
     bool _isPWCNode;
 
     int numTimesVisited;
@@ -160,20 +160,28 @@ public:
         // Union the pointers
 
         if (srcSfbv && dstSfbv) {
+            // A better way to find the set bits
+            int i = srcSfbv->getSensitiveFieldFlows().find_first();
+            while (i != -1) {
+                if (!dstSfbv->getSensitiveFieldFlows().test(i)) {
+                    // Create new Object
+                    dstSfbv->nestedSensitiveFieldFlows[i] = new SensitiveFlowBV();
+                    changed = true;
+                }
+                changed |= doDeepUnion(dstSfbv->nestedSensitiveFieldFlows[i],
+                        srcSfbv->nestedSensitiveFieldFlows[i]);
+                i = srcSfbv->getSensitiveFieldFlows().find_next(i);
+            }
+            /*
             for (int i = 0; i < MAX_FIELDS; i++) {
                 if (srcSfbv->getSensitiveFieldFlows().test(i)) {
-                    if (!dstSfbv->getSensitiveFieldFlows().test(i)) {
-                        // Create new Object
-                        dstSfbv->nestedSensitiveFieldFlows[i] = new SensitiveFlowBV();
-                        changed = true;
-                    }
-                    changed |= doDeepUnion(dstSfbv->nestedSensitiveFieldFlows[i],
-                            srcSfbv->nestedSensitiveFieldFlows[i]);
+            
                 }
             }
+            */
             changed |= dstSfbv->unionBV(srcSfbv->getSensitiveFieldFlows());
         }
-        llvm::errs() << "Returning changed: " << changed << "\n";
+        //llvm::errs() << "Returning changed: " << changed << "\n";
         return changed;
     }
 

@@ -127,6 +127,18 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
         NodeID nodeId = workList.pop();
         ConstraintNode* node = oldCG->getConstraintNode(nodeId);
 
+        /*
+        errs() << "Current Node = " << nodeId << " Worklist size = " << workList.size() << "\n";
+        if (const Argument* arg = dyn_cast<const Argument>(pag->getPAGNode(nodeId)->getValue())) {
+            errs() << "Function's arg: " << arg->getParent()->getName() << "\n";
+        }
+
+        if (nodeId == 158757) {
+            errs() << "158757: \n";
+            const Value* v = pag->getPAGNode(nodeId)->getValue();
+            v->print(errs());
+        }
+        */
         // Propapagate field specific flows through all non-field specific
         // edges
         //
@@ -134,10 +146,15 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
         for (ConstraintNode::const_iterator it = node->incomingAddrsBegin(),
                 eit = node->incomingAddrsEnd(); it != eit; ++it) {
             ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getSrcID());
+            // Ignore nullptrs!
+            if (neighborNode->getId() == pag->getNullPtr())
+                continue;
             updated = neighborNode->fieldUnion(node->getSensitiveFlowBV());
-            errs() << "updated: " << updated << "\n";
-            if (updated) 
+            //errs() << "updated: " << updated << "\n";
+            if (updated) {
+                errs() << "pushing: " << (*it)->getSrcID() << "\n";
                 workList.push((*it)->getSrcID());
+            }
             (*it)->setSensitive();
         }
 
@@ -145,10 +162,17 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
         for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
                 eit = node->incomingStoresEnd(); it != eit; ++it) {
             ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getSrcID());
+            // Ignore nullptrs!
+            if (neighborNode->getId() == pag->getNullPtr())
+                continue;
+
             updated = neighborNode->fieldUnion(node->getSensitiveFlowBV());
-            errs() << "updated: " << updated << "\n";
-            if (updated)
+            //errs() << "updated: " << updated << "\n";
+            if (updated) {
+                errs() << "pushing: " << (*it)->getSrcID() << "\n";
+
                 workList.push((*it)->getSrcID());
+            }
             (*it)->setSensitive();
         }
 
@@ -156,10 +180,17 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
         for (ConstraintNode::const_iterator it = node->incomingLoadsBegin(),
                 eit = node->incomingLoadsEnd(); it != eit; ++it) {
             ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getSrcID());
+            // Ignore nullptrs!
+            if (neighborNode->getId() == pag->getNullPtr())
+                continue;
+
             updated = neighborNode->fieldUnion(node->getSensitiveFlowBV());
-            errs() << "updated: " << updated << "\n";
-            if (updated)
+            //errs() << "updated: " << updated << "\n";
+            if (updated) {
+                errs() << "pushing: " << (*it)->getSrcID() << "\n";
+
                 workList.push((*it)->getSrcID());
+            }
             (*it)->setSensitive();
         }
 
@@ -173,18 +204,32 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
                 // field offset
                 // Gep/copy edges
                 ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getSrcID());
+                // Ignore nullptrs!
+                if (neighborNode->getId() == pag->getNullPtr())
+                    continue;
+
                 // The neighbor has to be updated with the field offset
                 updated = neighborNode->appendFieldSensitivePath(ngepEdge->getLocationSet().getOffset(), node->getSensitiveFlowBV());
                 // Own sensitive field flows don't get affected
-                errs() << "updated: " << updated << "\n";
-                if (updated)
+                //errs() << "updated: " << updated << "\n";
+                if (updated) {
+                    errs() << "pushing: " << (*it)->getSrcID() << "\n";
+
                     workList.push((*it)->getSrcID());
+                }
             } else {
                 ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getSrcID());
+                // Ignore nullptrs!
+                if (neighborNode->getId() == pag->getNullPtr())
+                    continue;
+
                 updated = neighborNode->fieldUnion(node->getSensitiveFlowBV());
-                errs() << "updated: " << updated << "\n";
-                if (updated)
+                //errs() << "updated: " << updated << "\n";
+                if (updated) {
+                    errs() << "pushing: " << (*it)->getSrcID() << "\n";
+
                     workList.push((*it)->getSrcID());
+                }
             }
             (*it)->setSensitive(); 
         }
@@ -193,10 +238,17 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
         for (ConstraintNode::const_iterator it = node->outgoingAddrsBegin(),
                 eit = node->outgoingAddrsEnd(); it != eit; ++it) {
             ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getDstID());
+            // Ignore nullptrs!
+            if (neighborNode->getId() == pag->getNullPtr())
+                continue;
+
             updated = neighborNode->fieldUnion(node->getSensitiveFlowBV());
-            errs() << "updated: " << updated << "\n";
-            if (updated)
+            //errs() << "updated: " << updated << "\n";
+            if (updated) {
+                errs() << "pushing: " << (*it)->getDstID() << "\n";
+
                 workList.push((*it)->getDstID());
+            }
             (*it)->setSensitive(); 
         }
 
@@ -204,10 +256,17 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
         for (ConstraintNode::const_iterator it = node->outgoingStoresBegin(),
                 eit = node->outgoingStoresEnd(); it != eit; ++it) {
             ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getDstID());
+            // Ignore nullptrs!
+            if (neighborNode->getId() == pag->getNullPtr())
+                continue;
+
             updated = neighborNode->fieldUnion(node->getSensitiveFlowBV());
-            errs() << "updated: " << updated << "\n";
-            if (updated)
+            //errs() << "updated: " << updated << "\n";
+            if (updated) {
+                errs() << "pushing: " << (*it)->getDstID() << "\n";
+
                 workList.push((*it)->getDstID());
+            }
             (*it)->setSensitive(); 
         }
 
@@ -215,10 +274,17 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
         for (ConstraintNode::const_iterator it = node->outgoingLoadsBegin(),
                 eit = node->outgoingLoadsEnd(); it != eit; ++it) {
             ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getDstID());
+            // Ignore nullptrs!
+            if (neighborNode->getId() == pag->getNullPtr())
+                continue;
+
             updated = neighborNode->fieldUnion(node->getSensitiveFlowBV());
-            errs() << "updated: " << updated << "\n";
-            if (updated)
+            //errs() << "updated: " << updated << "\n";
+            if (updated) {
+                errs() << "pushing: " << (*it)->getDstID() << "\n";
+
                 workList.push((*it)->getDstID());
+            }
             (*it)->setSensitive(); 
         }
 
@@ -238,19 +304,33 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
                     // So union it with the sensitive field tree at this
                     // edge's offset
                     ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getDstID());
+                    // Ignore nullptrs!
+                    if (neighborNode->getId() == pag->getNullPtr())
+                        continue;
+
                     updated = neighborNode->fieldUnion(node->getSensitiveFlowBV()->getChildSfbv(offset));
-                    errs() << "updated: " << updated << "\n";
-                    if (updated)
+                    //errs() << "updated: " << updated << "\n";
+                    if (updated) {
+                        errs() << "pushing: " << (*it)->getDstID() << "\n";
+
                         workList.push((*it)->getDstID());
+                    }
                     (*it)->setSensitive(); 
                 }
                 // Own sensitive field flows don't get affected
             } else {
                 ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getDstID());
+                // Ignore nullptrs!
+                if (neighborNode->getId() == pag->getNullPtr())
+                    continue;
+
                 updated = neighborNode->fieldUnion(node->getSensitiveFlowBV());
-                errs() << "updated: " << updated << "\n";
-                if (updated)
+                //errs() << "updated: " << updated << "\n";
+                if (updated) {
+                    errs() << "pushing: " << (*it)->getDstID() << "\n";
+
                     workList.push((*it)->getDstID());
+                }
                 (*it)->setSensitive(); 
             }
         }

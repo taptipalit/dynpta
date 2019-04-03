@@ -229,6 +229,18 @@ bool PAG::addNormalGepEdge(NodeID src, NodeID dst, const LocationSet& ls) {
     const LocationSet& baseLS = getLocationSetFromBaseNode(src);
     PAGNode* baseNode = getPAGNode(getBaseValNode(src));
     PAGNode* dstNode = getPAGNode(dst);
+    /*
+    errs() << "Added normal gep edge with offset: " << ls.getOffset() << "\n";
+    if (ls.getOffset() > 100) {
+        errs() << "larger offset than 100: \n";
+        errs() << "Base value: " << *(baseNode->getValue()) << "\n";
+        errs() << "Gep value: " << *(getPAGNode(src)->getValue()) << "\n";
+        if (const Instruction* inst = dyn_cast<Instruction>(getPAGNode(src)->getValue())) {
+            errs() << "Function name: " << inst->getParent()->getParent()->getName() << "\n";
+            inst->getParent()->getParent()->dump();
+        }
+    }
+    */
     if(hasIntraEdge(baseNode, dstNode, PAGEdge::NormalGep))
         return false;
     else

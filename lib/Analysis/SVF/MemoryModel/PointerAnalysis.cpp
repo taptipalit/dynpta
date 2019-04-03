@@ -52,7 +52,7 @@ static cl::opt<bool> CFGOnly("cfg-only", cl::init(false),
         cl::desc("Perform points-to analysis to resolve cfg only"));
         */
 
-static cl::opt<bool> FuncPointerPrint("print-fp", cl::init(false),
+static cl::opt<bool> FuncPointerPrint("print-fp", cl::init(true),
                                       cl::desc("Print targets of indirect call site"));
 
 static cl::opt<bool> PTSPrint("print-pts", cl::init(false),
