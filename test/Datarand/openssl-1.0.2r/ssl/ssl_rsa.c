@@ -65,7 +65,6 @@
 #include <openssl/pem.h>
 
 
-#define SENSITIVE __attribute__((annotate("sensitive")))
 
 static int ssl_set_cert(CERT *c, X509 *x509);
 static int ssl_set_pkey(CERT *c, EVP_PKEY *pkey);
@@ -625,7 +624,7 @@ int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type)
     int j;
     int ret = 0;
     BIO *in;
-    SENSITIVE EVP_PKEY *pkey = NULL;
+    EVP_PKEY *pkey = NULL;
 
     in = BIO_new(BIO_s_file_internal());
     if (in == NULL) {

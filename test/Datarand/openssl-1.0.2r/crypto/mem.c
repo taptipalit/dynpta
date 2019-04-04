@@ -297,6 +297,7 @@ void *CRYPTO_malloc_locked(int num, const char *file, int line)
 {
     void *ret = NULL;
 
+    /*
     if (num <= 0)
         return NULL;
 
@@ -314,11 +315,15 @@ void *CRYPTO_malloc_locked(int num, const char *file, int line)
     if (malloc_debug_func != NULL)
         malloc_debug_func(ret, num, file, line, 1);
 
+        */
+    ret = malloc(num);
     return ret;
 }
 
 void CRYPTO_free_locked(void *str)
 {
+    free(str);
+    /*
     if (free_debug_func != NULL)
         free_debug_func(str, 0);
 #ifdef LEVITTE_DEBUG_MEM
@@ -327,12 +332,14 @@ void CRYPTO_free_locked(void *str)
     free_locked_func(str);
     if (free_debug_func != NULL)
         free_debug_func(NULL, 1);
+        */
 }
 
 void *CRYPTO_malloc(int num, const char *file, int line)
 {
     void *ret = NULL;
 
+    /*
     if (num <= 0)
         return NULL;
 
@@ -350,6 +357,7 @@ void *CRYPTO_malloc(int num, const char *file, int line)
     if (malloc_debug_func != NULL)
         malloc_debug_func(ret, num, file, line, 1);
 
+        */
     return ret;
 }
 
@@ -426,6 +434,8 @@ void *CRYPTO_realloc_clean(void *str, int old_len, int num, const char *file,
 
 void CRYPTO_free(void *str)
 {
+    free(str);
+    /*
     if (free_debug_func != NULL)
         free_debug_func(str, 0);
 #ifdef LEVITTE_DEBUG_MEM
@@ -442,6 +452,7 @@ void *CRYPTO_remalloc(void *a, int num, const char *file, int line)
         OPENSSL_free(a);
     a = (char *)OPENSSL_malloc(num);
     return (a);
+    */
 }
 
 void CRYPTO_set_mem_debug_options(long bits)

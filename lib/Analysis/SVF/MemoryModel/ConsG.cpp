@@ -114,6 +114,8 @@ void ConstraintGraph::testAndAddNode(NodeID nodeID, llvm::SparseBitVector<>& add
 void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, WorkList& initList) {
     bool updated = false;
     WorkList workList;
+    llvm::SparseBitVector<> fullyProcessedConsgNodeList; // Nodes whose edges are fully processed
+
     // The initial worklist --> set them to ALL fields sensitive
     while (!initList.empty()) {
         NodeID nodeId = initList.pop();
@@ -127,6 +129,7 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
         NodeID nodeId = workList.pop();
         ConstraintNode* node = oldCG->getConstraintNode(nodeId);
 
+        fullyProcessedConsgNodeList.set(nodeId);
         errs() << "Current Node = " << nodeId << " Worklist size = " << workList.size() << "\n";
         if (const Argument* arg = dyn_cast<const Argument>(pag->getPAGNode(nodeId)->getValue())) {
             errs() << "Function's arg: " << arg->getParent()->getName() << "\n";
@@ -157,7 +160,9 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
             //errs() << "updated: " << updated << "\n";
             if (updated) {
                 errs() << "pushing: " << (*it)->getSrcID() << "\n";
-                workList.push((*it)->getSrcID());
+                if (!fullyProcessedConsgNodeList.test((*it)->getSrcID())) {
+                    workList.push((*it)->getSrcID());
+                }
             }
             (*it)->setSensitive();
         }
@@ -174,8 +179,10 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
             //errs() << "updated: " << updated << "\n";
             if (updated) {
                 errs() << "pushing: " << (*it)->getSrcID() << "\n";
+                if (!fullyProcessedConsgNodeList.test((*it)->getSrcID())) {
 
-                workList.push((*it)->getSrcID());
+                    workList.push((*it)->getSrcID());
+                }
             }
             (*it)->setSensitive();
         }
@@ -192,8 +199,10 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
             //errs() << "updated: " << updated << "\n";
             if (updated) {
                 errs() << "pushing: " << (*it)->getSrcID() << "\n";
+                if (!fullyProcessedConsgNodeList.test((*it)->getSrcID())) {
 
-                workList.push((*it)->getSrcID());
+                    workList.push((*it)->getSrcID());
+                }
             }
             (*it)->setSensitive();
         }
@@ -218,8 +227,9 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
                 //errs() << "updated: " << updated << "\n";
                 if (updated) {
                     errs() << "pushing: " << (*it)->getSrcID() << "\n";
-
-                    workList.push((*it)->getSrcID());
+                    if (!fullyProcessedConsgNodeList.test((*it)->getSrcID())) {
+                        workList.push((*it)->getSrcID());
+                    }
                 }
             } else {
                 ConstraintNode* neighborNode = oldCG->getConstraintNode((*it)->getSrcID());
@@ -231,8 +241,9 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
                 //errs() << "updated: " << updated << "\n";
                 if (updated) {
                     errs() << "pushing: " << (*it)->getSrcID() << "\n";
-
-                    workList.push((*it)->getSrcID());
+                    if (!fullyProcessedConsgNodeList.test((*it)->getSrcID())) {
+                        workList.push((*it)->getSrcID());
+                    }
                 }
             }
             (*it)->setSensitive(); 
@@ -250,8 +261,10 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
             //errs() << "updated: " << updated << "\n";
             if (updated) {
                 errs() << "pushing: " << (*it)->getDstID() << "\n";
+                if (!fullyProcessedConsgNodeList.test((*it)->getDstID())) {
 
-                workList.push((*it)->getDstID());
+                    workList.push((*it)->getDstID());
+                }
             }
             (*it)->setSensitive(); 
         }
@@ -268,8 +281,10 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
             //errs() << "updated: " << updated << "\n";
             if (updated) {
                 errs() << "pushing: " << (*it)->getDstID() << "\n";
+                if (!fullyProcessedConsgNodeList.test((*it)->getDstID())) {
 
                 workList.push((*it)->getDstID());
+                }
             }
             (*it)->setSensitive(); 
         }
@@ -286,8 +301,10 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
             //errs() << "updated: " << updated << "\n";
             if (updated) {
                 errs() << "pushing: " << (*it)->getDstID() << "\n";
+                if (!fullyProcessedConsgNodeList.test((*it)->getDstID())) {
 
                 workList.push((*it)->getDstID());
+                }
             }
             (*it)->setSensitive(); 
         }
@@ -316,8 +333,10 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
                     //errs() << "updated: " << updated << "\n";
                     if (updated) {
                         errs() << "pushing: " << (*it)->getDstID() << "\n";
+                        if (!fullyProcessedConsgNodeList.test((*it)->getDstID())) {
 
                         workList.push((*it)->getDstID());
+                        }
                     }
                     (*it)->setSensitive(); 
                 }
@@ -332,8 +351,10 @@ void ConstraintGraph::annotateGraphWithSensitiveFlows(ConstraintGraph* oldCG, Wo
                 //errs() << "updated: " << updated << "\n";
                 if (updated) {
                     errs() << "pushing: " << (*it)->getDstID() << "\n";
+                    if (!fullyProcessedConsgNodeList.test((*it)->getDstID())) {
 
                     workList.push((*it)->getDstID());
+                    }
                 }
                 (*it)->setSensitive(); 
             }
