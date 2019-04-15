@@ -13,7 +13,7 @@ struct privkey {
 };
 
 struct ssl {
-    struct privkey* pkey;
+   struct privkey* pkey;
     struct sthelse* sth;
 };
 
@@ -28,16 +28,22 @@ struct ngx {
 };
 
 
-void printall(struct ngx* ngxarg) {
-    printf("%d\n", ngxarg->sslctx->pkey->hash);
+void printall(struct ngx** ngxarg) {
+    struct ngx* ptr = ngxarg[1];
+    printf("%d\n", ptr->sslctx->pkey->hash);
+    printf("%d\n", ptr->sslctx->sth->num);
 }
 
 void printsub(struct ssl* sslarg) {
     printf("%d\n", sslarg->pkey->hash);
 }
 
+void printsome(struct ngx* ngxsome) {
+    printf("%d\n", ngxsome->funn->a);
+}
+
 int main(void) {
-    void (*fptr1)(struct ngx*);
+    void (*fptr1)(struct ngx**);
     void (*fptr2)(struct ssl*);
     fptr1 = printall;
     fptr2 = printsub;
@@ -47,8 +53,12 @@ int main(void) {
     struct funny* funnyptr = malloc(sizeof(struct funny));
     struct ngx* ngxptr = malloc(sizeof(struct ngx));
 
-    struct ngx* cpyparent = ngxptr;
+    struct ngx* cpyparent1 = ngxptr;
+    struct ngx* cpyparent2 = ngxptr;
 
+    struct ngx* ngxarr[2];
+    ngxarr[0] = cpyparent1;
+    ngxarr[1] = cpyparent2;
     sthptr->num = 100;
     sthptr->age = 29;
 
@@ -64,8 +74,10 @@ int main(void) {
     ngxptr->funn = funnyptr;
     ngxptr->sslctx = sslptr;
 
-    (*fptr1)(cpyparent);
-    (*fptr2)(cpyparent->sslctx);
+    (*fptr1)(ngxarr);
+    (*fptr2)(cpyparent1->sslctx);
+
+    printsome(cpyparent2);
 }
 
 /*

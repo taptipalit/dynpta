@@ -32,6 +32,8 @@
 
 #include "llvm/Analysis/SVF/MemoryModel/ConsGEdge.h"
 #include "llvm/Analysis/SVF/MemoryModel/ConsGNode.h"
+#include "llvm/Support/raw_ostream.h"
+#include <map>
 
 /*!
  * Constraint graph for Andersen's analysis
@@ -46,6 +48,9 @@ public:
     typedef llvm::DenseMap<NodeID, NodeID> NodeToRepMap;
     typedef llvm::DenseMap<NodeID, NodeBS> NodeToSubsMap;
     typedef FIFOWorkList<NodeID> WorkList;
+    typedef std::map<llvm::Type*, std::list<int>> TypeToFieldMapTy; // Map the Type to flattened fields
+    typedef std::list<llvm::StructType*> ExplicitSensitiveTypesListTy;
+
 private:
     bool selective;
 
@@ -63,13 +68,61 @@ private:
     ConstraintEdge::ConstraintEdgeSetTy CallValCGEdgeSet;
     ConstraintEdge::ConstraintEdgeSetTy RetValCGEdgeSet;
 
+    TypeToFieldMapTy PrunedTypeToFieldMap;
+    ExplicitSensitiveTypesListTy ExplicitSensitiveList;
+
     EdgeID edgeIndex;
+
+    void printPrunedTypes() {
+        TypeToFieldMapTy::iterator it;
+        llvm::errs() << "------------------ SENSITIVE TYPES ---------------------\n";
+        for (it = PrunedTypeToFieldMap.begin(); it != PrunedTypeToFieldMap.end(); it++) {
+            llvm::errs() << it->first->getStructName() << ":\n";
+            std::list<int>& l = it->second;
+            for (int i: l) {
+                llvm::errs() << "offset: " << i << "\n";
+            }
+        }
+    }
+
 
     WorkList nodesToBeCollapsed;
 
     void buildCG();
 
     void destroy();
+
+    std::list<int>& getSensitiveFields(llvm::Type* type) {
+        return PrunedTypeToFieldMap[type];
+    }
+
+    void appendSensitiveField(llvm::Type* type, int offset) {
+        PrunedTypeToFieldMap[type].push_back(offset);
+    }
+
+    bool isSensitiveType(llvm::StructType* stType) {
+        return (std::find(ExplicitSensitiveList.begin(), ExplicitSensitiveList.end(), stType) != ExplicitSensitiveList.end());
+    }
+
+
+    bool isSensitiveField(llvm::Type* type, int offset) {
+        if (PrunedTypeToFieldMap.count(type) == 0)
+            return false;
+        std::list<int> sensitiveFields = PrunedTypeToFieldMap[type];
+        if (std::find(sensitiveFields.begin(), sensitiveFields.end(), offset) == sensitiveFields.end()) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    bool isPrunedType(llvm::Type* type) {
+        if (PrunedTypeToFieldMap.find(type) == PrunedTypeToFieldMap.end()) {
+            return false;
+        } else {
+            return true;
+        }
+    }
 
     /// Wappers used internally, not expose to Andernsen Pass
     //@{
@@ -110,12 +163,12 @@ private:
 
 public:
     /// Constructor
-    ConstraintGraph(PAG* p): pag(p), edgeIndex(0) {
+    ConstraintGraph(PAG* p): pag(p), PrunedTypeToFieldMap(), ExplicitSensitiveList(), edgeIndex(0)  {
         this->selective = false;
         buildCG();
     }
 
-    ConstraintGraph(PAG* p, bool selective): pag(p), edgeIndex(0) {
+    ConstraintGraph(PAG* p, bool selective): pag(p), PrunedTypeToFieldMap(), ExplicitSensitiveList(), edgeIndex(0) {
         // Do nothing
         // Invoke only when copying from elsewhere
         this->selective = selective;
@@ -124,6 +177,8 @@ public:
     virtual ~ConstraintGraph() {
         destroy();
     }
+    void removePrunedNodes(ConstraintNode*, ConstraintGraph*);
+    void removeAllIncomingEdges(ConstraintNode*, WorkList&);
 
     virtual inline Size_t getVariableGepEdgeNum() {
         int vargep = 0;
@@ -174,6 +229,13 @@ public:
     inline void addConstraintNode(ConstraintNode* node, NodeID id) {
         addGNode(id,node);
     }
+
+    inline void getAllNodes(WorkList& workList) {
+        for (IDToNodeMapTy::iterator it = IDToNodeMap.begin(); it != IDToNodeMap.end(); it++) {
+            workList.push(it->first);
+        }
+    }
+
     inline bool hasConstraintNode(NodeID id) const {
         return hasGNode(id);
     }
@@ -416,6 +478,21 @@ public:
 
     /// Dump sensitive graph into dot file
     void dumpSensitiveGraph();
+
+    void addExplicitSensitiveType(llvm::Type* type) {
+        llvm::Type* baseType = findBaseType(type);
+        llvm::StructType* stType = llvm::dyn_cast<llvm::StructType>(baseType);
+        if (stType) {
+            //assert(stType && "Initial starting nodes are always structs!");
+            ExplicitSensitiveList.push_back(stType);
+        } else {
+            llvm::errs() << "*********** Alert *********** : marked sensitive simple type. This is probably ok though\n";
+        }
+    }
+
+    llvm::Type* findBaseType(llvm::Type*);
+    void populatePrunedFlattenedFieldOffsets(ConstraintGraph*);
+    void pruneNonSensitiveEdges(ConstraintGraph*, WorkList&);
 };
 
 

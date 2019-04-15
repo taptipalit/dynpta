@@ -171,6 +171,7 @@
 # endif
 
 # undef PKCS1_CHECK
+#define SENSITIVE __attribute__((annotate("sensitive")))
 
 # define c2l(c,l)        (l = ((unsigned long)(*((c)++)))     , \
                          l|=(((unsigned long)(*((c)++)))<< 8), \
@@ -600,6 +601,7 @@ typedef struct {
     size_t meths_count;
 } custom_ext_methods;
 
+
 typedef struct cert_st {
     /* Current active set */
     /*
@@ -607,7 +609,7 @@ typedef struct cert_st {
      * Probably it would make more sense to store
      * an index, not a pointer.
      */
-    CERT_PKEY *key;
+    SENSITIVE CERT_PKEY *key;
     /*
      * For servers the following masks are for the key and auth algorithms
      * that are supported by the certs below. For clients they are masks of

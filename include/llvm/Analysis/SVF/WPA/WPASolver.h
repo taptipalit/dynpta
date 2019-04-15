@@ -126,7 +126,7 @@ protected:
         /// New nodes may be inserted into work list during processing.
         /// Keep solving until it's empty.
         while (!isWorklistEmpty()) {
-            //llvm::errs() << "Remaining elements: " << getWorklistSize() << "\n";
+            llvm::errs() << "Remaining elements: " << getWorklistSize() << "\n";
             NodeID nodeId = popFromWorklist();
             postProcessNode(nodeId);
         }

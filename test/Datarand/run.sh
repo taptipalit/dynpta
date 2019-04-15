@@ -27,8 +27,6 @@ $LLVMROOT/llvm-dis $fileinst.bc -o $fileinst.ll
 #exit 0
 dot -Tpng pag_final.dot -o $file"_pag_final.png"
 dot -Tpng pag_initial.dot -o $file"_pag_initial.png"
-#dot -Tpng callgraph_final.dot -o $file"_callgraph_final.png"
-#dot -Tpng callgraph_initial.dot -o $file"_callgraph_initial.png"
 dot -Tpng consCG_final.dot -o $file"_consg_full_final.png"
 dot -Tpng consCG_selective_final.dot -o $file"_consg_selective_final.png"
 

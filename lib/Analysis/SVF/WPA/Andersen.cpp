@@ -134,7 +134,7 @@ void Andersen::collectLocalSensitiveAnnotations(Module& M) {
 							if (isa<CallInst>(Inst)) {
 								CallInst* CInst = dyn_cast<CallInst>(Inst);
 								// CallInst->getCalledValue() gives us a pointer to the Function
-								if (CInst->getCalledValue()->getName().equals("llvm.var.annotation")) {
+								if (CInst->getCalledValue()->getName().equals("llvm.var.annotation") || CInst->getCalledValue()->getName().startswith("llvm.ptr.annotation")) {
 									Value* SV = CInst->getArgOperand(0);
 									for (Value::use_iterator useItr = SV->use_begin(), useEnd = SV->use_end(); useItr != useEnd; useItr++) {
 										Value* UseValue = dyn_cast<Value>(*useItr);

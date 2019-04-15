@@ -128,7 +128,7 @@ public:
     typedef typename GEdgeSetTy::const_iterator const_iterator;
     ///@}
 
-private:
+protected:
     NodeID id;		///< Node ID
     GNodeK nodeKind;	///< Node kind
 
@@ -248,12 +248,12 @@ public:
     ///@{
     inline Size_t removeIncomingEdge(EdgeType* edge) {
         iterator it = InEdges.find(edge);
-        assert(it != InEdges.end() && "can not find in edge in SVFG node");
+        //assert(it != InEdges.end() && "can not find in edge in SVFG node");
         return InEdges.erase(edge);
     }
     inline Size_t removeOutgoingEdge(EdgeType* edge) {
         iterator it = OutEdges.find(edge);
-        assert(it != OutEdges.end() && "can not find out edge in SVFG node");
+        //assert(it != OutEdges.end() && "can not find out edge in SVFG node");
         return OutEdges.erase(edge);
     }
     ///@}

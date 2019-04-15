@@ -56,10 +56,10 @@ public:
     };
 private:
     EdgeID edgeId;
-    bool sensitive;
+    bool pruned;
 public:
     /// Constructor
-    ConstraintEdge(ConstraintNode* s, ConstraintNode* d, ConstraintEdgeK k, EdgeID id = 0) : GenericConsEdgeTy(s,d,k),edgeId(id),sensitive(false) {
+    ConstraintEdge(ConstraintNode* s, ConstraintNode* d, ConstraintEdgeK k, EdgeID id = 0) : GenericConsEdgeTy(s,d,k),edgeId(id),pruned(false) {
     }
     /// Destructor
     ~ConstraintEdge() {
@@ -82,12 +82,12 @@ public:
     /// Constraint edge type
     typedef GenericNode<ConstraintNode,ConstraintEdge>::GEdgeSetTy ConstraintEdgeSetTy;
 
-    bool isSensitive() {
-        return sensitive;
+    bool isPruned() {
+        return pruned;
     }
 
-    void setSensitive() {
-        sensitive = true;
+    void setPruned() {
+        pruned = true;
     }
 
 };
