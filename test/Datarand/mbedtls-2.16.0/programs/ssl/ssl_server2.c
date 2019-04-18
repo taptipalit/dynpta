@@ -113,8 +113,8 @@ int main( void )
 #define DFL_READ_TIMEOUT        0
 #define DFL_CA_FILE             ""
 #define DFL_CA_PATH             ""
-#define DFL_CRT_FILE            ""
-#define DFL_KEY_FILE            ""
+#define DFL_CRT_FILE            "../my_crt.crt"
+#define DFL_KEY_FILE            "../our_key.key"
 #define DFL_CRT_FILE2           ""
 #define DFL_KEY_FILE2           ""
 #define DFL_ASYNC_OPERATIONS    "-"
@@ -1464,7 +1464,7 @@ int main( int argc, char *argv[] )
             }
             opt.async_private_error = n;
         }
-#endif /* MBEDTLS_SSL_ASYNC_PRIVATE */
+#endif 
         else if( strcmp( p, "psk" ) == 0 )
             opt.psk = q;
         else if( strcmp( p, "psk_identity" ) == 0 )
@@ -1527,7 +1527,7 @@ int main( int argc, char *argv[] )
 #else
             if( sscanf( q, "%" SCNu64, &opt.renego_period ) != 1 )
                 goto usage;
-#endif /* _MSC_VER */
+#endif 
             if( opt.renego_period < 2 )
                 goto usage;
         }

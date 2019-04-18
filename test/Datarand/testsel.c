@@ -53,6 +53,7 @@ int main(void) {
     struct funny* funnyptr = malloc(sizeof(struct funny));
     struct ngx* ngxptr = malloc(sizeof(struct ngx));
 
+    /*
     struct ngx* cpyparent1 = ngxptr;
     struct ngx* cpyparent2 = ngxptr;
 
@@ -61,13 +62,18 @@ int main(void) {
     ngxarr[1] = cpyparent2;
     sthptr->num = 100;
     sthptr->age = 29;
+    */
 
     pkptr->hash = 999;
+    /*
     strcpy(pkptr->thing, "hllp");
 
     sslptr->pkey = pkptr;
     sslptr->sth = sthptr;
+    */
+    sthptr->num = sslptr->pkey->hash;
 
+    /*
     funnyptr->a = 40;
     funnyptr->b = 50;
 
@@ -78,6 +84,14 @@ int main(void) {
     (*fptr2)(cpyparent1->sslctx);
 
     printsome(cpyparent2);
+
+
+    */
+    printf("%d\n", sthptr->num);
+
+    /*
+    printf("%d\n", sslptr->sth->age);
+    */
 }
 
 /*

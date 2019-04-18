@@ -153,11 +153,14 @@ namespace external {
 				Value* senVal = const_cast<Value*>(senNode->getValue());
 				if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
 					// Is an alloca instruction
+                    allocInst->setAlignment(16);
 					IRBuilder<> Builder(allocInst);
+                    /*
 					AllocaInst* paddingAllocaInst1 = new AllocaInst (I128Ty, 0, "padding");
 					MDNode* N1 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
 					paddingAllocaInst1->setMetadata("PADDING", N1);
 					paddingAllocaInst1->insertAfter(allocInst);
+                    */
 					AllocaInst* paddingAllocaInst2 = Builder.CreateAlloca(I128Ty, 0, "padding");
 					MDNode* N2 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
 					paddingAllocaInst2->setMetadata("PADDING", N2);

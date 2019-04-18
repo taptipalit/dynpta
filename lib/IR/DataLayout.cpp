@@ -50,11 +50,17 @@ StructLayout::StructLayout(StructType *ST, const DataLayout &DL) {
   IsPadded = false;
   NumElements = ST->getNumElements();
 
+  bool prevFieldSensitive = false;
+
   // Loop over each of the elements, placing them in memory.
   for (unsigned i = 0, e = NumElements; i != e; ++i) {
     Type *Ty = ST->getElementType(i);
     unsigned TyAlign;
     if (ST->isSensitiveField(i)) {
+        prevFieldSensitive = true;
+        TyAlign = 16;
+    } else if (prevFieldSensitive) {
+        prevFieldSensitive = false;
         TyAlign = 16;
     } else {
         TyAlign  = ST->isPacked() ? 1 : DL.getABITypeAlignment(Ty);
@@ -71,6 +77,11 @@ StructLayout::StructLayout(StructType *ST, const DataLayout &DL) {
 
     MemberOffsets[i] = StructSize;
     StructSize += DL.getTypeAllocSize(Ty); // Consume space for this data item
+  }
+
+  // If the last element was sensitive, then consume more!
+  if (ST->isSensitiveField(NumElements-1)) {
+      StructSize += 16;
   }
 
   // Empty structures have alignment of 1 byte.

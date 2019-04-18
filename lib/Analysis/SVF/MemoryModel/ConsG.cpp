@@ -37,7 +37,7 @@ using namespace analysisUtil;
 
 #define DEBUG_TYPE "svf"
 
-static cl::opt<bool> ConsCGDotGraph("dump-consG", cl::init(false),
+static cl::opt<bool> ConsCGDotGraph("dump-consG", cl::init(true),
                                     cl::desc("Dump dot graph of Constraint Graph"));
 
 
@@ -562,7 +562,7 @@ void ConstraintGraph::createMinSubGraphReachableFrom(ConstraintGraph* oldCG, Wor
             fullyProcessedConsNodeList.set(nodeId);
         }
     }
-}%/
+}*/
 
 void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkList& workList) {
     llvm::SparseBitVector<> addedConsNodeList;          // Nodes which are just added to the constraint graph

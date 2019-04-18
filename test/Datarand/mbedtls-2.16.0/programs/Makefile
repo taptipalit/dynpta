@@ -294,7 +294,7 @@ x509/req_app$(EXEXT): x509/req_app.c $(DEP)
 
 clean:
 ifndef WINDOWS
-	rm -f $(APPS)
+	rm -f aes/*.o hash/*.o pkey/*.o random/*.o ssl/*.o test/*.o util/*.o x509/*.o $(APPS)
 else
 	del /S /Q /F *.o *.exe
 endif

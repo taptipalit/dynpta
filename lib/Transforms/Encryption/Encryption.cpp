@@ -187,7 +187,7 @@ namespace {
         //void collectVoidDataObjects(Module&);
 
 		void getAnalysisUsage(AnalysisUsage& AU) const {
-            //AU.addRequired<LibcTransformPass>();
+            AU.addRequired<LibcTransformPass>();
 			AU.addRequired<WPAPass>();
 			//AU.setPreservesAll();
 		}
@@ -1090,16 +1090,26 @@ void EncryptionPass::collectSensitivePointsToInfo(Module &M,
                         continue;
                     }
                 }
-                /*
-                errs() << "Pointer: " << *(ptr->getValue()) << " points to sensitive buffer\n";
-                if (Instruction* inst = dyn_cast<Instruction>(ptr->getValue())) {
-                    errs() << " and this is in function : " << inst->getParent()->getParent()->getName() << "\n";
-                }
-                */
+                
                 // --- All allocation sites this pointer can point to is also sensitive
                 std::set<PAGNode*>* s = &ptsToMap[ptr];
                 newObjVecPtr->insert(newObjVecPtr->end(), s->begin(), s->end());
-                // For every Gep node, add its Field insensitive node too
+
+
+                /*
+                errs() << "Pointer: " << *(ptr->getValue()) << " points to sensitive buffer\n";
+                if (const Instruction* inst = dyn_cast<const Instruction>(ptr->getValue())) {
+                    errs() << " and this is in function : " << inst->getParent()->getParent()->getName() << "\n";
+                }
+                errs() << " has points-to set of size: " << s->size() << "\n\n\n";
+                for (PAGNode* obj: *s) {
+                    errs() << "Value: " <<  *(obj->getValue()) << "\n";
+                }
+
+                */
+                // For every Gep node, add its Field insensitive node too,
+                // NOT Needed any more
+                /*
                 for (PAGNode* node: *s) {
                     if (GepObjPN* gepNode = dyn_cast<GepObjPN>(node)) {
                         NodeID objID = pag->getObjectNode(gepNode->getValue()); 
@@ -1110,6 +1120,7 @@ void EncryptionPass::collectSensitivePointsToInfo(Module &M,
                         }
                     }
                 }
+                */
             }
             errs() << "Processed " << count++ << " site\n";
 		}
@@ -1902,6 +1913,11 @@ bool EncryptionPass::isSensitiveArg(Value* arg,  std::map<PAGNode*, std::set<PAG
         // Constant etc
         return false;
     }
+
+    if (!arg->getType()->isPointerTy()) {
+        return false;
+    }
+
     // If this arg points to sensitive stuff, then it is sensitive
     PAGNode* argNode = getPAGValNodeFromValue(arg);
     for (PAGNode* pointedToNode: ptsToMap[argNode]) {
@@ -1909,6 +1925,7 @@ bool EncryptionPass::isSensitiveArg(Value* arg,  std::map<PAGNode*, std::set<PAG
             return true;
         }
     }
+    /*
     if (CallInst* retVal = dyn_cast<CallInst>(arg)) {
         // TODO Handle function pointers
         Function* calledFunction = retVal->getCalledFunction();
@@ -1925,6 +1942,7 @@ bool EncryptionPass::isSensitiveArg(Value* arg,  std::map<PAGNode*, std::set<PAG
             }
         }
     }
+    */
 
     return false;
 }
@@ -3844,6 +3862,7 @@ bool EncryptionPass::runOnModule(Module &M) {
 	
 	collectSensitivePointsToInfo(M, ptsToMap, ptsFromMap);
 
+    /*
 	dbgs() << "Collected sensitive points-to info (Phase 1) \n";
 	LLVM_DEBUG (
 
@@ -3856,6 +3875,7 @@ bool EncryptionPass::runOnModule(Module &M) {
 	}
 
 	);
+    */
 
     if (SensitiveObjSet) {
         delete(SensitiveObjSet);
@@ -3867,6 +3887,14 @@ bool EncryptionPass::runOnModule(Module &M) {
         dbgs() << "Sensitive Allocation site: " << *sensitivePAGNode << "\n";
         if (GepObjPN* senGep = dyn_cast<GepObjPN>(sensitivePAGNode)) {
             dbgs() << "Gep offset: " << senGep->getLocationSet().getOffset() << "\n";
+            int Field = senGep->getLocationSet().getOffset();
+            Type* baseType = senGep->getValue()->getType();
+            if (StructType* stBaseType = dyn_cast<StructType>(baseType)) {
+                if (Field < stBaseType->getNumElements()) {
+                    dbgs() << "Best guess sub type: " << stBaseType->getElementType(Field) << "\n";
+                }
+
+            }
         }
     }
 
@@ -3932,7 +3960,7 @@ bool EncryptionPass::runOnModule(Module &M) {
 }
 
 INITIALIZE_PASS_BEGIN(EncryptionPass, "encryption", "Identify and instrument sensitive variables", false, true)
-//INITIALIZE_PASS_DEPENDENCY(LibcTransformPass);
+INITIALIZE_PASS_DEPENDENCY(LibcTransformPass);
 INITIALIZE_PASS_DEPENDENCY(WPAPass);
 INITIALIZE_PASS_END(EncryptionPass, "encryption", "Identify and instrument sensitive variables", false, true)
 

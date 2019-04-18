@@ -101,6 +101,7 @@ void WPAPass::runOnModule(SVFModule svfModule) {
         _pta = new Andersen();
         _pta->analyze(svfModule);
     } else {
+        /*
         errs() << "Started running AndersenCFG\n";
         AndersenCFG* awcfg = new AndersenCFG();
         _pta = awcfg;
@@ -120,6 +121,12 @@ void WPAPass::runOnModule(SVFModule svfModule) {
         // Glue end
         anderdd->analyze(svfModule);
         errs() << "Ended running AndersenDD\n";
+        */
+        errs() << "Started running AndersenWaveDiff\n";
+        AndersenWaveDiff* aa = new AndersenWaveDiff();
+        _pta = aa;
+        aa->analyze(svfModule);
+        errs() << "Finished running AndersenWaveDiff\n";
     }
 }
 

@@ -4,6 +4,7 @@
 struct Student {
     char name[10];
     int id;
+    int b;
 };
 
 int main(void) {
@@ -12,10 +13,9 @@ int main(void) {
     struct Student s;
     a = 1000;
     s.id = a;
+    s.b = 30;
    
-    b = a;
-    printf ("%d\n", b);
-    printf ("%d\n", s.id);
-
+    b = s.id;
+    printf ("%d %d\n", s.id, s.b);
     return 0;
 }
