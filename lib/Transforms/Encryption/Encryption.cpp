@@ -187,7 +187,7 @@ namespace {
         //void collectVoidDataObjects(Module&);
 
 		void getAnalysisUsage(AnalysisUsage& AU) const {
-            AU.addRequired<LibcTransformPass>();
+            //AU.addRequired<LibcTransformPass>();
 			AU.addRequired<WPAPass>();
 			//AU.setPreservesAll();
 		}
@@ -1097,20 +1097,36 @@ void EncryptionPass::collectSensitivePointsToInfo(Module &M,
 
 
                 /*
+                for (PAGNode* node: *s) {
+                    if (node->getValue()->hasName()) {
+                        if (node->getValue()->getName().startswith("argv")) {
+                            errs() << "Pointer: " << *(ptr->getValue()) << " points to " << node->getValue()->getName() << "!\n";
+                            if (const Argument* arg = dyn_cast<const Argument>(ptr->getValue())) {
+                                errs() << " arg " << arg->getName() << " of function: " << arg->getParent()->getName() << " points to opt!\n";
+                            }
+                            if (const Instruction* inst = dyn_cast<const Instruction>(ptr->getValue())) {
+                                errs() << " and this is in function : " << inst->getParent()->getParent()->getName() << "\n";
+                            }
+                        }
+                    }
+                }
+                */
                 errs() << "Pointer: " << *(ptr->getValue()) << " points to sensitive buffer\n";
                 if (const Instruction* inst = dyn_cast<const Instruction>(ptr->getValue())) {
                     errs() << " and this is in function : " << inst->getParent()->getParent()->getName() << "\n";
                 }
                 errs() << " has points-to set of size: " << s->size() << "\n\n\n";
+                /*
                 for (PAGNode* obj: *s) {
                     errs() << "Value: " <<  *(obj->getValue()) << "\n";
                 }
-
                 */
+
                 // For every Gep node, add its Field insensitive node too,
                 // NOT Needed any more
                 /*
                 for (PAGNode* node: *s) {
+                    errs() << " Points to node: " << *node << "\n";
                     if (GepObjPN* gepNode = dyn_cast<GepObjPN>(node)) {
                         NodeID objID = pag->getObjectNode(gepNode->getValue()); 
                         NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
@@ -1166,9 +1182,9 @@ void EncryptionPass::collectSensitiveGEPInstructions(Module& M, std::map<PAGNode
 			std::set<PAGNode*> pointsToSet = mapIt->second;
 			for (PAGNode* ptsToNode: pointsToSet) {
 				if (isSensitiveObj(ptsToNode)) {
-					if (GEPInst->getPointerOperand()->getType()->isPointerTy()) {
+					//if (GEPInst->getPointerOperand()->getType()->isPointerTy()) { // Changing this not sure why I wanted the Gep to give me a C pointers?: 4/20/2019
 						SensitiveGEPPtrList.push_back(GEPInst);
-					}
+					//}
 				}
 			}
 		}
@@ -3687,7 +3703,9 @@ void EncryptionPass::addExternInlineASMHandlers(Module &M) {
 void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
 	std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
     std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
+    PAG* pag = getAnalysis<WPAPass>().getPAG();
 
+    /*
 	// Mark all possible allocation sites pointed to by sensitive pointers 
     for (PAGNode* initSensitiveNode: SensitiveObjList) {
         assert(initSensitiveNode->hasValue() && "PAG Node should have a value if it came so far");
@@ -3699,6 +3717,45 @@ void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
             }
         }
     }
+    */
+    std::vector<PAGNode*> workList;
+    std::vector<PAGNode*> processedList;
+
+    for (PAGNode* initSensitiveNode: SensitiveObjList) {
+        assert(initSensitiveNode->hasValue() && "PAG Node should have a value if it came so far");
+        workList.push_back(initSensitiveNode);
+    }
+
+    errs() << " ----------------- dumping start -----------------\n";
+    while (!workList.empty()) {
+        PAGNode* work = workList.back();
+        workList.pop_back();
+        if (std::find(processedList.begin(), processedList.end(), work) != processedList.end()) {
+            continue;
+        }
+        processedList.push_back(work);
+        // Add whatever this node points to
+        std::copy(ptsToMap[work].begin(), ptsToMap[work].end(), std::back_inserter(workList));
+        std::copy(ptsToMap[work].begin(), ptsToMap[work].end(), std::back_inserter(SensitiveObjList));
+
+        if (!isa<ObjPN>(work)) 
+            continue;
+        // And Child Nodes
+        NodeBS nodeBS = pag->getAllFieldsObjNode(work->getId());
+
+        for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
+            PAGNode* fldNode = pag->getPAGNode(*fIt);
+            std::copy(ptsToMap[fldNode].begin(), ptsToMap[fldNode].end(), std::back_inserter(workList));
+            std::copy(ptsToMap[fldNode].begin(), ptsToMap[fldNode].end(), std::back_inserter(SensitiveObjList));
+        }
+
+        // Debugging
+        errs() << "From " << *(work->getValue()) << " we got \n";
+        for (PAGNode* s : SensitiveObjList) {
+            errs() << *(s->getValue()) << "\n";
+        }
+    }
+    errs() << " ----------------- dumping end -----------------\n";
 
     // Remove all top-level pointers in SensitiveObjList
 
@@ -3841,9 +3898,15 @@ bool EncryptionPass::runOnModule(Module &M) {
     // Remove the annotation instruction because it causes a lot of headache later on
 	removeAnnotateInstruction(M);
 
+    preprocessSensitiveAnnotatedPointers(M);
+    errs() << "After nested points-to analysis:\n";
+    for (PAGNode* senPAGNode: SensitiveObjList) {
+        errs() << *senPAGNode << "\n";
+    }
+	
+
     errs() << "Begin: Perform dataflow analysis\n";
 
-    preprocessSensitiveAnnotatedPointers(M);
     //if (!SkipVFA) {
     performSourceSinkAnalysis(M);
     //}
@@ -3884,9 +3947,10 @@ bool EncryptionPass::runOnModule(Module &M) {
     errs() << "Total sensitive allocation sites: " << SensitiveObjSet->size() << "\n";
 
     for (PAGNode* sensitivePAGNode: *SensitiveObjSet) {
-        dbgs() << "Sensitive Allocation site: " << *sensitivePAGNode << "\n";
+        errs() <<  *sensitivePAGNode << "\n";
         if (GepObjPN* senGep = dyn_cast<GepObjPN>(sensitivePAGNode)) {
-            dbgs() << "Gep offset: " << senGep->getLocationSet().getOffset() << "\n";
+            errs() << "Gep offset: " << senGep->getLocationSet().getOffset() << "\n";
+            /*
             int Field = senGep->getLocationSet().getOffset();
             Type* baseType = senGep->getValue()->getType();
             if (StructType* stBaseType = dyn_cast<StructType>(baseType)) {
@@ -3895,6 +3959,7 @@ bool EncryptionPass::runOnModule(Module &M) {
                 }
 
             }
+            */
         }
     }
 
@@ -3960,7 +4025,7 @@ bool EncryptionPass::runOnModule(Module &M) {
 }
 
 INITIALIZE_PASS_BEGIN(EncryptionPass, "encryption", "Identify and instrument sensitive variables", false, true)
-INITIALIZE_PASS_DEPENDENCY(LibcTransformPass);
+//INITIALIZE_PASS_DEPENDENCY(LibcTransformPass);
 INITIALIZE_PASS_DEPENDENCY(WPAPass);
 INITIALIZE_PASS_END(EncryptionPass, "encryption", "Identify and instrument sensitive variables", false, true)
 

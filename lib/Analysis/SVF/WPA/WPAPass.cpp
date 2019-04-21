@@ -123,7 +123,7 @@ void WPAPass::runOnModule(SVFModule svfModule) {
         errs() << "Ended running AndersenDD\n";
         */
         errs() << "Started running AndersenWaveDiff\n";
-        AndersenWaveDiff* aa = new AndersenWaveDiff();
+        Andersen* aa = new Andersen();
         _pta = aa;
         aa->analyze(svfModule);
         errs() << "Finished running AndersenWaveDiff\n";

@@ -253,6 +253,8 @@ bool PAG::addNormalGepEdge(NodeID src, NodeID dst, const LocationSet& ls) {
  */
 bool PAG::addVariantGepEdge(NodeID src, NodeID dst) {
 
+    addCopyEdge(src, dst);
+
     PAGNode* baseNode = getPAGNode(getBaseValNode(src));
     PAGNode* dstNode = getPAGNode(dst);
     if(hasIntraEdge(baseNode, dstNode, PAGEdge::VariantGep))

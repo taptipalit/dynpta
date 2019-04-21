@@ -1170,7 +1170,7 @@ int mbedtls_pk_parse_key( mbedtls_pk_context *pk,
     const mbedtls_pk_info_t *pk_info;
 #if defined(MBEDTLS_PEM_PARSE_C)
     size_t len;
-    SENSITIVE mbedtls_pem_context pem;
+    mbedtls_pem_context pem;
 #endif
 
     PK_VALIDATE_RET( pk != NULL );
