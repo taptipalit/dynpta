@@ -93,86 +93,86 @@ deckey10:
 populate_keys:
     # YMM8
 	# Round 0
-	mov $0xfcb3bf52ab70db11, %r10
+	mov $0x62626262, %r10
 	pinsrq $0x0, %r10, %xmm15
-	mov $0xea7972a48c12d064, %r10
+	mov $0x0, %r10
 	pinsrq $0x1, %r10, %xmm15
     movdqa %xmm15, %xmm8
    
 	# Round 1
-	mov $0xef9aa167197661e5, %r10
+	mov $0x101010001010100, %r10
 	pinsrq $0x0, %r10, %xmm15
-	mov $0x36d12ca424d6304a, %r10
+	mov $0x101010001010100, %r10
 	pinsrq $0x1, %r10, %xmm15
 
     vinserti128 $0x1,%xmm15,%ymm8,%ymm8
 
     #YMM9
 	# Round 2
-	mov $0xf6ecc08265a79e60, %r10
+	mov $0x637c7c7e627d7d7e, %r10
 	pinsrq $0x0, %r10, %xmm9
-	mov $0x12071ceecb4c912d, %r10
+	mov $0x637c7c7e627d7d7e, %r10
 	pinsrq $0x1, %r10, %xmm9
 
     # Round 3
-	mov $0x934b5ee2f5b8812d, %r10
+	mov $0xf2fa111491866d6a, %r10
 	pinsrq $0x0, %r10, %xmm15
-	mov $0xd94b8dc33da051af, %r10
+	mov $0xf3fb101490876c6a, %r10
 	pinsrq $0x1, %r10, %xmm15
 
     vinserti128 $0x1,%xmm15,%ymm9,%ymm9
 
     #YMM10
 	# Round 4
-	mov $0x66f3dfcfc7e51c0f, %r10
+	mov $0x997173bc6b8b62a8, %r10
 	pinsrq $0x0, %r10, %xmm10
-	mov $0xe4ebdc6caeeb0f4d, %r10
+	mov $0xfa0d0fc209f61fd6, %r10
 	pinsrq $0x1, %r10, %xmm10
 
 	# Round 5
-	mov $0xa116c3c0f3b135e4, %r10
+	mov $0xd7d7c6724ea6b5ce, %r10
 	pinsrq $0x0, %r10, %xmm15
-	mov $0x4a00d321c818d082, %r10
+	mov $0x242cd666de21d9a4, %r10
 	pinsrq $0x1, %r10, %xmm15
 
     vinserti128 $0x1,%xmm15,%ymm10,%ymm10
 
     #YMM11
 	# Round 6
-	mov $0x52a7f624b3bdeeca, %r10
+	mov $0xaa47026a7d90c418, %r10
 	pinsrq $0x0, %r10, %xmm11
-	mov $0x821803a3690e1342, %r10
+	mov $0x504a0da87466dbce, %r10
 	pinsrq $0x1, %r10, %xmm11
 
 	# Round 7
-	mov $0xe11a18ee31a5ed69, %r10
+	mov $0x158410e5bfc3128f, %r10
 	pinsrq $0x0, %r10, %xmm15
-	mov $0xeb1610e13ba9e566, %r10
+	mov $0x31a8c68361e2cb2b, %r10
 	pinsrq $0x1, %r10, %xmm15
 
     vinserti128 $0x1,%xmm15,%ymm11,%ymm11
 
     #YMM12
 	# Round 8
-	mov $0xd0bff587dab3fd88, %r10
+	mov $0x4680c05e5304d0bb, %r10
 	pinsrq $0x0, %r10, %xmm12
-	mov $0xd0bff587dab3fd88, %r10
+	mov $0x16cacdf627620b75, %r10
 	pinsrq $0x1, %r10, %xmm12
 
 
 	# Round 9
-	mov $0xa0c080f0a0c080f, %r10
+	mov $0x57c364431143a41d, %r10
 	pinsrq $0x0, %r10, %xmm15
-	mov $0xa0c080f0a0c080f, %r10
+	mov $0x666ba2c070a16f36, %r10
 	pinsrq $0x1, %r10, %xmm15
 
     vinserti128 $0x1,%xmm15,%ymm12,%ymm12
 
     #YMM13
 	# Round 10
-	mov $0x62626262, %r10
+	mov $0xfcb3bf52ab70db11, %r10
 	pinsrq $0x0, %r10, %xmm13
-	mov $0x0, %r10
+	mov $0xea7972a48c12d064, %r10
 	pinsrq $0x1, %r10, %xmm13
 
 	retq
@@ -904,50 +904,49 @@ encrypt_cache_pipelined:
 encrypt_memory:
 	movdqu (%rdi), %xmm14
 	# Round 0
-	movdqa enckey0(%rip), %xmm15
-	pxor %xmm15,  %xmm14
-#	aesenc %xmm15,  %xmm13
+    vextracti128 $0x0, %ymm8, %xmm0
+	pxor %xmm0,  %xmm14
 
 	# Round 1
-	movdqa enckey1(%rip), %xmm15
-	aesenc %xmm15,  %xmm14
-
+    vextracti128 $0x1, %ymm8, %xmm0
+	aesenc %xmm0,  %xmm14
 
 	# Round 2
-	movdqa enckey2(%rip), %xmm15
-	aesenc %xmm15,  %xmm14
+    vextracti128 $0x0, %ymm9, %xmm0
+	aesenc %xmm0,  %xmm14
 
-     	# Round 3
-	movdqa enckey3(%rip), %xmm15
-	aesenc %xmm15,  %xmm14
 
-     	# Round 4
-	movdqa enckey4(%rip), %xmm15
-	aesenc %xmm15,  %xmm14
+	# Round 3
+    vextracti128 $0x1, %ymm9, %xmm0
+	aesenc %xmm0,  %xmm14
+
+	# Round 4
+    vextracti128 $0x0, %ymm10, %xmm0
+	aesenc %xmm0,  %xmm14
 
 	# Round 5
-	movdqa enckey5(%rip), %xmm15
-	aesenc %xmm15,  %xmm14
+    vextracti128 $0x1, %ymm10, %xmm0
+	aesenc %xmm0,  %xmm14
 
 	# Round 6
-	movdqa enckey6(%rip), %xmm15
-	aesenc %xmm15,  %xmm14
+    vextracti128 $0x0, %ymm11, %xmm0
+	aesenc %xmm0,  %xmm14
 
 	# Round 7
-	movdqa enckey7(%rip), %xmm15
-	aesenc %xmm15,  %xmm14
+    vextracti128 $0x1, %ymm11, %xmm0
+	aesenc %xmm0,  %xmm14
 
 	# Round 8
-	movdqa enckey8(%rip), %xmm15
-	aesenc %xmm15,  %xmm14
+    vextracti128 $0x0, %ymm12, %xmm0
+	aesenc %xmm0,  %xmm14
 
 	# Round 9
-	movdqa enckey9(%rip), %xmm15
-	aesenc %xmm15,  %xmm14
+    vextracti128 $0x1, %ymm12, %xmm0
+	aesenc %xmm0,  %xmm14
 
 	# Round 10
-	movdqa enckey10(%rip), %xmm15
-	aesenclast %xmm15,  %xmm14
+    vextracti128 $0x0, %ymm13, %xmm0
+	aesenclast %xmm0,  %xmm14
 
 	movdqu %xmm14, (%rdi)
 	retq
@@ -956,32 +955,58 @@ encrypt_memory:
 decrypt_memory:
     movdqu (%rdi), %xmm14
 
-    vextracti128 $0x0, %ymm8, %xmm0
-	pxor %xmm0,  %xmm14
-    vextracti128 $0x1, %ymm8, %xmm0
-	aesdec %xmm0,  %xmm14
-
-    vextracti128 $0x0, %ymm9, %xmm0
-	aesdec %xmm0,  %xmm14
-    vextracti128 $0x1, %ymm9, %xmm0
-	aesdec %xmm0,  %xmm14
-
-    vextracti128 $0x0, %ymm10, %xmm0
-	aesdec %xmm0,  %xmm14
-    vextracti128 $0x1, %ymm10, %xmm0
-	aesdec %xmm0,  %xmm14
-
-    vextracti128 $0x0, %ymm11, %xmm0
-	aesdec %xmm0,  %xmm14
-    vextracti128 $0x1, %ymm11, %xmm0
-	aesdec %xmm0,  %xmm14
-
-    vextracti128 $0x0, %ymm12, %xmm0
-	aesdec %xmm0,  %xmm14
-    vextracti128 $0x1, %ymm12, %xmm0
-	aesdec %xmm0,  %xmm14
-
+    # Round 0
     vextracti128 $0x0, %ymm13, %xmm0
+#   aesimc %xmm0, %xmm0
+	pxor %xmm0,  %xmm14
+
+    # Round 1
+    vextracti128 $0x1, %ymm12, %xmm0
+    aesimc %xmm0, %xmm0
+	aesdec %xmm0,  %xmm14
+
+    # Round 2
+    vextracti128 $0x0, %ymm12, %xmm0
+    aesimc %xmm0, %xmm0
+	aesdec %xmm0,  %xmm14
+
+    # Round 3
+    vextracti128 $0x1, %ymm11, %xmm0
+    aesimc %xmm0, %xmm0
+	aesdec %xmm0,  %xmm14
+
+    # Round 4
+    vextracti128 $0x0, %ymm11, %xmm0
+    aesimc %xmm0, %xmm0
+	aesdec %xmm0,  %xmm14
+
+    # Round 5
+    vextracti128 $0x1, %ymm10, %xmm0
+    aesimc %xmm0, %xmm0
+	aesdec %xmm0,  %xmm14
+
+    # Round 6
+    vextracti128 $0x0, %ymm10, %xmm0
+    aesimc %xmm0, %xmm0
+	aesdec %xmm0,  %xmm14
+
+    # Round 7
+    vextracti128 $0x1, %ymm9, %xmm0
+    aesimc %xmm0, %xmm0
+	aesdec %xmm0,  %xmm14
+
+    # Round 8
+    vextracti128 $0x0, %ymm9, %xmm0
+    aesimc %xmm0, %xmm0
+	aesdec %xmm0,  %xmm14
+
+    # Round 9
+    vextracti128 $0x1, %ymm8, %xmm0
+    aesimc %xmm0, %xmm0
+	aesdec %xmm0,  %xmm14
+
+    # Round 10
+    vextracti128 $0x0, %ymm8, %xmm0
 	aesdeclast %xmm0,  %xmm14
 
     movdqu %xmm14, (%rdi)
