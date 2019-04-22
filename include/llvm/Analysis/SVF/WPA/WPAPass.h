@@ -125,6 +125,8 @@ public:
 
     virtual PAG* getPAG();
 
+    virtual ConstraintGraph* getConstraintGraph();
+
     virtual std::map<PAGNode*, std::set<PAGNode*>>& getPAGPtsToMap() {
         return pagPtsToMap;
     }

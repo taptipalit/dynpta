@@ -3704,6 +3704,7 @@ void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
 	std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
     std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
     PAG* pag = getAnalysis<WPAPass>().getPAG();
+    ConstraintGraph* constraintGraph = getAnalysis<WPAPass>().getConstraintGraph();
 
     /*
 	// Mark all possible allocation sites pointed to by sensitive pointers 
@@ -3740,20 +3741,28 @@ void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
 
         if (!isa<ObjPN>(work)) 
             continue;
-        // And Child Nodes
-        NodeBS nodeBS = pag->getAllFieldsObjNode(work->getId());
+        // And Child Nodes, and who ever they point to 
+        NodeBS nodeBS = constraintGraph->getAllFieldsObjNode(work->getId());
 
         for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
+
+            // And everything they point to
+
             PAGNode* fldNode = pag->getPAGNode(*fIt);
+            if (isa<GepObjPN>(fldNode)) {
+                SensitiveObjList.push_back(fldNode); // Individual fields of the Sensitive object is also sensitive
+            }
             std::copy(ptsToMap[fldNode].begin(), ptsToMap[fldNode].end(), std::back_inserter(workList));
             std::copy(ptsToMap[fldNode].begin(), ptsToMap[fldNode].end(), std::back_inserter(SensitiveObjList));
         }
 
         // Debugging
+        /*
         errs() << "From " << *(work->getValue()) << " we got \n";
         for (PAGNode* s : SensitiveObjList) {
             errs() << *(s->getValue()) << "\n";
         }
+        */
     }
     errs() << " ----------------- dumping end -----------------\n";
 
@@ -3908,7 +3917,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     errs() << "Begin: Perform dataflow analysis\n";
 
     //if (!SkipVFA) {
-    performSourceSinkAnalysis(M);
+    //performSourceSinkAnalysis(M);
     //}
 
     // Remove duplicates and copy back to SensitiveObjList

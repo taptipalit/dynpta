@@ -152,6 +152,13 @@ PAG* WPAPass::getPAG() {
 	return _pta->getPAG();
 }
 
+ConstraintGraph* WPAPass::getConstraintGraph() {
+    if (Andersen* aa = dyn_cast<Andersen>(_pta)) {
+        return aa->getConstraintGraph();
+    }
+    return nullptr;
+}
+
 PointerAnalysis* WPAPass::getPTA() {
 	return _pta;
 }

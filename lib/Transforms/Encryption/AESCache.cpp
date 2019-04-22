@@ -119,6 +119,31 @@ namespace external {
 		addExternAESFuncDecls(M);
 	}
 
+    bool findTrueOffset(StructType* topLevelType, int topLevelOffset, int beginOffset, StructType** nestedTypePtr, int* nestedOffsetPtr) {
+        for (int i = 0; i < topLevelType->getNumElements(); i++) {
+            Type* subType = topLevelType->getElementType(i);
+            if (beginOffset == topLevelOffset) {
+                *nestedTypePtr = topLevelType;
+                *nestedOffsetPtr = i;
+                return true;
+            }
+            if (StructType* stSubType = dyn_cast<StructType>(subType)) {
+                if(findTrueOffset(stSubType, topLevelOffset, beginOffset, nestedTypePtr, nestedOffsetPtr)) {
+                    return true;
+                }
+            } else {
+                beginOffset++;
+            }
+        }
+        if (beginOffset == topLevelOffset) {
+            *nestedTypePtr = topLevelType;
+            *nestedOffsetPtr = topLevelType->getNumElements() - 1;
+            return true;
+        }
+        return false;
+    }
+
+
     bool AESCache::widenSensitiveComplexType(GepObjPN* gepObjPN) {
         assert(gepObjPN->getLocationSet().isConstantOffset() && "can't handle non constant offsets in gep yet");
         int offset = gepObjPN->getLocationSet().getOffset();
@@ -127,9 +152,13 @@ namespace external {
         if (pointerType) {
             // Pointer to what?
             Type* trueType = pointerType->getPointerElementType();
+            StructType* nestedType;
+            int nestedOffset;
             if (StructType* stType = dyn_cast<StructType>(trueType)) {
+                // Because offsets are flattened we need to do this
+                findTrueOffset(stType, offset, 0, &nestedType, &nestedOffset);
                 // Widen the field
-                stType->addSensitiveFieldOffset(offset);
+                nestedType->addSensitiveFieldOffset(nestedOffset);
                 return true;
             }
         }
