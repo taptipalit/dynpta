@@ -147,6 +147,7 @@ namespace external {
     bool AESCache::widenSensitiveComplexType(GepObjPN* gepObjPN) {
         assert(gepObjPN->getLocationSet().isConstantOffset() && "can't handle non constant offsets in gep yet");
         int offset = gepObjPN->getLocationSet().getOffset();
+        errs() << "Widening sensitive complex type with value: " << *(gepObjPN->getValue()) << " with offset: " << gepObjPN->getLocationSet().getOffset() << "\n";
         // Extract the true type
         PointerType* pointerType = dyn_cast<PointerType>(gepObjPN->getValue()->getType());
         if (pointerType) {

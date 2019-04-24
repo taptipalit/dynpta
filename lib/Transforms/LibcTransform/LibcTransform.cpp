@@ -55,7 +55,6 @@ using namespace llvm;
                                             callInst->setCalledFunction(clonedFunction);
                                             //callInst->setCalledFunction(internalMemsetFn);
                                         } else if (calledFunction->getName().find("llvm.memcpy") != StringRef::npos) {
-                                            /*
                                             ValueToValueMapTy VMap;
                                             //Function* clonedFunction = CloneFunction(internalMemcpyFn, VMap, true);
                                             Function* clonedFunction = CloneFunction(internalMemcpyFn, VMap, NULL);
@@ -63,7 +62,6 @@ using namespace llvm;
                                             //internalMemcpyFn->getParent()->getFunctionList().push_back(clonedFunction);
                                             callInst->setCalledFunction(clonedFunction);
                                             //callInst->setCalledFunction(internalMemcpyFn);
-                                            */
                                         } else if (calledFunction->getName().equals("memcmp")) {
                                             ValueToValueMapTy VMap;
                                             //Function* clonedFunction = CloneFunction(internalMemcmpFn, VMap, true);

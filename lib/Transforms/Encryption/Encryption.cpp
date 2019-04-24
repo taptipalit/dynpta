@@ -3546,9 +3546,14 @@ void EncryptionPass::initializeSensitiveGlobalVariables(Module& M) {
 	typeVec.push_back(longType);
 	ArrayRef<Type*> paramArgArray(typeVec);
 
+    std::vector<Type*> nullVec;
+    ArrayRef<Type*> nullArray(nullVec);
+
 	FunctionType* FTypeDec = FunctionType::get(IntegerType::get(M.getContext(), 64), paramArgArray, false);
+    FunctionType* FTypePopKey = FunctionType::get(Type::getVoidTy(M.getContext()), nullArray, false);
 
 	Function* EncryptGlobalFunction = Function::Create(FTypeDec, Function::ExternalLinkage, "encrypt_globals", &M);
+    Function* PopulateKeysFunction = Function::Create(FTypePopKey, Function::ExternalLinkage, "populate_keys", &M);
 
 	DataLayout dataLayout = M.getDataLayout();
 	// Find the main function
@@ -3576,6 +3581,10 @@ void EncryptionPass::initializeSensitiveGlobalVariables(Module& M) {
 	}
 
 	IRBuilder<> Builder(insertionPoint);
+
+    // Populate the keys
+    std::vector<Value*> EmptyArgs;
+    Builder.CreateCall(PopulateKeysFunction, EmptyArgs);
 
     std::set<PAGNode*> workSet;
     std::set<PAGNode*> gepWorkSet;

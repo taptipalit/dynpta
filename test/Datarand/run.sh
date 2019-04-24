@@ -8,15 +8,16 @@ set -x
 
 LLVMROOT=/mnt/Projects/LLVM-custom/install/bin
 
-rm null_helper.c aes_inmemkey.s aes_helper.c internal_libc.c
+rm null_helper.c aes_inreg.s aes_inmemkey.s aes_helper.c internal_libc.c
 #LLVMROOT=/mnt/donotuse_comparisonONLY/DataRandomization/install/bin
 
 ln -s /mnt/Projects/LLVM-custom/lib/Transforms/Encryption/null_helper.c_ null_helper.c
 ln -s /mnt/Projects/LLVM-custom/lib/Transforms/Encryption/aes_inmemkey.s aes_inmemkey.s
+ln -s /mnt/Projects/LLVM-custom/lib/Transforms/Encryption/aes_inreg.s aes_inreg.s
 ln -s /mnt/Projects/LLVM-custom/lib/Transforms/Encryption/aes_helper.c_ aes_helper.c
 ln -s /mnt/Projects/LLVM-custom/lib/Transforms/LibcTransform/internal_libc.c_ internal_libc.c
 
-#GGDB=-ggdb 
+GGDB=-ggdb 
 $LLVMROOT/clang -O0 -c $GGDB  -emit-llvm $file.c -o $file.bc
 if [ $? -ne 0 ]
 then
@@ -30,7 +31,7 @@ then
 fi
 
 
-$LLVMROOT/llvm-link $file.bc  -o $file.bc #internal_libc.bc
+$LLVMROOT/llvm-link $file.bc internal_libc.bc  -o $file.bc #internal_libc.bc
 if [ $? -ne 0 ]
 then
     exit 1
@@ -46,10 +47,10 @@ $LLVMROOT/opt -encryption -print-all-pts -dump-pag -debug-only=encryption -dump-
 $LLVMROOT/llvm-dis $file.bc -o $file.ll
 $LLVMROOT/llvm-dis $fileinst.bc -o $fileinst.ll
 #exit 0
-dot -Tpng pag_final.dot -o $file"_pag_final.png"
-dot -Tpng pag_initial.dot -o $file"_pag_initial.png"
-dot -Tpng consCG_final.dot -o $file"_consg_full_final.png"
-dot -Tpng consCG_selective_final.dot -o $file"_consg_selective_final.png"
+#dot -Tpng pag_final.dot -o $file"_pag_final.png"
+#dot -Tpng pag_initial.dot -o $file"_pag_initial.png"
+#dot -Tpng consCG_final.dot -o $file"_consg_full_final.png"
+#dot -Tpng consCG_selective_final.dot -o $file"_consg_selective_final.png"
 
 $LLVMROOT/llc -O0 -filetype=obj $fileinst.bc -o $fileinst.o
 if [ $? -ne 0 ]
@@ -57,7 +58,7 @@ then
     exit 1
 fi
 
-gcc $GGDB aes_inmemkey.s aes_helper.c $fileinst.o -o $file
+gcc -static $GGDB aes_inreg.s aes_helper.c $fileinst.o -o $file
 if [ $? -ne 0 ]
 then
     exit 1

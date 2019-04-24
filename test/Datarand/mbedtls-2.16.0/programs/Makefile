@@ -12,7 +12,9 @@ LOCAL_CXXFLAGS = $(WARNING_CXXFLAGS) -I../include -D_FILE_OFFSET_BITS=64
 LOCAL_LDFLAGS = -L../library 			\
 		-lmbedtls$(SHARED_SUFFIX)	\
 		-lmbedx509$(SHARED_SUFFIX)	\
-		-lmbedcrypto$(SHARED_SUFFIX)
+		-lmbedcrypto$(SHARED_SUFFIX) \
+		-linternallibc \
+		-lhelper
 
 ifndef SHARED
 DEP=../library/libmbedcrypto.a ../library/libmbedx509.a ../library/libmbedtls.a
@@ -216,9 +218,9 @@ ssl/ssl_client2$(EXEXT): ssl/ssl_client2.c $(DEP)
 	echo "  CC    ssl/ssl_client2.c"
 	$(CC) $(LOCAL_CFLAGS) $(CFLAGS) ssl/ssl_client2.c  $(LOCAL_LDFLAGS) $(LDFLAGS) -o $@
 
-ssl/ssl_server$(EXEXT): ssl/ssl_server.c $(DEP)
+ssl/ssl_server$(EXEXT): ssl/ssl_server.c internal_libc.c $(DEP)
 	echo "  CC    ssl/ssl_server.c"
-	$(CC) $(LOCAL_CFLAGS) $(CFLAGS) ssl/ssl_server.c   $(LOCAL_LDFLAGS) $(LDFLAGS) -o $@
+	$(CC) $(LOCAL_CFLAGS) $(CFLAGS) ssl/ssl_server.c internal_libc.c   $(LOCAL_LDFLAGS) $(LDFLAGS) -o $@
 
 ssl/ssl_server2$(EXEXT): ssl/ssl_server2.c $(DEP)
 	echo "  CC    ssl/ssl_server2.c"

@@ -13,7 +13,7 @@ int internal_strlen(const char *s) __attribute__((used));
 char* internal_strcat(char* destination, const char* source) __attribute__((used));
 char* internal_strcpy(char* destination, const char* source) __attribute__((used));
 int internal_strcmp(const char *X, const char *Y) __attribute__((used));
-char* strstr(const char *str, const char *substr) __attribute__((used));
+char* internal_strstr(const char *str, const char *substr) __attribute__((used));
 
 
 void internal_memset(void *s, char c, size_t n, uint1_t isVolatile) {
@@ -112,7 +112,7 @@ int internal_strcmp(const char *X, const char *Y)
 }
 
 
-char* strstr(const char *str, const char *substr)
+char* internal_strstr(const char *str, const char *substr)
 {
 	  while (*str) 
 	  {
