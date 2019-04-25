@@ -1693,7 +1693,7 @@ Error BitcodeReader::parseTypeTableBody() {
       if (!Res->isLiteral()) {
           int numOfSensitiveFields = Record[1];
           for (unsigned i = 0; i < numOfSensitiveFields; i++) {
-              int offset = Record[i+1];
+              int offset = Record[i+2];
               Res->addSensitiveFieldOffset(offset);
           }
 

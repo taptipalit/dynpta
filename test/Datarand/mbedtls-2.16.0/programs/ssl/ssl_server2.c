@@ -24,6 +24,7 @@
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
+#define SENSITIVE __attribute__((annotate("sensitive")))
 
 #if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
@@ -1219,7 +1220,7 @@ int main( int argc, char *argv[] )
     uint32_t flags;
     mbedtls_x509_crt cacert;
     mbedtls_x509_crt srvcert;
-    mbedtls_pk_context pkey;
+    SENSITIVE mbedtls_pk_context pkey;
     mbedtls_x509_crt srvcert2;
     mbedtls_pk_context pkey2;
     int key_cert_init = 0, key_cert_init2 = 0;

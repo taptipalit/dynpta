@@ -243,6 +243,7 @@ int main( void )
     /*
      * 3. Write the GET request
      */
+send_request:
     mbedtls_printf( "  > Write to server:" );
     fflush( stdout );
 
@@ -295,6 +296,7 @@ int main( void )
     }
     while( 1 );
 
+    goto send_request;
     mbedtls_ssl_close_notify( &ssl );
 
     exit_code = MBEDTLS_EXIT_SUCCESS;

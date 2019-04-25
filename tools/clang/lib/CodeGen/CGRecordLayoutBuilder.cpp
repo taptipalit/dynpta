@@ -776,8 +776,10 @@ CGRecordLayout *CodeGenTypes::ComputeRecordLayout(const RecordDecl *D,
   const ASTRecordLayout &Layout = getContext().getASTRecordLayout(D);
 
   uint64_t TypeSizeInBits = getContext().toBits(Layout.getSize());
+  /*
   assert(TypeSizeInBits == getDataLayout().getTypeAllocSizeInBits(Ty) &&
          "Type size mismatch!");
+         */
 
   if (BaseTy) {
     CharUnits NonVirtualSize  = Layout.getNonVirtualSize();

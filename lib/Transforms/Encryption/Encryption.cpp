@@ -3634,17 +3634,22 @@ void EncryptionPass::initializeSensitiveGlobalVariables(Module& M) {
             }
 
             Value* sensitiveValue = nullptr;
+            bool handled = false;
             if (GepObjPN* gepObjNode = dyn_cast<GepObjPN>(sensitiveObjNode)) {
-                assert(gepObjNode->getLocationSet().isConstantOffset() && "Can't handle global sensitive arrays with partial sensitivity yet!");
-                int offset = gepObjNode->getLocationSet().getOffset();
-                // Create a gep
-                std::vector<Value*> IdxVec;
-                IdxVec.push_back(ConstantInt::get(IntegerType::get(gVar->getContext(), 32), 0));
-                IdxVec.push_back(ConstantInt::get(IntegerType::get(gVar->getContext(), 32), offset));
-                ArrayRef<Value*> IdxArrRef(IdxVec);
+                if (isa<StructType>(sensitiveObjNode->getValue()->getType())) {
+                    assert(gepObjNode->getLocationSet().isConstantOffset() && "Can't handle global sensitive arrays with partial sensitivity yet!");
+                    int offset = gepObjNode->getLocationSet().getOffset();
+                    // Create a gep
+                    std::vector<Value*> IdxVec;
+                    IdxVec.push_back(ConstantInt::get(IntegerType::get(gVar->getContext(), 32), 0));
+                    IdxVec.push_back(ConstantInt::get(IntegerType::get(gVar->getContext(), 32), offset));
+                    ArrayRef<Value*> IdxArrRef(IdxVec);
 
-                sensitiveValue = Builder.CreateGEP(gVar, IdxArrRef);
-            } else {
+                    sensitiveValue = Builder.CreateGEP(gVar, IdxArrRef);
+                    handled = true;
+                }
+            } 
+            if (!handled) {
                 sensitiveValue = gVar;
             }
             

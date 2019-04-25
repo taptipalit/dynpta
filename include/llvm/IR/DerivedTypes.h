@@ -26,6 +26,7 @@
 #include "llvm/Support/Compiler.h"
 #include <cassert>
 #include <cstdint>
+#include <set>
 
 namespace llvm {
 
@@ -201,7 +202,7 @@ public:
 class StructType : public CompositeType {
   StructType(LLVMContext &C) : CompositeType(C, StructTyID) {}
 
-  std::vector<int>  sensitiveOffsets;
+  std::set<int>  sensitiveOffsets;
 
   enum {
     /// This is the contents of the SubClassData field.
@@ -264,12 +265,12 @@ public:
       return sensitiveOffsets.size();
   }
 
-  std::vector<int>& getSensitiveFieldOffsets() {
+  std::set<int>& getSensitiveFieldOffsets() {
       return sensitiveOffsets;
   }
 
   void addSensitiveFieldOffset(int offset) {
-      sensitiveOffsets.push_back(offset);
+      sensitiveOffsets.insert(offset);
   }
 
   bool isSensitiveField(int off) {

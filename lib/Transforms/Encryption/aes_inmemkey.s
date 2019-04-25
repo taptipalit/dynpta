@@ -813,4 +813,7 @@ encrypt_debug:
 	movdqu %xmm10, (%rdi)
 	retq
 
+.globl populate_keys
+populate_keys:
+    retq
 
