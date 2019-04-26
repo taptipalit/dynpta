@@ -144,10 +144,11 @@ namespace external {
     }
 
 
-    bool AESCache::widenSensitiveComplexType(GepObjPN* gepObjPN) {
+    bool AESCache::widenSensitiveComplexType(GepObjPN* gepObjPN, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
         assert(gepObjPN->getLocationSet().isConstantOffset() && "can't handle non constant offsets in gep yet");
         int offset = gepObjPN->getLocationSet().getOffset();
         errs() << "Widening sensitive complex type with value: " << *(gepObjPN->getValue()) << " with offset: " << gepObjPN->getLocationSet().getOffset() << "\n";
+        // The usual types
         // Extract the true type
         PointerType* pointerType = dyn_cast<PointerType>(gepObjPN->getValue()->getType());
         if (pointerType) {
@@ -163,6 +164,28 @@ namespace external {
                 return true;
             }
         }
+        // Figure out the cases where nested struct objects exist within the
+        // heap allocated objects
+        for (PAGNode* ptr: ptsFromMap[gepObjPN]) {
+            // What was the instruction pointing to this guy?
+            Value* ptrVal = const_cast<Value*>(ptr->getValue());
+            if (Instruction* inst = dyn_cast<Instruction>(ptrVal)) {
+                if (GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(inst)) {
+                    // If a gep points to this and the base is a type struct,
+                    // then this is an embedded struct object
+                    Type* srcType = gepInst->getSourceElementType();
+                    if (StructType* stType = dyn_cast<StructType>(srcType)) {
+                        Value* i = gepInst->getOperand(gepInst->getNumOperands()-1);
+                        if (ConstantInt* cint = dyn_cast<ConstantInt>(i)) {
+                            stType->addSensitiveFieldOffset(cint->getZExtValue());
+                            return true;
+                        } else {
+                            assert(false && "non constant gep offset?");
+                        }
+                    }
+                }
+            }
+        }
         return false;
     }
 
@@ -175,7 +198,7 @@ namespace external {
             bool widenedStructType = false;
             // If it is a GepObjPN we need to be careful about what to widen in it
             if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
-                widenedStructType = widenSensitiveComplexType(gepNode);
+                widenedStructType = widenSensitiveComplexType(gepNode, ptsFromMap);
             } 
             if (!widenedStructType) {
                 assert(senNode->hasValue());
@@ -250,8 +273,44 @@ namespace external {
                 }
             }
         }
-    }
 
+        // Now that we've done this, we should also take care of type casts
+        for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+            if (auto *F = dyn_cast<Function>(MIterator)) {
+                // Get the local sensitive values
+                for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+                    if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+                        //outs() << "Basic block found, name : " << BB->getName() << "\n";
+                        for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+                            if (BitCastInst *BCInst = dyn_cast<BitCastInst>(BBIterator)) {
+                                Type* srcType = BCInst->getSrcTy();
+                                Type* destType = BCInst->getDestTy();
+                                Type* srcBaseType = findBaseType(srcType);
+                                Type* destBaseType = findBaseType(destType);
+                                if (StructType* destStType = dyn_cast<StructType>(destBaseType)) {
+                                    if (StructType* srcStType = dyn_cast<StructType>(srcBaseType)) {
+                                        //errs() << srcStType->getName() << " casted to " << destStType->getName() << "\n";
+                                        // Copy over sensitive fields
+                                        for (int sensitiveField: srcStType->getSensitiveFieldOffsets()) {
+                                            destStType->addSensitiveFieldOffset(sensitiveField);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+    Type* AESCache::findBaseType(Type* type) {
+        Type* trueType = type;
+        while (trueType->isPointerTy()) {
+            trueType = trueType->getPointerElementType();
+        }
+        return trueType;
+    }
 	/*
 	 * Check if the particular offset of the value pointed to by ptr is in the cache
 	 * Return the register if it is, null otherwise

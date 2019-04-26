@@ -81,11 +81,12 @@ namespace external{
 		public:
 			void initializeAes(llvm::Module&);
 
-            bool  widenSensitiveComplexType(GepObjPN*);
+            bool  widenSensitiveComplexType(GepObjPN*, std::map<PAGNode*, std::set<PAGNode*>>&);
 			// For AES Cache
 			void widenSensitiveAllocationSites(llvm::Module&, std::vector<PAGNode*>&,
 				std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
 
+            Type* findBaseType(Type*);
 			OffsetXMMPair* findValueInCache(llvm::Value* ptr, int offsetBytes);
 			llvm::Value* setEncryptedValueCached(llvm::StoreInst*);
 			llvm::Value* getDecryptedValueCached(llvm::LoadInst*);

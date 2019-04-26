@@ -33,6 +33,8 @@ namespace {
 			initializeEncryptionPassPass(*PassRegistry::getPassRegistry());
 		}
 
+        std::set<Value*> ExtraSensitivePtrs;
+
         // Statistics
         long decryptionCount;
         long encryptionCount;
@@ -127,6 +129,8 @@ namespace {
         std::vector<Type*> sensitiveTypes;
 
         bool isaCPointer(Value*);
+        bool isaCPointer(Type*);
+        Type* findTrueType(Type*, int, int);
         void buildRetCallMap(Module& M);
         void trackExternalFunctionFlows(Value*, std::set<Value*>&);
 
@@ -471,6 +475,15 @@ Value* EncryptionPass::findObjFromCast(Value* castValue) {
         }
     }
     return nullptr;
+}
+
+bool EncryptionPass::isaCPointer(Type* type) {
+    if (PointerType* ptrType = dyn_cast<PointerType>(type)) {
+        if (ptrType->getPointerElementType()->isPointerTy()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool EncryptionPass::isaCPointer(Value* pointer) {
@@ -1618,9 +1631,12 @@ void EncryptionPass::updateSensitiveState(Value* oldVal, Value* newVal, std::map
         }
     }
 
+    // This probably does nothing
     for (PAGNode* ptsToNode: ptsToMap[oldValNode]) {
         ptsToMap[newValNode].insert(ptsToNode);
     }
+
+    ExtraSensitivePtrs.insert(newVal);
 
 }
 
@@ -1925,6 +1941,11 @@ bool EncryptionPass::isSensitiveArg(Value* arg) {
 
 bool EncryptionPass::isSensitiveArg(Value* arg,  std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap) {
     PAG* pag = getAnalysis<WPAPass>().getPAG();
+
+    if (std::find(ExtraSensitivePtrs.begin(), ExtraSensitivePtrs.end(), arg) != ExtraSensitivePtrs.end()) {
+        return true;
+    }
+
     if (!pag->hasValueNode(arg)) {
         // Constant etc
         return false;
@@ -3714,25 +3735,27 @@ void EncryptionPass::addExternInlineASMHandlers(Module &M) {
 }
 */
 
+Type* EncryptionPass::findTrueType(Type* topLevelType0, int topLevelOffset, int beginOffset) {
+    StructType* topLevelType = dyn_cast<StructType>(topLevelType0);
+    assert(topLevelType && "Top level type is not a struct!\n");
+    for (int i = 0; i < topLevelType->getNumElements(); i++) {
+        Type* subType = topLevelType->getElementType(i);
+        if (beginOffset == topLevelOffset) {
+            return subType;
+        }
+        if (StructType* stSubType = dyn_cast<StructType>(subType)) {
+            return findTrueType(stSubType, topLevelOffset, beginOffset);
+        }
+        beginOffset++;
+    }
+}
+
 void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
 	std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
     std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
     PAG* pag = getAnalysis<WPAPass>().getPAG();
     ConstraintGraph* constraintGraph = getAnalysis<WPAPass>().getConstraintGraph();
 
-    /*
-	// Mark all possible allocation sites pointed to by sensitive pointers 
-    for (PAGNode* initSensitiveNode: SensitiveObjList) {
-        assert(initSensitiveNode->hasValue() && "PAG Node should have a value if it came so far");
-        Value* initSensitiveValue = const_cast<Value*>(initSensitiveNode->getValue());
-        // Do this only for things we know are pointers
-        if (isaCPointer(initSensitiveValue)) {
-            for (PAGNode* ptsToNode: ptsToMap[initSensitiveNode]) {
-                SensitiveObjList.push_back(ptsToNode);
-            }
-        }
-    }
-    */
     std::vector<PAGNode*> workList;
     std::vector<PAGNode*> processedList;
 
@@ -3741,7 +3764,6 @@ void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
         workList.push_back(initSensitiveNode);
     }
 
-    errs() << " ----------------- dumping start -----------------\n";
     while (!workList.empty()) {
         PAGNode* work = workList.back();
         workList.pop_back();
@@ -3749,7 +3771,7 @@ void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
             continue;
         }
         processedList.push_back(work);
-        // Add whatever this node points to
+        // Add whatever this node points to the worklist
         std::copy(ptsToMap[work].begin(), ptsToMap[work].end(), std::back_inserter(workList));
         std::copy(ptsToMap[work].begin(), ptsToMap[work].end(), std::back_inserter(SensitiveObjList));
 
@@ -3759,7 +3781,6 @@ void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
         NodeBS nodeBS = constraintGraph->getAllFieldsObjNode(work->getId());
 
         for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
-
             // And everything they point to
 
             PAGNode* fldNode = pag->getPAGNode(*fIt);
@@ -3770,15 +3791,7 @@ void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
             std::copy(ptsToMap[fldNode].begin(), ptsToMap[fldNode].end(), std::back_inserter(SensitiveObjList));
         }
 
-        // Debugging
-        /*
-        errs() << "From " << *(work->getValue()) << " we got \n";
-        for (PAGNode* s : SensitiveObjList) {
-            errs() << *(s->getValue()) << "\n";
-        }
-        */
     }
-    errs() << " ----------------- dumping end -----------------\n";
 
     // Remove all top-level pointers in SensitiveObjList
 

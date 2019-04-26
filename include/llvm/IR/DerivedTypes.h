@@ -24,6 +24,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <cstdint>
 #include <set>
@@ -203,6 +204,8 @@ class StructType : public CompositeType {
   StructType(LLVMContext &C) : CompositeType(C, StructTyID) {}
 
   std::set<int>  sensitiveOffsets;
+
+  bool processed;
 
   enum {
     /// This is the contents of the SubClassData field.
