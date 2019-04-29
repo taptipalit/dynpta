@@ -17,7 +17,7 @@ ln -s /mnt/Projects/LLVM-custom/lib/Transforms/Encryption/aes_inreg.s aes_inreg.
 ln -s /mnt/Projects/LLVM-custom/lib/Transforms/Encryption/aes_helper.c_ aes_helper.c
 ln -s /mnt/Projects/LLVM-custom/lib/Transforms/LibcTransform/internal_libc.c_ internal_libc.c
 
-#GGDB=-ggdb 
+GGDB=-ggdb 
 musl-clang -O0 -c $GGDB  -emit-llvm $file.c -o $file.bc
 if [ $? -ne 0 ]
 then

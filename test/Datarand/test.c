@@ -1,64 +1,69 @@
 #include <stdio.h>
-
+#include <string.h>
 #define SENSITIVE __attribute__((annotate("sensitive")))
 
-typedef struct T {
-    int id;
-    void (*funcptr)(int);
-} T;
 
-typedef struct Student {
-    int id;
-    char name[100];
-} Student;
+#define CRT_FILE            "../my_crt.crt"
 
-int val1 = 200;
-int val2 = 300;
+struct ST {
+    char* ptr;
+    void* alcatraz;
+};
 
-void printStudent(Student* sptr) {
-    printf("id = %d\n", sptr->id);
-    printf("name = %s\n", sptr->name);
+void print(char* ptr) {
+    printf("%s\n", ptr);
 }
 
-void func(int a) {
-    int k = 10;
-    int d = 100;
-    int res = a + k + d;
-    printf("%d\n", res);
+
+struct Alcatraz {
+    char p[10];
+    char q[10];
+    char r[10];
+};
+
+char* (*mymalloc)();
+
+struct Alcatraz* get_alc(struct ST);
+/*
+int main(void) {
+    mymalloc = malloc;
+    SENSITIVE struct ST* stptr = malloc(sizeof(struct ST));
+    stptr->ptr = malloc(100);
+    strcpy(stptr->ptr, "aaa");
+    stptr->alcatraz = (*mymalloc)(sizeof(struct Alcatraz));
+
+    print(stptr->ptr);
+    struct ST* ptptr = malloc(sizeof(struct ST));
+    ptptr->ptr = malloc(100);
+    strcpy(ptptr->ptr, "aaa");
+    ptptr->alcatraz = (*mymalloc)(sizeof(struct Alcatraz));
+
+
+
+    struct Alcatraz* ac = (struct Alcatraz*)((*ptptr).alcatraz);
+    ac->p = "my";
+    ac->q = "hello";
+    ac->r = "hi";
+    printf("%s %s %s\n", ac->p, ac->q, ac->r);
+
+
+    return 0;
+}
+*/
+
+inline struct Alcatraz* get_alc(struct ST st) {
+    return (struct Alcatraz*)(st.alcatraz);
 }
 
-void gunc(int a) {
-    int k = 10;
-    int d = 200;
-    int res = d - k - a;
-    printf("%d\n", res);
-}
-
-void dosomething(T* tptr) {
-    (*(tptr->funcptr))(200);
+void printalc(struct Alcatraz* alc) {
+    strcpy(alc->p, "Tapti");
+    printf("%s\n", alc->p);
 }
 
 int main(void) {
-    T t;
-    t.id = 100;
-    Student stud;
-    void (*fptr) (int);
-    SENSITIVE int *iptr;
-    int k = 0;
-    int j = k + 10;
-    printStudent(&stud);
-    printf("%d %d", k, j);
-    if ( j < 100) {
-        fptr = func;
-        iptr = &val1;
-        t.funcptr = gunc;
-    } else {
-        fptr = gunc;
-        iptr = &val2;
-        t.funcptr = func;
-    }
-    //(*fptr)(*ptr);
-    dosomething(&t);
-    (*(t.funcptr))(23);
+    SENSITIVE struct ST* stptr = malloc(sizeof(struct ST));
+    stptr->alcatraz = calloc(1, sizeof(struct Alcatraz));
+    struct Alcatraz* ac = get_alc(*stptr);
+    printalc(ac);
     return 0;
 }

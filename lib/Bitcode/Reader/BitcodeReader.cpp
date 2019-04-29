@@ -1656,15 +1656,29 @@ Error BitcodeReader::parseTypeTableBody() {
       if (Record.size() < 1)
         return error("Invalid record");
       SmallVector<Type*, 8> EltTys;
-      for (unsigned i = 1, e = Record.size(); i != e; ++i) {
+      // The first element is the number of sensitive fields, followed by the
+      // list
+      std::set<int> sensitiveFields;
+      int numOfSensitiveFields = Record[1];
+      for (unsigned i = 0; i < numOfSensitiveFields; i++) {
+          int offset = Record[i+2];
+          sensitiveFields.insert(offset);
+          //Res->addSensitiveFieldOffset(offset);
+      }
+      for (unsigned i = 2 + numOfSensitiveFields, e = Record.size(); i != e; ++i) {
         if (Type *T = getTypeByID(Record[i]))
           EltTys.push_back(T);
         else
           break;
       }
-      if (EltTys.size() != Record.size()-1)
+      if (EltTys.size() + numOfSensitiveFields != Record.size()-2)
         return error("Invalid type");
       ResultTy = StructType::get(Context, EltTys, Record[0]);
+      // Copy back the sensitive fields
+      StructType* resStructType = dyn_cast<StructType>(ResultTy);
+      for (int sensitiveField: sensitiveFields) {
+          resStructType->addSensitiveFieldOffset(sensitiveField);
+      }
       break;
     }
     case bitc::TYPE_CODE_STRUCT_NAME:   // STRUCT_NAME: [strchr x N]
@@ -1707,13 +1721,20 @@ Error BitcodeReader::parseTypeTableBody() {
           if (EltTys.size() + numOfSensitiveFields != Record.size()-2)
               return error("Invalid record");
       } else {
-          for (unsigned i = 1, e = Record.size(); i != e; ++i) {
+          int numOfSensitiveFields = Record[1];
+          for (unsigned i = 0; i < numOfSensitiveFields; i++) {
+              int offset = Record[i+2];
+              Res->addSensitiveFieldOffset(offset);
+          }
+
+
+          for (unsigned i = 2+numOfSensitiveFields, e = Record.size(); i != e; ++i) {
               if (Type *T = getTypeByID(Record[i]))
                   EltTys.push_back(T);
               else
                   break;
           }
-          if (EltTys.size() != Record.size()-1)
+          if (EltTys.size() + numOfSensitiveFields + 1 != Record.size()-1)
               return error("Invalid record");
       }
       Res->setBody(EltTys, Record[0]);

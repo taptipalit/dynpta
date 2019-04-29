@@ -888,12 +888,12 @@ void ModuleBitcodeWriter::writeTypeTable() {
         errs() << "Unnamed struct has " << ST->getNumSensitiveFields() << " sensitive!\n";
       }
       */
-      if (!ST->isLiteral()) {
+      //if (!ST->isLiteral()) {
           TypeVals.push_back(ST->getNumSensitiveFields());
           for (int senOffset: ST->getSensitiveFieldOffsets()) {
               TypeVals.push_back(senOffset);
           }
-      }
+      //}
       // Output all of the element types.
       for (StructType::element_iterator I = ST->element_begin(),
            E = ST->element_end(); I != E; ++I)

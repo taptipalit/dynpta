@@ -655,13 +655,13 @@ void TypePrinting::printStructBody(StructType *STy, raw_ostream &OS) {
   if (STy->isPacked())
     OS << '>';
 
-  if (!STy->isLiteral()) {
+//  if (!STy->isLiteral()) {
       int numSensitiveFields = STy->getNumSensitiveFields();
       OS << " { [ " << numSensitiveFields << " ] ";
       for (int offset: STy->getSensitiveFieldOffsets()) {
           OS << offset << ", ";
       }
-  }
+//  }
   OS << " }";
 
 }
