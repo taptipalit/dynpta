@@ -116,77 +116,112 @@ namespace external {
 
 	void AESCache::initializeAes(Module &M) {
         I128Ty = IntegerType::get(M.getContext(), 128);
+        this->M = &M;
 		addExternAESFuncDecls(M);
 	}
 
-    bool findTrueOffset(StructType* topLevelType, int topLevelOffset, int beginOffset, StructType** nestedTypePtr, int* nestedOffsetPtr) {
+    bool AESCache::findTrueOffset(StructType* topLevelType, int topLevelOffset, int* beginOffset, StructType** nestedTypePtr, int* nestedOffsetPtr) {
         for (int i = 0; i < topLevelType->getNumElements(); i++) {
             Type* subType = topLevelType->getElementType(i);
-            if (beginOffset == topLevelOffset) {
-                *nestedTypePtr = topLevelType;
-                *nestedOffsetPtr = i;
-                return true;
-            }
+         
             if (StructType* stSubType = dyn_cast<StructType>(subType)) {
                 if(findTrueOffset(stSubType, topLevelOffset, beginOffset, nestedTypePtr, nestedOffsetPtr)) {
                     return true;
                 }
-            } else {
-                beginOffset++;
+                continue;
+            }
+            if (*beginOffset == topLevelOffset) {
+                *nestedTypePtr = topLevelType;
+                *nestedOffsetPtr = i;
+                return true;
+            }
+
+            if (!isa<StructType>(subType)) {
+                (*beginOffset)++;
             }
         }
+        /*
         if (beginOffset == topLevelOffset) {
             *nestedTypePtr = topLevelType;
             *nestedOffsetPtr = topLevelType->getNumElements() - 1;
+            errs() << "Top level type: " << *topLevelType << " top level offset: " << topLevelOffset << " true type: " << **nestedTypePtr << " true offset : " << *nestedOffsetPtr << "\n";
             return true;
         }
+        */
         return false;
     }
 
 
     bool AESCache::widenSensitiveComplexType(GepObjPN* gepObjPN, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
         assert(gepObjPN->getLocationSet().isConstantOffset() && "can't handle non constant offsets in gep yet");
+        std::map<std::string, StructType*> structNameTypeMap;
+        for (StructType* stType: M->getIdentifiedStructTypes()) {
+            structNameTypeMap[stType->getName()] = stType;
+        }
+
         int offset = gepObjPN->getLocationSet().getOffset();
-        errs() << "Widening sensitive complex type with value: " << *(gepObjPN->getValue()) << " with offset: " << gepObjPN->getLocationSet().getOffset() << "\n";
         // The usual types
         // Extract the true type
         PointerType* pointerType = dyn_cast<PointerType>(gepObjPN->getValue()->getType());
         if (pointerType) {
             // Pointer to what?
             Type* trueType = pointerType->getPointerElementType();
-            StructType* nestedType;
-            int nestedOffset;
+            StructType* nestedType = nullptr;
+            int nestedOffset = -1;
             if (StructType* stType = dyn_cast<StructType>(trueType)) {
                 // Because offsets are flattened we need to do this
-                findTrueOffset(stType, offset, 0, &nestedType, &nestedOffset);
+                int beg = 0;
+                findTrueOffset(stType, offset, &beg, &nestedType, &nestedOffset);
                 // Widen the field
                 nestedType->addSensitiveFieldOffset(nestedOffset);
+                errs() << "Widening sensitive complex type: " << nestedType->getName() << " with offset: " << nestedOffset << " original type: " << stType->getName() << " original offset: " << offset << " \n";
                 return true;
             }
         }
-        // Figure out the cases where nested struct objects exist within the
-        // heap allocated objects
-        for (PAGNode* ptr: ptsFromMap[gepObjPN]) {
-            // What was the instruction pointing to this guy?
-            Value* ptrVal = const_cast<Value*>(ptr->getValue());
-            if (Instruction* inst = dyn_cast<Instruction>(ptrVal)) {
-                if (GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(inst)) {
-                    // If a gep points to this and the base is a type struct,
-                    // then this is an embedded struct object
-                    Type* srcType = gepInst->getSourceElementType();
-                    if (StructType* stType = dyn_cast<StructType>(srcType)) {
-                        Value* i = gepInst->getOperand(gepInst->getNumOperands()-1);
-                        if (ConstantInt* cint = dyn_cast<ConstantInt>(i)) {
-                            stType->addSensitiveFieldOffset(cint->getZExtValue());
-                            return true;
-                        } else {
-                            assert(false && "non constant gep offset?");
-                        }
+        
+        Type* sizeOfType = nullptr;
+        if (const CallInst* CI = dyn_cast<CallInst>(gepObjPN->getValue())) {
+            MDNode* argIndNode = CI->getMetadata("sizeOfTypeArgNum");
+            MDNode* sizeOfTypeNode = CI->getMetadata("sizeOfTypeName");
+            if (argIndNode && sizeOfTypeNode) {
+                MDString* sizeOfTypeNameStr = cast<MDString>(sizeOfTypeNode->getOperand(0));
+                sizeOfType = structNameTypeMap[sizeOfTypeNameStr->getString()];
+                if (!sizeOfType) {
+                    sizeOfType = structNameTypeMap["struct."+sizeOfTypeNameStr->getString().str()];
+                    if (!sizeOfType) {
+                        assert(false && "Cannot find sizeof type");
                     }
                 }
             }
         }
+        if (!sizeOfType) 
+            return false;
+        if (StructType* stType = dyn_cast<StructType>(sizeOfType)) {
+            StructType* nestedType = nullptr;
+            int nestedOffset = -1;
+            int beg = 0;
+
+            // Because offsets are flattened we need to do this
+            findTrueOffset(stType, offset, &beg, &nestedType, &nestedOffset);
+            // Widen the field
+            nestedType->addSensitiveFieldOffset(nestedOffset);
+            errs() << "Widening sensitive complex type: " << nestedType->getName() << " with offset: " << nestedOffset << " original type: " << stType->getName() << " original offset: " << offset << " \n";
+
+            return true;
+        }
         return false;
+    }
+
+    bool AESCache::allFieldsSensitive(StructType* stType) {
+        bool allFieldsSen = true;
+        for (int i = 0; i < stType->getNumElements(); i++) {
+            if (StructType* subType = dyn_cast<StructType>(stType->getElementType(i))) {
+                allFieldsSen &= allFieldsSensitive(subType);
+            } else {
+                allFieldsSen &= stType->isSensitiveField(i);
+            }
+        }
+        return allFieldsSen;
     }
 
 	/*
@@ -198,39 +233,41 @@ namespace external {
             bool widenedStructType = false;
             // If it is a GepObjPN we need to be careful about what to widen in it
             if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
+                errs() << "This is what I tried to widen: " << *gepNode << " " << gepNode->getLocationSet().getOffset() << "\n";
                 widenedStructType = widenSensitiveComplexType(gepNode, ptsFromMap);
             } 
-            if (!widenedStructType) {
-                assert(senNode->hasValue());
-                // Easy stuff
-				Value* senVal = const_cast<Value*>(senNode->getValue());
-				if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
-					// Is an alloca instruction
-                    allocInst->setAlignment(16);
-					IRBuilder<> Builder(allocInst);
-                    /*
-					AllocaInst* paddingAllocaInst1 = new AllocaInst (I128Ty, 0, "padding");
-					MDNode* N1 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
-					paddingAllocaInst1->setMetadata("PADDING", N1);
-					paddingAllocaInst1->insertAfter(allocInst);
-                    */
-					AllocaInst* paddingAllocaInst2 = Builder.CreateAlloca(I128Ty, 0, "padding");
-					MDNode* N2 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
-					paddingAllocaInst2->setMetadata("PADDING", N2);
+            //if (!widenedStructType) {
+            assert(senNode->hasValue());
+            // Add padding regardless if we've padded individual fields
+            // Easy stuff
+            Value* senVal = const_cast<Value*>(senNode->getValue());
+            if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
+                // Is an alloca instruction
+                allocInst->setAlignment(16);
+                IRBuilder<> Builder(allocInst);
+                /*
+                   AllocaInst* paddingAllocaInst1 = new AllocaInst (I128Ty, 0, "padding");
+                   MDNode* N1 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
+                   paddingAllocaInst1->setMetadata("PADDING", N1);
+                   paddingAllocaInst1->insertAfter(allocInst);
+                   */
+                AllocaInst* paddingAllocaInst2 = Builder.CreateAlloca(I128Ty, 0, "padding");
+                MDNode* N2 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
+                paddingAllocaInst2->setMetadata("PADDING", N2);
 
-					// Find insertion point for the store
-					BasicBlock* parentBB = allocInst->getParent();
-					Instruction* insertionPoint = nullptr;
-					for (BasicBlock::iterator BBIterator = parentBB->begin(); BBIterator != parentBB->end(); BBIterator++) {
-						if (Instruction* Inst = dyn_cast<Instruction>(BBIterator)) {
-							if (!isa<AllocaInst>(Inst)) {
-								insertionPoint = Inst;
-								break;
-							}
-						}
-					}
-				}
-			}
+                // Find insertion point for the store
+                BasicBlock* parentBB = allocInst->getParent();
+                Instruction* insertionPoint = nullptr;
+                for (BasicBlock::iterator BBIterator = parentBB->begin(); BBIterator != parentBB->end(); BBIterator++) {
+                    if (Instruction* Inst = dyn_cast<Instruction>(BBIterator)) {
+                        if (!isa<AllocaInst>(Inst)) {
+                            insertionPoint = Inst;
+                            break;
+                        }
+                    }
+                }
+            }
+			//}
         }
 
         //M.dump();
@@ -274,6 +311,34 @@ namespace external {
             }
         }
 
+        std::set<StructType*> typeSet;
+        // Now consolidate. If all fields of a struct are sensitive, then
+        // nothing
+        for (StructType* stType: M.getIdentifiedStructTypes()) {
+            bool allFieldsSen = allFieldsSensitive(stType);
+            if (allFieldsSen) {
+                errs() << "Type: " << *stType << " became fully sensitive!\n";
+                //stType->getSensitiveFieldOffsets().clear();
+                typeSet.insert(stType);
+            }
+        }
+
+        for (StructType* stType: typeSet) {
+            stType->getSensitiveFieldOffsets().clear();
+        }
+
+        // So which types finally became sensitive?
+        for (StructType* stType: M.getIdentifiedStructTypes()) {
+            if (stType->getNumSensitiveFields() > 0) {
+                errs() << "Partially sensitive type: "<< *stType << " has following sensitive offsets: ";
+                for (int fld: stType->getSensitiveFieldOffsets()) {
+                    errs() << fld << " ";
+                }
+                errs() << "\n";
+            }
+            
+        }
+
         // Now that we've done this, we should also take care of type casts
         for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
             if (auto *F = dyn_cast<Function>(MIterator)) {
@@ -302,7 +367,6 @@ namespace external {
                 }
             }
         }
-
     }
     Type* AESCache::findBaseType(Type* type) {
         Type* trueType = type;

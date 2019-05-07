@@ -156,9 +156,6 @@ private:
 
   PointersTy::iterator findPointerLowerBound(uint32_t AddressSpace);
 
-  // The StructType -> StructLayout map.
-  mutable void *LayoutMap = nullptr;
-
   /// Pointers in these address spaces are non-integral, and don't have a
   /// well-defined bitwise representation.
   SmallVector<unsigned, 8> NonIntegralAddressSpaces;
@@ -178,10 +175,16 @@ private:
   /// malformed.
   void parseSpecifier(StringRef LayoutDescription);
 
+public:
   // Free all internal data structures.
   void clear();
 
-public:
+  void clear2();
+
+  // The StructType -> StructLayout map.
+  mutable void *LayoutMap = nullptr;
+
+
   /// Constructs a DataLayout from a specification string. See reset().
   explicit DataLayout(StringRef LayoutDescription) {
     reset(LayoutDescription);

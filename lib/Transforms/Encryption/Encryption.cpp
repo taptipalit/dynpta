@@ -1106,7 +1106,17 @@ void EncryptionPass::collectSensitivePointsToInfo(Module &M,
                 
                 // --- All allocation sites this pointer can point to is also sensitive
                 std::set<PAGNode*>* s = &ptsToMap[ptr];
-                newObjVecPtr->insert(newObjVecPtr->end(), s->begin(), s->end());
+                for (PAGNode* obj: *s) {
+                    const Value* v = obj->getValue();
+                    if (const ConstantArray* carr = dyn_cast<ConstantArray>(v)) {
+                        const ArrayType* type = carr->getType();
+                        if (type->getNumElements() <= 1) {
+                            continue;
+                        }
+                    }
+                    newObjVecPtr->push_back(obj);
+                }
+                //newObjVecPtr->insert(newObjVecPtr->end(), s->begin(), s->end());
 
 
                 /*
@@ -1124,11 +1134,48 @@ void EncryptionPass::collectSensitivePointsToInfo(Module &M,
                     }
                 }
                 */
+                /*
                 errs() << "Pointer: " << *(ptr->getValue()) << " points to sensitive buffer\n";
                 if (const Instruction* inst = dyn_cast<const Instruction>(ptr->getValue())) {
                     errs() << " and this is in function : " << inst->getParent()->getParent()->getName() << "\n";
                 }
                 errs() << " has points-to set of size: " << s->size() << "\n\n\n";
+                */
+
+                /*
+                if (const Argument* arg = dyn_cast<const Argument>(ptr->getValue())) {
+                    errs() << " arg " << arg->getName() << " of function: " << arg->getParent()->getName() << " became sensitive!\n";
+                    for(PAGNode* node: ptsToMap[ptr]) {
+                        errs() << "And this points to " << *node << "\n";
+                    }
+                }
+                */
+
+                /*
+                if (count == 382 || count == 383) {
+                    errs() << "This might be the guy: " << *sensitiveObjSite << "\n";
+                }
+                */
+                // Someone set str.8 as sensitive
+                /*
+                for (PAGNode* obj: *s) {
+                    const Value* v = obj->getValue();
+                    if (const Constant* con = dyn_cast<Constant>(v)) {
+                        errs() << "The constant " << *con << " became sensitive because of " << *(ptr->getValue()) << " \n";
+                    }
+                }
+                */
+
+                /*
+                if (const Instruction* inst = dyn_cast<Instruction>(ptr->getValue())) {
+                    if (inst->getName().contains("out_msg")) {
+                        // Print out the points-to set
+                        for (PAGNode* node: *s) {
+                            errs() << " points to ... " << *(node->getValue()) << "\n";
+                        }
+                    }
+                }
+                */
                 /*
                 for (PAGNode* obj: *s) {
                     errs() << "Value: " <<  *(obj->getValue()) << "\n";
@@ -3853,6 +3900,11 @@ void EncryptionPass::collectVoidDataObjects(Module &M) {
 */
 
 void EncryptionPass::fixupSizeOfOperators(Module& M) {
+    std::map<std::string, StructType*> structNameTypeMap;
+    (const_cast<DataLayout&>(M.getDataLayout())).clear2();
+    for (StructType* stType: M.getIdentifiedStructTypes()) {
+        structNameTypeMap[stType->getName()] = stType;
+    }
     for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
         if (auto *F = dyn_cast<Function>(MIterator)) {
             // Get the local sensitive values
@@ -3861,6 +3913,7 @@ void EncryptionPass::fixupSizeOfOperators(Module& M) {
                     //outs() << "Basic block found, name : " << BB->getName() << "\n";
                     for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
                         if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                            /*
                             if (StoreInst* SI = dyn_cast<StoreInst>(Inst)) {
                                 if (ConstantInt* constInt = dyn_cast<ConstantInt>(SI->getValueOperand())) {
                                     MDNode* numElNode = SI->getMetadata("NUMEL");
@@ -3876,21 +3929,28 @@ void EncryptionPass::fixupSizeOfOperators(Module& M) {
 
                                     }
                                 }
-                            } else if (CallInst* CI = dyn_cast<CallInst>(Inst)) {
-                                MDNode* argIndNode = CI->getMetadata("ARGINDEX");
-                                MDNode* numElNode = CI->getMetadata("NUMEL");
-                                MDNode* sizeOfTypeNode = CI->getMetadata("TYPE");
-                                if (numElNode && sizeOfTypeNode) {
+                            } else */
+                            if (CallInst* CI = dyn_cast<CallInst>(Inst)) {
+                                MDNode* argIndNode = CI->getMetadata("sizeOfTypeArgNum");
+                                MDNode* sizeOfTypeNode = CI->getMetadata("sizeOfTypeName");
+                                if (argIndNode && sizeOfTypeNode) {
                                     MDString* argIndexStr = cast<MDString>(argIndNode->getOperand(0));
-                                    MDString* numElNodeStr = cast<MDString>(numElNode->getOperand(0));
                                     MDString* sizeOfTypeNameStr = cast<MDString>(sizeOfTypeNode->getOperand(0));
                                     int argIndex = std::stoi(argIndexStr->getString());
-                                    Type* sizeOfType = CI->getParent()->getParent()->getParent()->getTypeByName(sizeOfTypeNameStr->getString());
-                                    int numEl = std::stoi(numElNodeStr->getString());
+                                    Type* sizeOfType = structNameTypeMap[sizeOfTypeNameStr->getString()];
+                                    if (!sizeOfType) {
+                                        sizeOfType = structNameTypeMap["struct."+sizeOfTypeNameStr->getString().str()];
+                                        if (!sizeOfType) {
+                                            assert(false && "Cannot find sizeof type");
+                                        }
+                                    }
+
+                                    errs() << "Should have fixed up callinst: " << *CI << " for type : " << *(sizeOfType) << "\n";
                                     ConstantInt* constInt = dyn_cast<ConstantInt>(CI->getOperand(argIndex));
                                     assert(constInt && "Broken index of sizeof constant in call instruction");
                                     int updatedSize = M.getDataLayout().getTypeAllocSize(sizeOfType);
-                                    ConstantInt* updatedSizeConst = ConstantInt::get(IntegerType::get(M.getContext(), constInt->getBitWidth()), updatedSize*numEl);
+                                    errs() << "New size = " << updatedSize << "\n";
+                                    ConstantInt* updatedSizeConst = ConstantInt::get(IntegerType::get(M.getContext(), constInt->getBitWidth()), updatedSize);
                                     CI->setOperand(argIndex, updatedSizeConst);
                                 }
                             }
@@ -3938,6 +3998,9 @@ bool EncryptionPass::runOnModule(Module &M) {
     errs() << "After nested points-to analysis:\n";
     for (PAGNode* senPAGNode: SensitiveObjList) {
         errs() << *senPAGNode << "\n";
+        if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senPAGNode)) {
+            errs() << "Location: " << gepNode->getLocationSet().getOffset() << "\n";
+        }
     }
 	
 
@@ -4051,7 +4114,7 @@ bool EncryptionPass::runOnModule(Module &M) {
 	);
 
    
-    //fixupSizeOfOperators(M);
+    fixupSizeOfOperators(M);
 
     dbgs () << "Inserted " << decryptionCount << " calls to decryption routines.\n";
     dbgs () << "Inserted " << encryptionCount << " calls to encryption routines.\n";

@@ -72,7 +72,7 @@ static void * (* const volatile memset_func)( void *, int, size_t ) = memset;
 
 void mbedtls_platform_zeroize( void *buf, size_t len )
 {
-    memset_func( buf, 0, len );
+    memset( buf, 0, len );
 }
 #endif /* MBEDTLS_PLATFORM_ZEROIZE_ALT */
 

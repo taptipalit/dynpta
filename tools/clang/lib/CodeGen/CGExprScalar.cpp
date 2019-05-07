@@ -34,6 +34,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Instructions.h"
 #include <cstdarg>
 
 using namespace clang;
@@ -515,7 +516,52 @@ public:
     if (E->getCallReturnType(CGF.getContext())->isReferenceType())
       return EmitLoadOfLValue(E);
 
-    Value *V = CGF.EmitCallExpr(E).getScalarVal();
+    const Type* sizeOfType = nullptr;
+    int argNum = -1;
+    int numArgs = E->getNumArgs();
+
+    for (int i = 0; i < numArgs; i++) {
+        const Expr* argExpr = E->getArg(i);
+        if (const UnaryExprOrTypeTraitExpr* uExpr = 
+                dyn_cast<UnaryExprOrTypeTraitExpr>(argExpr)) {
+            if (uExpr->getKind() == UETT_SizeOf) {
+                QualType TypeToSize = uExpr->getTypeOfArgument();
+                sizeOfType = TypeToSize.getTypePtr();
+                argNum = i;
+            } 
+        }
+    }
+
+    RValue rvalue = CGF.EmitCallExpr(E);
+    Value *V = rvalue.getScalarVal();
+
+    if (sizeOfType && V) {
+        // V has to be a CallInst in case of functions like malloc, calloc
+        if (llvm::CallInst* callInst = dyn_cast<llvm::CallInst>(V)) {
+            if (sizeOfType->isStructureType()) {
+                const RecordType* sizeOfStructType = sizeOfType->getAsStructureType();
+                llvm::LLVMContext& ctx = callInst->getContext();
+                llvm::MDNode* N = llvm::MDNode::get(ctx, llvm::MDString::get(ctx, sizeOfStructType->getDecl()->getNameAsString()));
+                callInst->setMetadata("sizeOfTypeName", N);
+                llvm::MDNode* O = llvm::MDNode::get(ctx, llvm::MDString::get(ctx, std::to_string(argNum)));
+                callInst->setMetadata("sizeOfTypeArgNum", O);
+            }
+        }
+
+        // In case of memset, etc, an user of this value will be the callInst
+        if (sizeOfType->isStructureType()) {
+            const RecordType* sizeOfStructType = sizeOfType->getAsStructureType();
+            for (llvm::User* user: V->users()) {
+                if (llvm::CallInst* callInst = dyn_cast<llvm::CallInst>(user)) {
+                    llvm::LLVMContext& ctx = callInst->getContext();
+                    llvm::MDNode* N = llvm::MDNode::get(ctx, llvm::MDString::get(ctx, sizeOfStructType->getDecl()->getNameAsString()));
+                    callInst->setMetadata("sizeOfTypeName", N);
+                    llvm::MDNode* O = llvm::MDNode::get(ctx, llvm::MDString::get(ctx, std::to_string(argNum)));
+                    callInst->setMetadata("sizeOfTypeArgNum", O);
+                }
+            }
+        }
+    }
 
     EmitLValueAlignmentAssumption(E, V);
     return V;
@@ -2263,6 +2309,7 @@ ScalarExprEmitter::VisitUnaryExprOrTypeTraitExpr(
   if (E->getKind() == UETT_SizeOf) {
     if (const VariableArrayType *VAT =
           CGF.getContext().getAsVariableArrayType(TypeToSize)) {
+        assert(false && "sizeof(variablearraytype) not handled!\n");
       if (E->isArgumentType()) {
         // sizeof(type) - make sure to emit the VLA size.
         CGF.EmitVariablyModifiedType(TypeToSize);

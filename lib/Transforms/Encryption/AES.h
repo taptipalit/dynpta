@@ -78,9 +78,12 @@ namespace external{
             llvm::IntegerType* I128Ty;
 
 			void addExternAESFuncDecls(llvm::Module&);
+            bool findTrueOffset(StructType*, int, int*, StructType**, int*);
+            llvm::Module* M;
 		public:
 			void initializeAes(llvm::Module&);
 
+            bool allFieldsSensitive(StructType*);
             bool  widenSensitiveComplexType(GepObjPN*, std::map<PAGNode*, std::set<PAGNode*>>&);
 			// For AES Cache
 			void widenSensitiveAllocationSites(llvm::Module&, std::vector<PAGNode*>&,

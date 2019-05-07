@@ -2443,7 +2443,7 @@ int mbedtls_rsa_copy( mbedtls_rsa_context *dst, const mbedtls_rsa_context *src )
     RSA_VALIDATE_RET( dst != NULL );
     RSA_VALIDATE_RET( src != NULL );
 
-    dst->ver = src->ver;
+    //dst->ver = src->ver;
     dst->len = src->len;
 
     MBEDTLS_MPI_CHK( mbedtls_mpi_copy( &dst->N, &src->N ) );

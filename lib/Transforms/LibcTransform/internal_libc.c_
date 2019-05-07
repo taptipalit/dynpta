@@ -50,6 +50,7 @@ int internal_strlen(const char *s) {
         len++;
         s++;
     }
+    return len;
 }
 
 char* internal_strcat(char* destination, const char* source) {

@@ -589,6 +589,11 @@ public:
 
 } // end anonymous namespace
 
+void DataLayout::clear2() {
+  delete static_cast<StructLayoutMap *>(LayoutMap);
+  LayoutMap = nullptr;
+}
+
 void DataLayout::clear() {
   LegalIntWidths.clear();
   Alignments.clear();

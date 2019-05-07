@@ -635,6 +635,7 @@ void decryptArrayForLibCall(char* ptr, int numBytes) {
 
 
 void* aes_malloc(long size) {
+    size = size*128; // hack to fix widening
     long roundedSize = -1;
     if (size % 16 == 0) {
         roundedSize = size;
@@ -647,6 +648,7 @@ void* aes_malloc(long size) {
 }
 
 void* aes_calloc(long nmem, long elem_size) {
+    elem_size = elem_size*128; // hack to fix widening
     long size = nmem*elem_size;
     long roundedSize = -1;
     if (size % 16 == 0) {
