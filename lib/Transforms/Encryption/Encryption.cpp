@@ -145,6 +145,9 @@ namespace {
 
         Function* findSimpleFunArgFor(Value*);
         void preprocessSensitiveAnnotatedPointers(Module &M);
+
+        void constructPartitioningAwareSDD(Module&, std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
+
 		void collectSensitivePointsToInfo(Module&, std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
 		//void addExternInlineASMHandlers(Module&);
 
@@ -1055,6 +1058,99 @@ Function* EncryptionPass::findSimpleFunArgFor(Value* ptr) {
     */
     return nullptr;
 }
+
+void EncryptionPass::constructPartitioningAwareSDD(Module& M, 
+		std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap,
+		std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
+    PAG* pag = getAnalysis<WPAPass>().getPAG();
+
+    errs() << "I'm actually running\n";
+	std::map<PAGNode*, std::set<PAGNode*>>::iterator ptsToMapIt = ptsToMap.begin();
+	bool done = false;
+
+    std::vector<PAGNode*> tempObjList;
+    // If there are any pointers in the sensitive object list, we want find their targets right away
+    for (PAGNode* senPAGNode: SensitiveObjList) {
+        for(PAGNode* ptsToNode: ptsToMap[senPAGNode]) {
+            tempObjList.push_back(ptsToNode);
+        }
+    }
+    std::copy(tempObjList.begin(), tempObjList.end(), std::back_inserter(SensitiveObjList));
+
+	// --- We need to keep merging the points-to sets of each pointer that points to sensitive allocation sites
+	// Set if off
+	std::set<PAGNode*>* allocaSetPtr = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end()); 
+	std::set<PAGNode*>* newObjSetPtr = nullptr;
+	std::vector<PAGNode*>* newObjVecPtr = nullptr;
+	std::set<PAGNode*>* allAllocSitesSetPtr = nullptr;
+    std::set<PAGNode*>* diffSetPtr = nullptr;
+    std::set<PAGNode*>* tmpPtr = nullptr;
+
+	while (!done) {
+		dbgs() << allocaSetPtr->size() << " New allocation sites found ... \n";
+    
+		if (allocaSetPtr->size() == 0) break;;
+
+		if (newObjVecPtr) {
+			delete newObjVecPtr;
+		}
+		newObjVecPtr = new std::vector<PAGNode*>();
+
+        int count = 0;
+
+		for (PAGNode* sensitiveObjSite: *allocaSetPtr) {
+			// --- Any pointer that points to the sensitiveObjSite also needs to be processed
+            for (PAGNode* ptr: ptsFromMap[sensitiveObjSite]) {
+                if (ptr->hasValue()) {
+                    if (isa<Function>(ptr->getValue()) || isa<CallInst>(ptr->getValue())) {
+                        continue;
+                    }
+                }
+                
+                // --- All allocation sites ONLY ON THE STACK this pointer can point to is also sensitive
+                std::set<PAGNode*>* s = &ptsToMap[ptr];
+                for (PAGNode* obj: *s) {
+                    const Value* v = obj->getValue();
+                    if (!isa<AllocaInst>(v)) {
+                        continue;
+                    }
+                    newObjVecPtr->push_back(obj);
+                }
+            }
+		}
+		// newObjVecPtr has all newly discovered sensitive allocation sites
+		// Convert it to set and find difference
+		// Free the old guy
+		if (newObjSetPtr) {
+			delete newObjSetPtr;
+		}
+		newObjSetPtr = new std::set<PAGNode*>(newObjVecPtr->begin(), newObjVecPtr->end());
+
+		if (allAllocSitesSetPtr) {
+			delete allAllocSitesSetPtr;
+		}
+		allAllocSitesSetPtr = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
+
+        if (diffSetPtr) {
+            delete diffSetPtr;
+        }
+		diffSetPtr = new std::set<PAGNode*>();
+		// diff is the new allocation sites that have been found
+
+		set_difference(newObjSetPtr->begin(), newObjSetPtr->end(), allAllocSitesSetPtr->begin(), allAllocSitesSetPtr->end(), inserter(*diffSetPtr, diffSetPtr->begin()));
+
+		if (diffSetPtr->size() == 0) {
+			// Nothing new found, done!
+			done = true;
+		}
+      
+		SensitiveObjList.insert(SensitiveObjList.end(), diffSetPtr->begin(), diffSetPtr->end());
+
+		allocaSetPtr = diffSetPtr;
+	}
+}
+
+
 
 void EncryptionPass::collectSensitivePointsToInfo(Module &M, 
 		std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap,
@@ -4021,8 +4117,9 @@ bool EncryptionPass::runOnModule(Module &M) {
     for (PAGNode* senPAGNode: SensitiveObjList) {
         errs() << *senPAGNode << "\n";
     }
-	
-	collectSensitivePointsToInfo(M, ptsToMap, ptsFromMap);
+    collectSensitivePointsToInfo(M, ptsToMap, ptsFromMap);
+
+	//constructPartitioningAwareSDD(M, ptsToMap, ptsFromMap);
 
     /*
 	dbgs() << "Collected sensitive points-to info (Phase 1) \n";
