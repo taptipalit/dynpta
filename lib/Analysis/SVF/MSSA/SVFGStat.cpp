@@ -27,9 +27,9 @@
  *      Author: yesen
  */
 
-#include "llvm/Analysis/SVF/MSSA/SVFG.h"
-#include "llvm/Analysis/SVF/MSSA/SVFGStat.h"
-#include "llvm/Analysis/SVF/Util/PTACallGraph.h"
+#include "MSSA/SVFG.h"
+#include "MSSA/SVFGStat.h"
+#include "Util/PTACallGraph.h"
 using namespace llvm;
 
 const char* MemSSAStat::TotalTimeOfConstructMemSSA = "TotalMSSATime";	///< Total time for constructing memory SSA

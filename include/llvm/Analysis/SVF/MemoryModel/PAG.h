@@ -33,7 +33,7 @@
 
 #include "PAGEdge.h"
 #include "PAGNode.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
+#include "Util/AnalysisUtil.h"
 
 /*!
  * Program Assignment Graph for pointer analysis
@@ -63,6 +63,7 @@ public:
     typedef std::pair<NodeID, LocationSet> NodeLocationSet;
     typedef llvm::DenseMap<NodeOffset,NodeID,llvm::DenseMapInfo<std::pair<NodeID,Size_t> > > NodeOffsetMap;
     typedef std::map<NodeLocationSet,NodeID> NodeLocationSetMap;
+    typedef std::map<NodePair,NodeID> NodePairSetMap;
 
 private:
     SymbolTableInfo* symInfo;
@@ -81,7 +82,6 @@ private:
     CSToRetMap callSiteRetMap;	///< Map a callsite to its callsite returns PAGNodes
     FunToRetMap funRetMap;	///< Map a function to its unique function return PAGNodes
     static PAG* pag;	///< Singleton pattern here to enable instance of PAG can only be created once.
-    static PAG* cfgPag; ///< PAG for the CFG only
     CallSiteToFunPtrMap indCallSiteToFunPtrMap; ///< Map an indirect callsite to its function pointer
     FunPtrToCallSitesMap funPtrToCallSitesMap;	///< Map a function pointer to the callsites where it is used
     bool fromFile; ///< Whether the PAG is built according to user specified data from a txt file
@@ -90,7 +90,7 @@ private:
 
     /// Valid pointers for pointer analysis resolution connected by PAG edges (constraints)
     /// this set of candidate pointers can change during pointer resolution (e.g. adding new object nodes)
-    NodeBS candidatePointers;
+    NodeSet candidatePointers;
 
     /// Constructor
     PAG(bool buildFromFile) : fromFile(buildFromFile), curBB(NULL),curVal(NULL) {
@@ -104,7 +104,7 @@ private:
 
 public:
     /// Return valid pointers
-    inline NodeBS& getAllValidPtrs() {
+    inline NodeSet& getAllValidPtrs() {
         return candidatePointers;
     }
     /// Initialize candidate pointers
@@ -116,7 +116,7 @@ public:
             if (isValidPointer(nodeId) == false)
                 continue;
 
-            candidatePointers.test_and_set(nodeId);
+            candidatePointers.insert(nodeId);
         }
     }
 
@@ -372,7 +372,6 @@ public:
         return symInfo->hasObjSym(V);
     }
 
-
     /// getObject - Return the obj node id refer to the memory object for the
     /// specified global, heap or alloca instruction according to llvm value.
     inline NodeID getObjectNode(const llvm::Value *V) {
@@ -449,16 +448,10 @@ public:
         return (isBlkObj(id) || isConstantObj(id));
     }
     inline bool isBlkObj(NodeID id) const {
-        PAGNode* node = getPAGNode(id);
-        ObjPN* obj = llvm::dyn_cast<ObjPN>(node);
-        assert(obj && "not an object node?");
-        return (obj->getMemObj()->isBlackHoleObj());
+        return SymbolTableInfo::isBlkObj(id);
     }
     inline bool isConstantObj(NodeID id) const {
-        PAGNode* node = getPAGNode(id);
-        ObjPN* obj = llvm::dyn_cast<ObjPN>(node);
-        assert(obj && "not an object node?");
-        return (obj->getMemObj()->isConstantObj());
+        return SymbolTableInfo::isConstantObj(id);;
     }
     inline bool isTaintedObj(NodeID id) const {
         PAGNode* node = getPAGNode(id);
@@ -528,8 +521,8 @@ public:
     /// Add a memory obj node
     inline NodeID addObjNode(const llvm::Value* val, NodeID i) {
         MemObj* mem = symInfo->getObj(symInfo->getObjSym(val));
-        assert(mem->getSymId() == i && "not same object id?");
-        return addFIObjNode(mem, i);
+        assert(((mem->getSymId() == i) || (symInfo->getGlobalRep(val)!=val)) && "not same object id?");
+        return addFIObjNode(mem);
     }
     /// Add a unique return node for a procedure
     inline NodeID addRetNode(const llvm::Function* val, NodeID i) {
@@ -544,9 +537,9 @@ public:
     /// Add a temp field value node, this method can only invoked by getGepValNode
     NodeID addGepValNode(const llvm::Value* val, const LocationSet& ls, NodeID i, const llvm::Type *type, u32_t fieldidx);
     /// Add a field obj node, this method can only invoked by getGepObjNode
-    NodeID addGepObjNode(const MemObj* obj, const LocationSet& ls, NodeID i);
+    NodeID addGepObjNode(const MemObj* obj, const LocationSet& ls);
     /// Add a field-insensitive node, this method can only invoked by getFIGepObjNode
-    NodeID addFIObjNode(const MemObj* obj, NodeID i);
+    NodeID addFIObjNode(const MemObj* obj);
     //@}
 
     ///  Add a dummy value/object node according to node ID (llvm value is null)
@@ -560,6 +553,13 @@ public:
     inline NodeID addDummyObjNode() {
         const MemObj* mem = SymbolTableInfo::Symbolnfo()->createDummyObj(nodeNum);
         return addObjNode(NULL, new DummyObjPN(nodeNum,mem), nodeNum);
+    }
+    inline NodeID addDummyObjNode(NodeID i) {
+        const MemObj* mem = addDummyMemObj(i);
+        return addObjNode(NULL, new DummyObjPN(i,mem), i);
+    }
+    inline const MemObj* addDummyMemObj(NodeID i) {
+        return SymbolTableInfo::Symbolnfo()->createDummyObj(i);
     }
     inline NodeID addBlackholeObjNode() {
         return addObjNode(NULL, new DummyObjPN(getBlackHoleNode(),getBlackHoleObj()), getBlackHoleNode());
@@ -630,14 +630,6 @@ public:
     bool addThreadForkEdge(NodeID src, NodeID dst, const llvm::Instruction* cs);
     /// Add Thread join edge for parameter passing
     bool addThreadJoinEdge(NodeID src, NodeID dst, const llvm::Instruction* cs);
-    /// Add LoadVal edge
-    bool addLoadValEdge(NodeID src, NodeID dst);
-    /// Add StoreVal edge
-    bool addStoreValEdge(NodeID src, NodeID dst);
-    /// Add Call Value edge
-    bool addCallValEdge(NodeID src, NodeID dst);
-    /// Add Ret Value edge
-    bool addRetValEdge(NodeID src, NodeID dst);
     //@}
 
     /// Add global edges

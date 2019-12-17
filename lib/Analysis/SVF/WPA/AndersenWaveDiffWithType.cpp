@@ -1,5 +1,5 @@
-#include "llvm/Analysis/SVF/WPA/Andersen.h"
-#include "llvm/Analysis/SVF/MemoryModel/PTAType.h"
+#include "WPA/Andersen.h"
+#include "MemoryModel/PTAType.h"
 #include <llvm/Support/CommandLine.h> // for tool output file
 
 using namespace llvm;

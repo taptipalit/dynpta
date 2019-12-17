@@ -30,9 +30,9 @@
 #ifndef PTACALLGRAPH_H_
 #define PTACALLGRAPH_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/GenericGraph.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
-#include "llvm/Analysis/SVF/Util/BasicTypes.h"
+#include "MemoryModel/GenericGraph.h"
+#include "Util/AnalysisUtil.h"
+#include "Util/BasicTypes.h"
 #include <llvm/IR/Module.h>			// llvm module
 #include <llvm/ADT/STLExtras.h>		/// map iter
 #include <llvm/ADT/GraphTraits.h>	// graph traits
@@ -182,7 +182,13 @@ public:
     typedef std::map<llvm::CallSite, FunctionSet> CallEdgeMap;
     typedef CallGraphEdgeSet::iterator CallGraphNodeIter;
 
+    enum CGEK {
+        NormCallGraph, ThdCallGraph
+    };
+
 private:
+    CGEK kind;
+
     SVFModule svfMod;
 
     /// Indirect call map
@@ -210,13 +216,17 @@ private:
 
 public:
     /// Constructor
-    PTACallGraph(SVFModule svfModule);
+    PTACallGraph(SVFModule svfModule, CGEK k = NormCallGraph);
 
     /// Destructor
     virtual ~PTACallGraph() {
         destroy();
     }
 
+    /// Return type of this callgraph
+    inline CGEK getKind() const {
+        return kind;
+    }
 
     /// Get callees from an indirect callsite
     //@{
@@ -242,6 +252,10 @@ public:
 
     inline Size_t getNumOfResolvedIndCallEdge() const {
         return numOfResolvedIndCallEdge;
+    }
+
+    inline const CallInstToCallGraphEdgesMap& getCallInstToCallGraphEdgesMap() const {
+        return callinstToCallGraphEdgesMap;
     }
 
     /// Issue a warning if the function which has indirect call sites can not be reached from program entry.

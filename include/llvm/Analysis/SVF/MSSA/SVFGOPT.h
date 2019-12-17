@@ -37,9 +37,9 @@
 #define SVFGOPT_H_
 
 
-#include "llvm/Analysis/SVF/MSSA/SVFG.h"
-#include "llvm/Analysis/SVF/Util/WorkList.h"
-#include "llvm/Analysis/SVF/MSSA/SVFGStat.h"
+#include "MSSA/SVFG.h"
+#include "Util/WorkList.h"
+#include "MSSA/SVFGStat.h"
 
 /**
  * Optimised SVFG.

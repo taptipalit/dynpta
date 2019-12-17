@@ -1,3 +1,5 @@
+include_directories(${CMAKE_SOURCE_DIR}/include/llvm/Analysis/SVF)
+
 add_llvm_library(LLVMipo
   AlwaysInliner.cpp
   ArgumentPromotion.cpp

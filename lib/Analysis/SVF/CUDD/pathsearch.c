@@ -1,7 +1,7 @@
 /* LINTLIBRARY */
 
 #include <stdio.h>
-#include "llvm/Analysis/SVF/CUDD/util.h"
+#include "CUDD/util.h"
 
 static int check_file (char const *, char const *);
 

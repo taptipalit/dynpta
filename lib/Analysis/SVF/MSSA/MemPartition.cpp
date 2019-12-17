@@ -32,7 +32,7 @@
  *
  */
 
-#include "llvm/Analysis/SVF/MSSA/MemPartition.h"
+#include "MSSA/MemPartition.h"
 using namespace llvm;
 
 /**

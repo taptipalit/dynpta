@@ -30,8 +30,8 @@
 #ifndef ANDERSENSTAT_H_
 #define ANDERSENSTAT_H_
 
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
-#include "llvm/Analysis/SVF/Util/BasicTypes.h"
+#include "Util/AnalysisUtil.h"
+#include "Util/BasicTypes.h"
 #include <iostream>
 #include <map>
 #include <string>

@@ -29,9 +29,9 @@
  */
 
 
-#include "llvm/Analysis/SVF/Util/PathCondAllocator.h"
-#include "llvm/Analysis/SVF/Util/DataFlowUtil.h"
-#include "llvm/Analysis/SVF/Util/DPItem.h"
+#include "Util/PathCondAllocator.h"
+#include "Util/DataFlowUtil.h"
+#include "Util/DPItem.h"
 #include <llvm/IR/Module.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Analysis/PostDominators.h>

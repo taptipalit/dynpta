@@ -5,6 +5,7 @@
 #include <cstring>
 
 namespace external{
+    using namespace llvm;
 
 	class OffsetXMMPair {
 		public:

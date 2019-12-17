@@ -30,8 +30,8 @@
  */
 
 
-#include "llvm/Analysis/SVF/MemoryModel/LocationSet.h"
-#include "llvm/Analysis/SVF/MemoryModel/MemModel.h"
+#include "MemoryModel/LocationSet.h"
+#include "MemoryModel/MemModel.h"
 #include <llvm/Support/CommandLine.h> // for tool output file
 
 using namespace llvm;

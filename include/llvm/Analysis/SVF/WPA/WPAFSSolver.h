@@ -36,7 +36,7 @@
 #ifndef WPAFSSOLVER_H_
 #define WPAFSSOLVER_H_
 
-#include "llvm/Analysis/SVF/WPA/WPASolver.h"
+#include "WPA/WPASolver.h"
 
 /*!
  * Flow-sensitive Solver

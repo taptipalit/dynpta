@@ -31,9 +31,9 @@
 #ifndef PAGEDGE_H_
 #define PAGEDGE_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/MemModel.h"
-#include "llvm/Analysis/SVF/MemoryModel/GenericGraph.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
+#include "MemoryModel/MemModel.h"
+#include "MemoryModel/GenericGraph.h"
+#include "Util/AnalysisUtil.h"
 
 #include <llvm/IR/CallSite.h>	// for callsite
 #include <llvm/ADT/STLExtras.h>			// for mapped_iter
@@ -54,7 +54,7 @@ public:
     /// Gep represents offset edge for field sensitivity
     /// ThreadFork/ThreadJoin is to model parameter passings between thread spawners and spawnees.
     enum PEDGEK {
-        Addr, Copy, Store, Load, Call, Ret, NormalGep, VariantGep, ThreadFork, ThreadJoin, StoreVal, LoadVal, CallVal, RetVal
+        Addr, Copy, Store, Load, Call, Ret, NormalGep, VariantGep, ThreadFork, ThreadJoin
     };
 
 private:
@@ -85,11 +85,7 @@ public:
                edge->getEdgeKind() == PAGEdge::NormalGep ||
                edge->getEdgeKind() == PAGEdge::VariantGep ||
                edge->getEdgeKind() == PAGEdge::ThreadFork ||
-               edge->getEdgeKind() == PAGEdge::ThreadJoin ||
-               edge->getEdgeKind() == PAGEdge::StoreVal ||
-               edge->getEdgeKind() == PAGEdge::LoadVal ||
-               edge->getEdgeKind() == PAGEdge::CallVal ||
-               edge->getEdgeKind() == PAGEdge::RetVal;
+               edge->getEdgeKind() == PAGEdge::ThreadJoin;
     }
     ///@}
 
@@ -125,14 +121,24 @@ public:
         return (label << EdgeKindMaskBits) | k;
     }
 
+    /// Compute the unique edgeFlag value from edge kind and store Instruction.
+    /// Two store instructions may share the same StorePAGEdge
+    static inline GEdgeFlag makeEdgeFlagWithStoreInst(GEdgeKind k, const llvm::Value* store) {
+        Inst2LabelMap::const_iterator iter = inst2LabelMap.find(store);
+        u64_t label = (iter != inst2LabelMap.end()) ?
+                      iter->second : storeEdgeLabelCounter++;
+        return (label << EdgeKindMaskBits) | k;
+    }
+
     typedef GenericNode<PAGNode,PAGEdge>::GEdgeSetTy PAGEdgeSetTy;
     typedef llvm::DenseMap<EdgeID, PAGEdgeSetTy> PAGEdgeToSetMapTy;
     typedef PAGEdgeToSetMapTy PAGKindToEdgeSetMapTy;
 
 private:
-    typedef llvm::DenseMap<const llvm::Instruction*, u32_t> Inst2LabelMap;
+    typedef llvm::DenseMap<const llvm::Value*, u32_t> Inst2LabelMap;
     static Inst2LabelMap inst2LabelMap; ///< Call site Instruction to label map
     static u64_t callEdgeLabelCounter;  ///< Call site Instruction counter
+    static u64_t storeEdgeLabelCounter;  ///< Store Instruction counter
 };
 
 
@@ -217,8 +223,9 @@ public:
     //@}
 
     /// constructor
-    StorePE(PAGNode* s, PAGNode* d) : PAGEdge(s,d,PAGEdge::Store) {
-    }
+	StorePE(PAGNode* s, PAGNode* d, const llvm::Value* st) :
+			PAGEdge(s, d, makeEdgeFlagWithStoreInst(PAGEdge::Store, st)) {
+	}
 };
 
 
@@ -523,124 +530,4 @@ public:
     }
     //@}
 };
-
-class ValFlowPE: public PAGEdge {
-    public:
-        ValFlowPE(PAGNode* s, PAGNode* d, GEdgeFlag k) : PAGEdge(s, d, k) {
-        }
-};
-
-/*!
- * Return non-pointer values
- */
-class RetValPE: public ValFlowPE {
-private:
-    RetValPE();
-    RetValPE(const RetValPE&);
-    void operator=(const RetValPE &);
-public:
-    /// Methods for support type inquiry through isa, cast, and dyn_cast:
-    //@{
-    static inline bool classof(const RetValPE *) {
-        return true;
-    }
-    static inline bool classof(const PAGEdge *edge) {
-        return edge->getEdgeKind() == PAGEdge::RetVal;
-    }
-    static inline bool classof(const GenericPAGEdgeTy *edge) {
-        return edge->getEdgeKind() == PAGEdge::RetVal;
-    }
-    //@}
-
-    /// constructor
-    RetValPE(PAGNode* s, PAGNode* d) : ValFlowPE(s,d,PAGEdge::RetVal) {
-    }
-
-};
-
-/*!
- * Call with non-pointer values
- */
-class CallValPE: public ValFlowPE {
-private:
-    CallValPE();
-    CallValPE(const CallValPE&);
-    void operator=(const CallValPE &);
-public:
-    /// Methods for support type inquiry through isa, cast, and dyn_cast:
-    //@{
-    static inline bool classof(const CallValPE *) {
-        return true;
-    }
-    static inline bool classof(const PAGEdge *edge) {
-        return edge->getEdgeKind() == PAGEdge::CallVal;
-    }
-    static inline bool classof(const GenericPAGEdgeTy *edge) {
-        return edge->getEdgeKind() == PAGEdge::CallVal;
-    }
-    //@}
-
-    /// constructor
-    CallValPE(PAGNode* s, PAGNode* d) : ValFlowPE(s,d,PAGEdge::CallVal) {
-    }
-
-};
-
-
-/*!
- * Load non-pointer values
- */
-class LoadValPE: public ValFlowPE {
-private:
-    LoadValPE();
-    LoadValPE(const LoadValPE&);
-    void operator=(const LoadValPE &);
-public:
-    /// Methods for support type inquiry through isa, cast, and dyn_cast:
-    //@{
-    static inline bool classof(const LoadValPE *) {
-        return true;
-    }
-    static inline bool classof(const PAGEdge *edge) {
-        return edge->getEdgeKind() == PAGEdge::LoadVal;
-    }
-    static inline bool classof(const GenericPAGEdgeTy *edge) {
-        return edge->getEdgeKind() == PAGEdge::LoadVal;
-    }
-    //@}
-
-    /// constructor
-    LoadValPE(PAGNode* s, PAGNode* d) : ValFlowPE(s,d,PAGEdge::LoadVal) {
-    }
-
-};
-
-/*!
- * Load non-pointer values
- */
-class StoreValPE: public ValFlowPE {
-private:
-    StoreValPE();
-    StoreValPE(const StoreValPE&);
-    void operator=(const StoreValPE &);
-public:
-    /// Methods for support type inquiry through isa, cast, and dyn_cast:
-    //@{
-    static inline bool classof(const StoreValPE *) {
-        return true;
-    }
-    static inline bool classof(const PAGEdge *edge) {
-        return edge->getEdgeKind() == PAGEdge::StoreVal;
-    }
-    static inline bool classof(const GenericPAGEdgeTy *edge) {
-        return edge->getEdgeKind() == PAGEdge::StoreVal;
-    }
-    //@}
-
-    /// constructor
-    StoreValPE(PAGNode* s, PAGNode* d) : ValFlowPE(s,d,PAGEdge::StoreVal) {
-    }
-
-};
-
 #endif /* PAGEDGE_H_ */

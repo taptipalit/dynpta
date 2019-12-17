@@ -31,9 +31,8 @@
 #ifndef GRAPHSOLVER_H_
 #define GRAPHSOLVER_H_
 
-#include "llvm/Analysis/SVF/Util/WorkList.h"
+#include "Util/WorkList.h"
 #include <llvm/ADT/GraphTraits.h>
-#include <llvm/Support/raw_ostream.h>
 
 /*
  * Generic graph solver for whole program pointer analysis
@@ -53,7 +52,6 @@ public:
     typedef FIFOWorkList<NodeID> WorkList;
 
 protected:
-    //bool sensitiveOnly;
 
     /// Constructor
     WPASolver(): _graph(NULL),scc(NULL)
@@ -87,57 +85,75 @@ protected:
         return getSCCDetector()->topoNodeStack();
     }
 
-    int getWorklistSize() {
-        return worklist.size();
-    }
-
-    virtual bool isSensitiveObj(NodeID nodeID) {
-        return false;
-    }
-
     /// Constraint Solving
     virtual void solve() {
 
         /// SCC detection
         /// Nodes in nodeStack are in topological order by default.
         /// This order can be changed by overwritten SCCDetect() in sub-classes
-        llvm::errs() << "SCC Detect start\n";
         NodeStack& nodeStack = SCCDetect();
-        llvm::errs() << "SCC Detect complete\n";
 
         /// initial worklist
         /// process nodes in nodeStack.
         while (!nodeStack.empty()) {
             NodeID nodeId = nodeStack.top();
             nodeStack.pop();
-            /*
-            if (!sensitiveOnly) {
-                if (isSensitiveObj(nodeId)) { // Start only with the sensitive nodes
-                */
             processNode(nodeId);
-                /*
-                }
-            }
-            */
         }
-        llvm::errs() << "Processed all nodes once\n";
 
         /// start solving
         /// New nodes may be inserted into work list during processing.
         /// Keep solving until it's empty.
         while (!isWorklistEmpty()) {
-            llvm::errs() << "Remaining elements: " << getWorklistSize() << "\n";
             NodeID nodeId = popFromWorklist();
             postProcessNode(nodeId);
+            
         }
-
     }
+
+    virtual void steensgardSolve() {
+        NodeStack& nodeStack = SCCDetect();
+        while (!nodeStack.empty()) {
+            NodeID nodeId = nodeStack.top();
+            nodeStack.pop();
+            steensgardProcessNodeInitial(nodeId);
+        }
+        nodeStack = SCCDetect();
+        while (!nodeStack.empty()) {
+            NodeID nodeId = nodeStack.top();
+            nodeStack.pop();
+            steensgardProcessNode(nodeId);
+        }
+        //cout << "\nWorklist: ";
+        while (!isWorklistEmpty()) {
+            NodeID nodeId = steensgardPopFromWorklist();
+            //if (nodeId == 63868) break;
+            steensgardWorklistProcess(nodeId);
+        }
+    }
+
+    virtual void steensgardCallSolve() {
+		//cout << "\nCallWorklist: ";
+		while (!isWorklistEmpty()) {
+			NodeID nodeId = steensgardPopFromWorklist();
+			steensgardWorklistProcess(nodeId); 
+		}
+	}
 
     /// Following methods are to be implemented in child class, in order to achieve a fully worked PTA
     //@{
     /// Process each node on the graph, to be implemented in the child class
     virtual inline void processNode(NodeID node) {
     }
+    virtual inline void steensgardProcessNode(NodeID node) {
+    }
+    virtual inline void steensgardProcessNodeInitial(NodeID node) {
+    }
+    /*virtual inline void copyProcess(NodeID node) {
+    }*/
+    virtual inline void steensgardWorklistProcess(NodeID node) {
+    }
+
     virtual inline void postProcessNode(NodeID node) {
         processNode(node);
     }
@@ -166,9 +182,14 @@ protected:
     inline NodeID popFromWorklist() {
         return sccRepNode(worklist.pop());
     }
+    inline NodeID steensgardPopFromWorklist() {
+	return worklist.pop();
+    } 
     inline void pushIntoWorklist(NodeID id) {
-        //llvm::errs() << "pushed id = " << id << "\n";
         worklist.push(sccRepNode(id));
+    }
+    inline void steensgardPushIntoWorklist(NodeID id) {
+	worklist.spush(sccRepNode(id));
     }
     inline bool isWorklistEmpty() {
         return worklist.empty();

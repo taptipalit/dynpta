@@ -519,6 +519,7 @@ void EncryptionPass::findIndirectSinkSites(PAGNode* ptsFrom, std::set<PAGNode*>&
  * Find all the sink sites that this value directly flows to
  */
 void EncryptionPass::findDirectSinkSites(PAGNode* source, std::set<PAGNode*>& sinkSites) {
+    /*
     std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
 
     PAG* pag = getAnalysis<WPAPass>().getPAG();
@@ -548,12 +549,13 @@ void EncryptionPass::findDirectSinkSites(PAGNode* source, std::set<PAGNode*>& si
             }
         }
     }
+    */
     
 }
 
 void EncryptionPass::buildRetCallMap(Module& M) {
-    std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
-	std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
+    std::map<PAGNode*, std::set<PAGNode*>> ptsToMap; // = getAnalysis<WPAPass>().getPAGPtsToMap();
+	std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap; // = getAnalysis<WPAPass>().getPAGPtsFromMap();
 
 
 	// Populate list of all functions
@@ -798,7 +800,7 @@ void EncryptionPass::collectSensitiveTypes(Module& M) {
 
 void EncryptionPass::performSourceSinkAnalysis(Module& M) {
 
-    std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
+    std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap; // = getAnalysis<WPAPass>().getPAGPtsFromMap();
     PAG* pag = getAnalysis<WPAPass>().getPAG();
 
     collectSensitiveTypes(M);
@@ -3894,8 +3896,8 @@ Type* EncryptionPass::findTrueType(Type* topLevelType0, int topLevelOffset, int 
 }
 
 void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
-	std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
-    std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
+	std::map<PAGNode*, std::set<PAGNode*>> ptsToMap;;// = getAnalysis<WPAPass>().getPAGPtsToMap();
+    std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap;;// = getAnalysis<WPAPass>().getPAGPtsFromMap();
     PAG* pag = getAnalysis<WPAPass>().getPAG();
     ConstraintGraph* constraintGraph = getAnalysis<WPAPass>().getConstraintGraph();
 
@@ -4069,9 +4071,9 @@ bool EncryptionPass::runOnModule(Module &M) {
 
 	DoAESEncCache = true;
     // Do Alias Analysis for pointers
-    getAnalysis<WPAPass>().buildResultMaps();
-	std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
-	std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
+    //getAnalysis<WPAPass>().buildResultMaps();
+	std::map<PAGNode*, std::set<PAGNode*>> ptsToMap; // = getAnalysis<WPAPass>().getPAGPtsToMap();
+	std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap; // = getAnalysis<WPAPass>().getPAGPtsFromMap();
 
    	dbgs() << "Performed Pointer Analysis\n";
 

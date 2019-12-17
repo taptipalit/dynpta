@@ -27,11 +27,13 @@
  *      Author: Yulei Sui
  */
 
-#include "llvm/Analysis/SVF/MemoryModel/PAG.h"
-#include "llvm/Analysis/SVF/WPA/Andersen.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
-
+#include "MemoryModel/PAG.h"
+#include "WPA/Andersen.h"
+#include "Util/AnalysisUtil.h"
+#include <vector>
 #include <llvm/Support/CommandLine.h> // for tool output file
+#include <chrono>
+#include <ctime>
 
 using namespace llvm;
 using namespace analysisUtil;
@@ -43,8 +45,6 @@ Size_t Andersen::numOfProcessedGep = 0;
 Size_t Andersen::numOfProcessedLoad = 0;
 Size_t Andersen::numOfProcessedStore = 0;
 
-Size_t Andersen::numOfSensitiveCopy = 0;
-
 Size_t Andersen::numOfSCCDetection = 0;
 double Andersen::timeOfSCCDetection = 0;
 double Andersen::timeOfSCCMerges = 0;
@@ -55,173 +55,73 @@ Size_t Andersen::MaxPointsToSetSize = 0;
 double Andersen::timeOfProcessCopyGep = 0;
 double Andersen::timeOfProcessLoadStore = 0;
 double Andersen::timeOfUpdateCallGraph = 0;
-
+bool callTrack = false;
 
 static cl::opt<string> WriteAnder("write-ander",  cl::init(""),
                                   cl::desc("Write Andersen's analysis results to a file"));
 static cl::opt<string> ReadAnder("read-ander",  cl::init(""),
                                  cl::desc("Read Andersen's analysis results from a file"));
 
-#define DEBUG_TYPE "andersen"
+static cl::opt<bool> Profile("profile", cl::init(false), cl::desc("Profile the application"));
+static cl::opt<int> ProfileInterval("profile-interval", cl::init(100), cl::desc("Profiling interval for the application"));
+static cl::opt<bool> RemoveProfiledNodes("remove-profiled-nodes", cl::init(false), cl::desc("Removed profiled nodes"));
 
-void Andersen::collectGlobalSensitiveAnnotations(Module &M) {
-    std::vector<StringRef> GlobalSensitiveNameList;
+int mergeCount = 0;
+int maxNumOutgoingEdges = 0;
+int maxNumIncomingEdges = 0;
 
-    // Get the names of the global variables that are sensitive
-    if(GlobalVariable* GA = M.getGlobalVariable("llvm.global.annotations")) {
-        for (Value *AOp : GA->operands()) {
-            if (ConstantArray *CA = dyn_cast<ConstantArray>(AOp)) {
-                for (Value *CAOp : CA->operands()) {
-                    if (ConstantStruct *CS = dyn_cast<ConstantStruct>(CAOp)) {
-                        if (CS->getNumOperands() < 4) {
-                            LLVM_DEBUG(dbgs() << "Unexpected number of operands found. Skipping annotation. \n");
-                            break;
-                        }
+NodeID maxOutgoingEdgesNodeID = 0;
+NodeID maxIncomingEdgesNodeID = 0;
+auto start = std::chrono::system_clock::now();
 
-                        Value *CValue = CS->getOperand(0);
-                        if (ConstantExpr *Cons = dyn_cast<ConstantExpr>(CValue)) {
-                            GlobalSensitiveNameList.push_back(Cons->getOperand(0)->getName());
-                        }
-                    }
-                }
-            }
+typedef llvm::DenseMap<NodeID,std::vector<NodeID>> RepToNodeMap;
+RepToNodeMap repToNodeMap;
+
+void Andersen::analyzeSubgraph(SVFModule svfModule) {
+    double andersAnalysisTime;
+
+	double timeStart, timeEnd;
+	timeStart = CLOCK_IN_MS();
+
+    DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Start Solving Constraints\n"));
+    //dumpStat();
+    initializeSubgraph(svfModule);
+    processAllAddr();
+
+    do {
+        numOfIteration++;
+
+        reanalyze = false;
+
+        // Start solving constraints
+
+        solve();
+
+        double cgUpdateStart = stat->getClk();
+        if (updateCallGraph(getIndirectCallsites())){
+            reanalyze = true;
         }
-    }
-    // Add the global variables which are sensitive to the list
-    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
-        if (I->getName() != "llvm.global.annotations") {
-            GlobalVariable* GV = llvm::cast<GlobalVariable>(I);
-            if (std::find(GlobalSensitiveNameList.begin(), GlobalSensitiveNameList.end(), GV->getName()) != GlobalSensitiveNameList.end()) {
-                // It might be an object or a pointer, we'll deal with these guys later
-                if (pag->hasObjectNode(GV)) {
-                    NodeID objID = pag->getObjectNode(GV);
-                    SensitiveObjList.set(objID);
-                    //PAGNode* objNode = pag->getPAGNode(objID);
-                    //SensitiveObjList.push_back(objNode);
-                    // Find all Field-edges and corresponding field nodes
-                    NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
-                    for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
-                        SensitiveObjList.set(*fIt);
-                        //PAGNode* fldNode = pag->getPAGNode(*fIt);
-                        //SensitiveObjList.push_back(fldNode);
-                    }
-                    //SensitiveObjList.push_back(objNode);
-                } 
-                if (pag->hasValueNode(GV)) {
-                    NodeID valID = pag->getValueNode(GV);
-                    SensitiveObjList.set(valID);
-                    //SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(GV)));
-                }
-            }
-        }
-    }
+        double cgUpdateEnd = stat->getClk();
+        timeOfUpdateCallGraph += (cgUpdateEnd - cgUpdateStart) / TIMEINTERVAL;
+
+    } while (reanalyze);
+
+    DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Finish Solving Constraints\n"));
+
+    /// finalize the analysis
+    finalize();
+	timeEnd = CLOCK_IN_MS();
+	andersAnalysisTime = (timeEnd - timeStart) / TIMEINTERVAL;
+
+    outs() << "Andersen's Analysis took: " << (long)andersAnalysisTime << " seconds.\n";
 }
 
-
-void Andersen::collectLocalSensitiveAnnotations(Module& M) {
-	// Do one pass around the program to gather all sensitive values
-
-	// For each function ... 
-	for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
-		if (auto *F = dyn_cast<Function>(MIterator)) {
-			// Get the local sensitive values
-			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
-				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
-					//outs() << "Basic block found, name : " << BB->getName() << "\n";
-					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-							// Check if it's an annotation
-							if (isa<CallInst>(Inst)) {
-								CallInst* CInst = dyn_cast<CallInst>(Inst);
-								// CallInst->getCalledValue() gives us a pointer to the Function
-								if (CInst->getCalledValue()->getName().equals("llvm.var.annotation") || CInst->getCalledValue()->getName().startswith("llvm.ptr.annotation")) {
-									Value* SV = CInst->getArgOperand(0);
-									for (Value::use_iterator useItr = SV->use_begin(), useEnd = SV->use_end(); useItr != useEnd; useItr++) {
-										Value* UseValue = dyn_cast<Value>(*useItr);
-                                        if (pag->hasObjectNode(UseValue)) {
-                                            NodeID objID = pag->getObjectNode(UseValue);
-                                            SensitiveObjList.set(objID);
-                                            //PAGNode* objNode = pag->getPAGNode(objID);
-                                            //SensitiveObjList.push_back(objNode);
-                                            // Find all Field-edges and corresponding field nodes
-                                            NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
-                                            for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
-                                                SensitiveObjList.set(*fIt);
-                                                //PAGNode* fldNode = pag->getPAGNode(*fIt);
-                                                //SensitiveObjList.push_back(fldNode);
-                                            }
-                                            //SensitiveObjList.set(*fIt);
-                                            //SensitiveObjList.push_back(objNode);
-                                        } 
-                                        if (pag->hasValueNode(UseValue)) {
-                                            NodeID valID = pag->getValueNode(UseValue);
-                                            SensitiveObjList.set(valID);
-										    //SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(UseValue)));
-                                        }
-									}
-								}
-							}	
-						}
-					}
-				}
-			}
-
-			// Check for bitcast versions. This is needed because annotation function calls seem to take 8bit arguments only.
-			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
-				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
-					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-							if (isa<BitCastInst>(Inst)) {
-								BitCastInst* BCInst = dyn_cast<BitCastInst>(Inst);
-								Value* RetVal = llvm::cast<Value>(Inst);
-								if (isSensitiveObj(pag->getValueNode(RetVal))) { // A CastInst is a Value not Obj
-									// The bitcasted version of this variable was used in the annotation call,
-									// So add this variable too to the encrypted list
-                                    Value* val = BCInst->getOperand(0);
-                                    if (pag->hasObjectNode(val)) {
-                                        NodeID objID = pag->getObjectNode(val);
-                                        SensitiveObjList.set(objID);
-                                        //PAGNode* objNode = pag->getPAGNode(objID);
-                                        //SensitiveObjList.push_back(objNode);
-                                        // Find all Field-edges and corresponding field nodes
-                                        NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
-                                        for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
-                                            SensitiveObjList.set(*fIt);
-                                            //PAGNode* fldNode = pag->getPAGNode(*fIt);
-                                            //SensitiveObjList.push_back(fldNode);
-                                        }
-                                        //SensitiveObjList.push_back(objNode);
-                                    } 
-                                    if (pag->hasValueNode(val)) {
-                                        NodeID valID = pag->getValueNode(val);
-                                        SensitiveObjList.set(valID);
-									    //SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(val)));
-                                    }
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-
-/*
-bool Andersen::runOnModule(llvm::Module& module) {
-	analyze(module);
-	return false;
-}*/
 /*!
  * Andersen analysis
  */
 void Andersen::analyze(SVFModule svfModule) {
-//void Andersen::analyze(llvm::Module& svfModule) {
-    Size_t prevIterationSensitiveCopyEdges = 0;
     /// Initialization for the Solver
     initialize(svfModule);
-
 
     bool readResultsFromFile = false;
     if(!ReadAnder.empty())
@@ -229,32 +129,22 @@ void Andersen::analyze(SVFModule svfModule) {
 
     if(!readResultsFromFile) {
         DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Start Solving Constraints\n"));
-
+        //dumpStat();
         processAllAddr();
+
         do {
             numOfIteration++;
 
-            if(0 == numOfIteration % OnTheFlyIterBudgetForStat) {
-                dumpStat();
-            }
-
             reanalyze = false;
 
-            errs() << "Running one iteration:\n";
-            errs() << "Calling solve ... \n";
-            /// Start solving constraints
+            // Start solving constraints
+
             solve();
 
-            if (numOfSensitiveCopy > prevIterationSensitiveCopyEdges) {
-                errs() << "Useful iteration" << "\n";
-            } else {
-                errs() << "Useless iteration" << "\n";
-            }
-            prevIterationSensitiveCopyEdges = numOfSensitiveCopy;
-
             double cgUpdateStart = stat->getClk();
-            if (updateCallGraph(getIndirectCallsites()))
+            if (updateCallGraph(getIndirectCallsites())){
                 reanalyze = true;
+            }
             double cgUpdateEnd = stat->getClk();
             timeOfUpdateCallGraph += (cgUpdateEnd - cgUpdateStart) / TIMEINTERVAL;
 
@@ -271,18 +161,547 @@ void Andersen::analyze(SVFModule svfModule) {
 }
 
 
+void Andersen::profileConstraintGraph() {
+    // Go over every node in the Constraint Graph and see what's the
+    // deal with it
+    ConstraintGraph::IDToNodeMapTy::iterator pit = consCG->begin();
+    while (pit != consCG->end()) { 
+	NodeID nodeID = pit->first;
+	if (nodeID == 16) {
+		ConstraintNode* node = consCG->getConstraintNode(nodeID);
+		ConstraintNode* newDst = consCG->getConstraintNode(34); 
+		/*for (ConstraintNode::const_iterator it = node->InEdgeBegin(),
+                			eit = node->InEdgeEnd(); it != eit; ++it) {
+			ConstraintEdge* edge = *it;
+			ConstraintNode* src = edge->getSrcNode();	
+			edge->setNewDstNode(newDst);
+			newDst->addIncomingEdge(edge);	
+				
+            	}*/
+		bool gepInsideScc = consCG->steensgardMoveEdgesToRepNode(node, newDst); 
+	return;
+        }
+	pit++;
+    }
+
+
+  
+    int dummyValCount = 0;
+    int dummyObjCount = 0;
+    int retPNCount = 0;
+    int varArgCount = 0;
+    int fiObjCount = 0;
+    int gepObjCount = 0;
+    int gepValCount = 0;
+    int objCount = 0;
+    int valCount = 0;
+    int totalCount = 0;
+
+    ConstraintGraph::IDToNodeMapTy::iterator it = consCG->begin();
+    while (it != consCG->end()) {
+        NodeID nodeID = it->first;
+        ConstraintNode* constraintNode = consCG->getConstraintNode(nodeID);
+	const PAGNode* pagNode = pag->getPAGNode(nodeID);
+	/*if (isa<DummyValPN>(pagNode)){
+		dummyValCount++;
+		outs () <<" Dummy: "<<nodeID<<"\n";
+	}
+	else if (isa<DummyObjPN>(pagNode)){
+		dummyObjCount++;
+		outs () <<" Dummy: "<<nodeID<<"\n";
+        }*/
+	if (isa<RetPN>(pagNode)){
+                retPNCount++;
+		outs () <<" Ret: "<<nodeID<<"\n";
+		ConstraintNode* constraintNode = consCG->getConstraintNode(nodeID);
+        	int outEdgeCount = constraintNode->getOutEdges().size();
+        	int inEdgeCount = constraintNode->getInEdges().size();
+		//outs() << " Ret outEdgeCount: "<<outEdgeCount<<" and inEdgeCount: "<<inEdgeCount<<"\n";
+
+        }
+	else if (isa<VarArgPN>(pagNode)){
+                varArgCount++;
+		outs () <<" VarArg: "<<nodeID<<"\n";
+        }
+	/*else if (isa<FIObjPN>(pagNode)){
+                fiObjCount++;
+		outs () <<" FIObj: "<<nodeID<<"\n";
+        }*/
+	/*else if (isa<GepObjPN>(pagNode)){
+                gepObjCount++;
+		outs () <<" GepObj: "<<nodeID<<"\n";
+        }
+	else if (isa<GepValPN>(pagNode)){
+                gepValCount++;
+		outs () <<" GepVal: "<<nodeID<<"\n";
+        }*/
+	else if (isa<ObjPN>(pagNode)){
+                objCount++;
+		//outs () <<" Obj: "<<nodeID<<"\n";
+        }
+	else if (isa<ValPN>(pagNode)){
+                valCount++;
+		//outs () <<" Val: "<<nodeID<<"\n";
+        }
+	totalCount++;
+	
+        it++;
+    }
+	
+    outs() <<" Total DummyValPN: "<<dummyValCount<<"\n";
+    outs() <<" Total DummyObjPN: "<<dummyObjCount<<"\n";
+    outs() <<" Total RetPN: "<<retPNCount<<"\n";
+    outs() <<" Total VarArgPN: "<<varArgCount<<"\n";
+    errs() <<" Total FIObjPN: "<<fiObjCount<<"\n";
+    errs() <<" Total GepObjPN: "<<gepObjCount<<"\n";
+    outs() <<" Total GepValPN: "<<gepValCount<<"\n";
+    outs() <<" Total ObjPN: "<<objCount<<"\n";
+    outs() <<" Total ValPN: "<<valCount<<"\n";
+    outs() <<" Total : "<<totalCount<<"\n";
+    /*ConstraintGraph::IDToNodeMapTy::iterator it = consCG->begin();
+    std::vector<int> outEdgeCounts;
+    std::vector<int> inEdgeCounts;
+    
+    std::map<int, NodeID> outEdgeCountToNodeIDMap;
+    std::map<int, NodeID> inEdgeCountToNodeIDMap;
+
+    while (it != consCG->end()) {
+        NodeID nodeID = it->first;
+        ConstraintNode* constraintNode = consCG->getConstraintNode(nodeID);
+        int outEdgeCount = constraintNode->getOutEdges().size();
+        int inEdgeCount = constraintNode->getInEdges().size();
+        outEdgeCounts.push_back(outEdgeCount);
+        inEdgeCounts.push_back(inEdgeCount);
+        outEdgeCountToNodeIDMap[outEdgeCount] = nodeID;
+        inEdgeCountToNodeIDMap[inEdgeCount] = nodeID;
+        it++;
+    }
+
+    // Sort it 
+    std::sort(outEdgeCounts.begin(), outEdgeCounts.end(), greater<int>());
+    std::sort(inEdgeCounts.begin(), inEdgeCounts.end(), greater<int>());
+
+    outs() << "Top 100 out-edge counts\n";
+    for (int i = 0; i < 100; i++) {
+        int edgeCount = outEdgeCounts[i];
+        NodeID nodeID = outEdgeCountToNodeIDMap[edgeCount];
+        //outs() << edgeCount << " : Node ID : " << nodeID << "\n";
+        ConstraintNode* node = consCG->getConstraintNode(nodeID);
+        if (node == NULL)
+            continue;
+        if (RemoveProfiledNodes) {
+            bool gepInsideScc = consCG->steensgardMoveEdgesToRepNode(node, node);
+            consCG->removeConstraintNode(node);
+            outs() <<edgeCount << " :NodeId removed "<<nodeID << "\n";
+        }
+        // Get the value from the pag
+        PAGNode* pagNode = pag->getPAGNode(nodeID);
+        outs() << pagNode->getValueName() << "\n";
+        if (pagNode->hasValue()) {
+            Value* val = const_cast<Value*>(pagNode->getValue());
+            outs() << *(val) << "\n";
+            if (Argument* arg = dyn_cast<Argument>(val)) {
+                outs() << "Argument for " << arg->getParent()->getName() << "\n";
+            }
+        }
+    }
+
+    outs() << "Top 100 in-edge counts\n";
+
+    for (int i = 0; i < 100; i++) {
+        int edgeCount = inEdgeCounts[i];
+        NodeID nodeID = inEdgeCountToNodeIDMap[edgeCount];
+        outs() << edgeCount << " : Node ID : " << nodeID << "\n";
+        if (RemoveProfiledNodes) { 
+            ConstraintNode* node = consCG->getConstraintNode(nodeID);
+            if (node == NULL)
+                continue;
+            bool gepInsideScc = consCG->steensgardMoveEdgesToRepNode(node, node);
+            consCG->removeConstraintNode(node);
+            outs() <<edgeCount << " :NodeId removed "<<nodeID << "\n";
+        }
+
+        // Get the value from the pag
+        PAGNode* pagNode = pag->getPAGNode(nodeID);
+        outs() << pagNode->getValueName() << "\n";
+        if (pagNode->hasValue()) {
+            Value* val = const_cast<Value*>(pagNode->getValue());
+            outs() << *(val) << "\n";
+            if (Argument* arg = dyn_cast<Argument>(val)) {
+                outs() << "Argument for " << arg->getParent()->getName() << "\n";
+            }
+        }
+    }*/
+}
+
 /*!
- * Start constraint solving
+ * Steensgard analysis
+ */
+void Steensgard::analyze(SVFModule svfModule) {
+    /// Initialization for the Solver
+    initialize(svfModule);
+
+    bool readResultsFromFile = false;
+    if(!ReadAnder.empty())
+        readResultsFromFile = this->readFromFile(ReadAnder);
+
+    
+    if(!readResultsFromFile) {
+        DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Start Solving Constraints\n"));
+        //dumpStat();
+        if (Profile) {
+            profileConstraintGraph();
+
+        }
+        
+        steensgardProcessAllAddr();
+        
+        do {
+            numOfIteration++;
+
+            reanalyze = false;
+
+            /// Start solving constraints
+            if(callTrack)
+                steensgardCallSolve();
+            else        
+                steensgardSolve();
+              
+            double cgUpdateStart = stat->getClk();
+            if (updateCallGraph(getIndirectCallsites())){
+                reanalyze = true;
+                callTrack = true;
+                }
+            double cgUpdateEnd = stat->getClk();
+            timeOfUpdateCallGraph += (cgUpdateEnd - cgUpdateStart) / TIMEINTERVAL;
+
+        } while (reanalyze);
+	cout << " Done Analysis ";
+        DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Finish Solving Constraints\n"));
+	
+        /// finalize the analysis
+        finalize();
+	//dump();
+    }
+
+    if(!WriteAnder.empty())
+        this->writeToFile(WriteAnder);
+}
+
+
+void Steensgard::steensgardProcessNodeInitial(NodeID nodeId) {
+
+	if (consCG->getRep(nodeId) != nodeId) return;
+		
+    	numOfIteration++;
+
+   	ConstraintNode* node = consCG->getConstraintNode(nodeId);
+	if (node == NULL) {
+		return;
+	}
+	/*if (nodeId == 3){
+		bool gepInsideScc = consCG->steensgardMoveEdgesToRepNode(node, node);
+		consCG->removeConstraintNode(node);
+		return;
+	}*/
+
+	const PAGNode* pagNode = pag->getPAGNode(nodeId);
+	if (isa<ValPN>(pagNode) || isa<RetPN>(pagNode) || isa<VarArgPN>(pagNode)){
+		int st = 0;
+		NodeID dst = 0;
+		for (ConstraintNode::const_iterator it = node->directOutEdgeBegin(), eit =
+			node->directOutEdgeEnd(); ; ) {
+			if (it == eit) break;
+			if(CopyCGEdge* edge = llvm::dyn_cast<CopyCGEdge>(*it)){
+				numOfProcessedCopy++;
+				dst = edge->getDstID();
+				it++;
+				if (dst == nodeId) continue;
+				const PAGNode* pagNodeDst = pag->getPAGNode(dst);
+				if ((isa<ValPN>(pagNodeDst)) || isa<RetPN>(pagNodeDst) || isa<VarArgPN>(pagNodeDst)){
+					//cout << " Merging "<< dst<<" and "<<nodeId<< " \n"; 
+					steensgardMerge(dst, nodeId);
+					st = 1;
+				}
+			}
+			else it++;
+		}
+		if (st == 1 ){
+			steensgardProcessNodeInitial(nodeId);
+		}
+	}
+}
+
+
+void Steensgard::steensgardProcessNode(NodeID nodeId) {
+
+    if (consCG->getRep(nodeId) != nodeId) return;
+
+    numOfIteration++;
+    
+    cout << "\nnodeId Process"<<nodeId;
+
+    ConstraintNode* node = consCG->getConstraintNode(nodeId);
+    if (node == NULL) {
+	return;
+	}
+    
+    // Handle Load and Store
+    for (PointsTo::iterator piter = getPts(nodeId).begin(), epiter =
+                getPts(nodeId).end(); piter != epiter; ++piter) {
+        
+	NodeID ptd = *piter;
+        //cout << " ptd "<<ptd;
+
+	//Handle load
+        for (ConstraintNode::const_iterator it = node->outgoingLoadsBegin(),
+                eit = node->outgoingLoadsEnd(); it != eit; ++it) {
+                //cout << " load ";
+            if (processLoad(ptd, *it)){
+                //cout <<" addworklist:"<<ptd<<" ";
+                steensgardPushIntoWorklist(ptd);
+            }
+        }
+
+        // handle store
+        for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
+                eit = node->incomingStoresEnd(); it != eit; ++it) {
+                //cout << " store ";
+            if (processStore(ptd, *it)){
+                steensgardPushIntoWorklist(ptd);
+                //cout <<" addworklist:"<<ptd<<" ";
+            }
+        }
+    }
+
+ }
+
+
+
+void Steensgard::steensgardWorklistProcess(NodeID nodeId) {
+
+	//processing only memory address nodes
+	//cout << "\nNodeId_Worklist: "<<nodeId;
+	//flag = false;
+	//if (nodeId == 16) return;
+	if (consCG->getRep(nodeId) != nodeId) return;
+
+	//cout << "\nNodeId_Worklist: "<<nodeId; 
+	NodeID src = 0, dst = 0;
+	NodeID mergeNode1 = 0, mergeNode2 = 0;
+	bool merged = false;
+
+        ConstraintNode* node = consCG->getConstraintNode(nodeId);
+        if (node == NULL)
+                return;
+	
+	const PAGNode* pagNode = pag->getPAGNode(nodeId);
+
+	// Checking if node is a address node and merge all incoming and outgoing copy nodes
+	if (isa<ObjPN>(pagNode)){
+		//cout << "\nNodeId: "<<nodeId<< " Count: "<< consCG->getCount(nodeId);
+                int count = 0;
+		numOfIteration++;
+
+                // Finding source nodes of a address node and merge if more than one src copy edge
+                for (ConstraintNode::const_iterator it = node->directInEdgeBegin(),
+                        eit = node->directInEdgeEnd(); ; ) {
+			if (it == eit) break;
+
+                        if(CopyCGEdge* edge = llvm::dyn_cast<CopyCGEdge>(*it)){
+				numOfProcessedCopy++;
+                                src = edge->getSrcID();
+				it++;
+				const PAGNode* pagNodeDst = pag->getPAGNode(src);
+                                /*if ((isa<ObjPN>(pagNodeDst)) ){
+					continue;
+				}*/
+				if (mergeNode1 == 0){
+					mergeNode1 = src;
+				}
+				else
+					mergeNode2 = src;
+				if ((mergeNode1 != 0) && (mergeNode2 != 0) && (mergeNode1 != mergeNode2)){
+						//cout << " Merging "<<mergeNode2<< " and "<< mergeNode1<<" ";
+						steensgardMerge(mergeNode2 , mergeNode1);
+						count++;
+						merged = true;
+				}
+                        }
+			else it++;
+                }
+
+		// Union points of address node with source node
+		if (mergeNode1 != 0){
+			unionPts(nodeId,mergeNode1);
+		}
+
+		//cout<< "Copy_dst: ";
+		// merge src with dst and dst with dst
+                for (ConstraintNode::const_iterator it = node->directOutEdgeBegin(), eit =
+                        node->directOutEdgeEnd(); ; ) {
+			if (it == eit) break;
+
+                        if(CopyCGEdge* edge = llvm::dyn_cast<CopyCGEdge>(*it)){
+				numOfProcessedCopy++;
+                                dst = edge->getDstID();
+				it++;
+				const PAGNode* pagNodeDst = pag->getPAGNode(dst);
+                                /*if (isa<ObjPN>(pagNodeDst) ){
+                                        continue;
+                                }*/
+				if (mergeNode1 == 0){
+					mergeNode1 = dst;
+				}
+				else
+					mergeNode2 = dst;
+				if ((mergeNode1 != 0) && (mergeNode2 != 0) && (mergeNode1 != mergeNode2)){
+					//cout << " Merging "<<mergeNode2<< " and "<< mergeNode1<<" ";
+					steensgardMerge(mergeNode2, mergeNode1);
+					count++;
+					merged = true;
+				}
+                        }
+			else it++;
+                }
+		// union points of dst with address node and push merged dest in worklist
+		if (mergeNode1 != 0){ 
+			bool changed = unionPts(mergeNode1, nodeId);
+			if (changed || merged){
+				pushIntoWorklist(mergeNode1);
+			}
+		}
+		//cout << " Merge Count: "<<count; 
+	}
+	else{  
+		int st = 0;
+		steensgardProcessNode(nodeId);
+		
+		for (ConstraintNode::const_iterator it = node->directOutEdgeBegin(), eit =
+        		node->directOutEdgeEnd(); ; ) {
+			
+			if (it == eit) break;
+       			if(CopyCGEdge* edge = llvm::dyn_cast<CopyCGEdge>(*it)){
+				numOfProcessedCopy++;
+                		dst = edge->getDstID();
+				it++;
+				if (dst == nodeId) continue;
+                		const PAGNode* pagNodeDst = pag->getPAGNode(dst);
+                		if (isa<ValPN>(pagNodeDst) || isa<RetPN>(pagNodeDst) || isa<VarArgPN>(pagNodeDst)){
+                                	//cout << " Merging "<< dst<<" and "<<nodeId<< " \n";
+                                	steensgardMerge(dst, nodeId);
+					st = 1;
+                		}
+
+           		}
+			else it++;
+        	}
+		if (st == 1) {
+			pushIntoWorklist(nodeId);
+		}
+	}
+}
+
+void Steensgard::steensgardMerge(NodeID nodeId,NodeID newRepId) { 
+	if(nodeId==newRepId)
+		return;
+	unionPts(newRepId,nodeId);
+	//merging nodes and update edges
+	ConstraintNode* node = consCG->getConstraintNode(nodeId);
+
+        /*if (Profile) {
+         int numInEdges = node->getInEdges().size();
+         int numOutEdges = node->getOutEdges().size();
+
+         if (numInEdges > maxNumIncomingEdges) {
+            maxNumIncomingEdges = numInEdges;
+            maxOutgoingEdgesNodeID = node->getId();
+         }
+
+         if (numOutEdges > maxNumOutgoingEdges) {
+            maxNumOutgoingEdges = numOutEdges;
+            maxIncomingEdgesNodeID = node->getId();
+         }
+       }*/
+	//bool gepInsideScc = consCG->moveEdgesToRepNode(node, consCG->getConstraintNode(newRepId));
+	bool gepInsideScc = consCG->steensgardMoveEdgesToRepNode(node, consCG->getConstraintNode(newRepId));
+
+	consCG->removeConstraintNode(node);
+
+	
+	//fetching nodes for whom removed node is rep node,updating those nodes rep node to current rep node,
+	// add those nodes to the current rep node's list. 
+	/*std::vector<NodeID> temp = consCG->getNode(node->getId());
+	//cout << " NodeOfRep is "<<node->getId()<<" :";
+	for (std::vector<NodeID>::iterator it = temp.begin() ; it != temp.end(); ++it){
+		//cout << *it<< " ";
+		consCG->setRep(*it,newRepId);
+		consCG->setNodeToRep(*it,newRepId); 
+	}*/
+	for (std::vector<NodeID>::iterator it = repToNodeMap[nodeId].begin() ; it != repToNodeMap[nodeId].end(); ++it){
+                //cout << *it<< " ";
+                consCG->setRep(*it,newRepId);
+		repToNodeMap[newRepId].push_back(*it);
+        }
+
+	// set current rep node to removed node as rep node; add removed node to current rep node's list
+    consCG->setRep(node->getId(),newRepId);
+    //consCG->setNodeToRep(node->getId(),newRepId);
+    repToNodeMap[newRepId].push_back(node->getId());
+    if (Profile) {
+        mergeCount++;
+        if (mergeCount % ProfileInterval == 0){
+            /*outs() << "Maximum number of incoming edges in this iteration is: " << maxNumIncomingEdges << " for NodeID: " << maxOutgoingEdgesNodeID << "\n";
+            outs() << "Maximum number of outgoing edges in this iteration is: " << maxNumOutgoingEdges << " for NodeID: " << maxIncomingEdgesNodeID << "\n";
+            PAGNode* nodeOut = pag->getPAGNode(maxOutgoingEdgesNodeID);
+            PAGNode* nodeIn = pag->getPAGNode(maxIncomingEdgesNodeID);
+            outs() << "Out node name: " << nodeOut->getValueName() << "\n";
+            outs() << "In node name: " << nodeIn->getValueName() << "\n";*/
+            auto end = std::chrono::system_clock::now();
+            std::chrono::duration<double> elapsed_seconds = end-start;
+            outs() << " elapsed time: " << elapsed_seconds.count() << "s and total merge: "<<mergeCount<<"\n";
+            start = std::chrono::system_clock::now();
+            //maxNumIncomingEdges = 0;
+            //maxNumOutgoingEdges = 0;
+        }
+    }
+}
+
+
+/*!
+ * Process address edges
+ */
+void Steensgard::steensgardProcessAllAddr()
+{
+    for (ConstraintGraph::const_iterator nodeIt = consCG->begin(), nodeEit = consCG->end(); nodeIt != nodeEit; nodeIt++) {
+        ConstraintNode * cgNode = nodeIt->second;
+        for (ConstraintNode::const_iterator it = cgNode->incomingAddrsBegin(), eit = cgNode->incomingAddrsEnd();
+                it != eit; ++it)
+            steensgardProcessAddr(cast<AddrCGEdge>(*it));
+	 
+    }
+}
+
+/*!
+ * Process address edges
+ */
+				
+void Steensgard::steensgardProcessAddr(const AddrCGEdge* addr) {
+    numOfProcessedAddr++;
+    NodeID dst = addr->getDstID();
+    NodeID src = addr->getSrcID();
+    //cout <<" Dst : "<<dst<< " and Src: "<<src<<"\n";
+    addPts(dst,src);
+}
+
+
+/*!
+ * Start constraint solving for Andersen
  */
 void Andersen::processNode(NodeID nodeId) {
 
     numOfIteration++;
-    if (0 == numOfIteration % OnTheFlyIterBudgetForStat) {
-        dumpStat();
-    }
-
     ConstraintNode* node = consCG->getConstraintNode(nodeId);
-
     for (ConstraintNode::const_iterator it = node->outgoingAddrsBegin(), eit =
                 node->outgoingAddrsEnd(); it != eit; ++it) {
         processAddr(cast<AddrCGEdge>(*it));
@@ -294,26 +713,28 @@ void Andersen::processNode(NodeID nodeId) {
         // handle load
         for (ConstraintNode::const_iterator it = node->outgoingLoadsBegin(),
                 eit = node->outgoingLoadsEnd(); it != eit; ++it) {
-            if (processLoad(ptd, *it))
+            if (processLoad(ptd, *it)){
                 pushIntoWorklist(ptd);
+                }
         }
 
         // handle store
         for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
                 eit = node->incomingStoresEnd(); it != eit; ++it) {
-            if (processStore(ptd, *it))
+            if (processStore(ptd, *it)){
                 pushIntoWorklist((*it)->getSrcID());
+                }
         }
     }
-
     // handle copy, call, return, gep
     for (ConstraintNode::const_iterator it = node->directOutEdgeBegin(), eit =
                 node->directOutEdgeEnd(); it != eit; ++it) {
-        if (GepCGEdge* gepEdge = llvm::dyn_cast<GepCGEdge>(*it))
+        if (GepCGEdge* gepEdge = llvm::dyn_cast<GepCGEdge>(*it)){
             processGep(nodeId, gepEdge);
-        else
-
+        }
+        else{
             processCopy(nodeId, *it);
+        }
     }
 }
 
@@ -338,8 +759,10 @@ void Andersen::processAddr(const AddrCGEdge* addr) {
 
     NodeID dst = addr->getDstID();
     NodeID src = addr->getSrcID();
-    if(addPts(dst,src))
+    if(addPts(dst,src)) {
+	//cout <<" Address_addworklist:"<<dst<<" ";
         pushIntoWorklist(dst);
+	}
 }
 
 /*!
@@ -356,9 +779,11 @@ bool Andersen::processLoad(NodeID node, const ConstraintEdge* load) {
         return false;
 
     numOfProcessedLoad++;
-
+    bool l = false;
     NodeID dst = load->getDstID();
-    return addCopyEdge(node, dst);
+    //cout <<" Dst "<<dst<< " ";
+    l = addCopyEdge(node, dst);
+    return l;
 }
 
 /*!
@@ -375,9 +800,11 @@ bool Andersen::processStore(NodeID node, const ConstraintEdge* store) {
         return false;
 
     numOfProcessedStore++;
-
+    bool s = false;
     NodeID src = store->getSrcID();
-    return addCopyEdge(src, node);
+    //cout << " Src "<<src<< " ";
+    s =  addCopyEdge(src, node);
+    return s;
 }
 
 /*!
@@ -387,22 +814,14 @@ bool Andersen::processStore(NodeID node, const ConstraintEdge* store) {
  */
 bool Andersen::processCopy(NodeID node, const ConstraintEdge* edge) {
     numOfProcessedCopy++;
+
     assert((isa<CopyCGEdge>(edge)) && "not copy/call/ret ??");
     NodeID dst = edge->getDstID();
-    PointsTo& dstPtsBef = getPts(dst);
     PointsTo& srcPts = getPts(node);
-    PointsTo& dstPtsAft = getPts(dst);
-    int dstPtsCountBef = getPts(dst).count();
     bool changed = unionPts(dst,srcPts);
-    int dstPtsCountAft = getPts(dst).count();
-
-    if (changed && isSensitivePointsTo(dstPtsBef)) {
-        numOfSensitiveCopy++;
-        SensitiveObjList |= dstPtsAft;
-    }
-
-    if (changed)
+    if (changed){
         pushIntoWorklist(dst);
+	}
 
     return changed;
 }
@@ -481,10 +900,11 @@ void Andersen::mergeSccCycle()
     NodeStack & topoOrder = getSCCDetector()->topoNodeStack();
     while (!topoOrder.empty()) {
         NodeID repNodeId = topoOrder.top();
+	//repNodeId = consCG->getRep(repNodeId);
         topoOrder.pop();
         revTopoOrder.push(repNodeId);
-
         // merge sub nodes to rep node
+	//Next line commented out for steensgard
         mergeSccNodes(repNodeId, changedRepNodes);
     }
 
@@ -497,6 +917,7 @@ void Andersen::mergeSccCycle()
     // restore the topological order for later solving.
     while (!revTopoOrder.empty()) {
         NodeID nodeId = revTopoOrder.top();
+	//nodeId = consCG->getRep(nodeId);
         revTopoOrder.pop();
         topoOrder.push(nodeId);
     }
@@ -512,9 +933,12 @@ void Andersen::mergeSccNodes(NodeID repNodeId, NodeBS & chanegdRepNodes)
     const NodeBS& subNodes = getSCCDetector()->subNodes(repNodeId);
     for (NodeBS::iterator nodeIt = subNodes.begin(); nodeIt != subNodes.end(); nodeIt++) {
         NodeID subNodeId = *nodeIt;
+	//subNodeId = consCG->getRep(subNodeId);
         if (subNodeId != repNodeId) {
+	     // Commented out next two lines for steensgard as SCC will be detected due to merging
             mergeNodeToRep(subNodeId, repNodeId);
             chanegdRepNodes.set(subNodeId);
+	    //cout << "hi ";
         }
     }
 }
@@ -534,9 +958,6 @@ bool Andersen::collapseNodePts(NodeID nodeId)
 
         if (collapseField(*ptsIt))
             changed = true;
-    }
-    if (changed) {
-        problematicPWC++;
     }
     return changed;
 }
@@ -604,7 +1025,6 @@ bool Andersen::collapseField(NodeID nodeId)
  */
 NodeStack& Andersen::SCCDetect() {
     numOfSCCDetection++;
-
     double sccStart = stat->getClk();
     WPAConstraintSolver::SCCDetect();
     double sccEnd = stat->getClk();
@@ -633,7 +1053,9 @@ bool Andersen::updateCallGraph(const CallSiteToFunPtrMap& callsites) {
             consCG->connectCaller2CalleeParams(cs,*cit,cpySrcNodes);
         }
     }
+    //cout << "callGraph worklist: ";
     for(NodePairSet::iterator it = cpySrcNodes.begin(), eit = cpySrcNodes.end(); it!=eit; ++it) {
+      //  cout << it->first<< " ";
         pushIntoWorklist(it->first);
     }
 
@@ -641,6 +1063,7 @@ bool Andersen::updateCallGraph(const CallSiteToFunPtrMap& callsites) {
         return true;
     return false;
 }
+
 
 /*
  * Merge a node to its rep node
@@ -651,7 +1074,6 @@ void Andersen::mergeNodeToRep(NodeID nodeId,NodeID newRepId) {
 
     /// union pts of node to rep
     unionPts(newRepId,nodeId);
-
     /// move the edges from node to rep, and remove the node
     ConstraintNode* node = consCG->getConstraintNode(nodeId);
     bool gepInsideScc = consCG->moveEdgesToRepNode(node, consCG->getConstraintNode(newRepId));
@@ -659,15 +1081,18 @@ void Andersen::mergeNodeToRep(NodeID nodeId,NodeID newRepId) {
     /// its pts should be collapsed later.
     /// 2. if the node to be merged is already a PWC node, the rep node will also become
     /// a PWC node as it will have a self-cycle gep edge.
+
     if (gepInsideScc || node->isPWCNode())
         consCG->setPWCNode(newRepId);
 
     consCG->removeConstraintNode(node);
 
     /// set rep and sub relations
+
     consCG->setRep(node->getId(),newRepId);
     NodeBS& newSubs = consCG->sccSubNodes(newRepId);
     newSubs.set(node->getId());
+
 }
 
 /*

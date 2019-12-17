@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "llvm/Analysis/SVF/CUDD/util.h"
+#include "CUDD/util.h"
 
 #if (defined(sun) && ! defined(sparc)) || defined(vax)
 

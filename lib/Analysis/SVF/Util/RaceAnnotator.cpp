@@ -5,7 +5,7 @@
  *      Author: Yulei Sui, Peng Di
  */
 
-#include "llvm/Analysis/SVF/Util/RaceAnnotator.h"
+#include "Util/RaceAnnotator.h"
 #include <sstream>
 #include <llvm/Support/CommandLine.h>	// for llvm command line options
 

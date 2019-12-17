@@ -36,9 +36,9 @@
 #ifndef SVFGSTAT_H_
 #define SVFGSTAT_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/MemModel.h"
-#include "llvm/Analysis/SVF/Util/PTAStat.h"
-#include "llvm/Analysis/SVF/Util/SCC.h"
+#include "MemoryModel/MemModel.h"
+#include "Util/PTAStat.h"
+#include "Util/SCC.h"
 
 class MemSSA;
 

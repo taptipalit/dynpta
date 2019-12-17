@@ -31,7 +31,7 @@
 #define SVFGEDGE_H_
 
 
-#include "llvm/Analysis/SVF/MSSA/MemSSA.h"
+#include "MSSA/MemSSA.h"
 
 class SVFGNode;
 

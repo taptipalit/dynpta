@@ -31,8 +31,8 @@
 #ifndef FLOWSENSITIVESTAT_H_
 #define FLOWSENSITIVESTAT_H_
 
-#include "llvm/Analysis/SVF/Util/PTAStat.h"
-#include "llvm/Analysis/SVF/WPA/FlowSensitive.h"
+#include "Util/PTAStat.h"
+#include "WPA/FlowSensitive.h"
 
 class Andersen;
 class PAG;

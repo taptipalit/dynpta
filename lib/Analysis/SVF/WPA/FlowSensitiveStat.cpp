@@ -27,9 +27,9 @@
  *      Author: yesen
  */
 
-#include "llvm/Analysis/SVF/WPA/WPAStat.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
-#include "llvm/Analysis/SVF/WPA/FlowSensitive.h"
+#include "WPA/WPAStat.h"
+#include "Util/AnalysisUtil.h"
+#include "WPA/FlowSensitive.h"
 
 using namespace llvm;
 using namespace analysisUtil;

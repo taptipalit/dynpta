@@ -26,7 +26,7 @@
 ******************************************************************************/
 
 #include <limits.h>
-#include "llvm/Analysis/SVF/CUDD/dddmpInt.h"
+#include "CUDD/dddmpInt.h"
 
 /*-------------------------------1--------------------------------------------*/
 /* Stucture declarations                                                     */

@@ -27,8 +27,8 @@
  *      Author: Yulei Sui, Peng Di, Ding Ye
  */
 
-#include "llvm/Analysis/SVF/Util/SVFModule.h"
-#include "llvm/Analysis/SVF/Util/ThreadCallGraph.h"
+#include "Util/SVFModule.h"
+#include "Util/ThreadCallGraph.h"
 #include <llvm/IR/Module.h>
 #include <llvm/IR/InstIterator.h>	// for inst iteration
 
@@ -39,7 +39,7 @@ using namespace analysisUtil;
  * Constructor
  */
 ThreadCallGraph::ThreadCallGraph(SVFModule svfModule) :
-    PTACallGraph(svfModule), tdAPI(ThreadAPI::getThreadAPI()) {
+    PTACallGraph(svfModule, ThdCallGraph), tdAPI(ThreadAPI::getThreadAPI()) {
     DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Building ThreadCallGraph\n"));
     this->build(svfModule);
 }

@@ -27,8 +27,8 @@
  *      Author: Yulei Sui
  */
 
-#include "llvm/Analysis/SVF/SABER/FileChecker.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
+#include "SABER/FileChecker.h"
+#include "Util/AnalysisUtil.h"
 #include <llvm/Support/CommandLine.h>
 
 using namespace llvm;

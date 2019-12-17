@@ -8,8 +8,8 @@
 #ifndef MHP_H_
 #define MHP_H_
 
-#include "llvm/Analysis/SVF/MTA/TCT.h"
-#include "llvm/Analysis/SVF/Util/DataFlowUtil.h"
+#include "MTA/TCT.h"
+#include "Util/DataFlowUtil.h"
 #include <llvm/IR/Instructions.h>
 #include <set>
 #include <vector>

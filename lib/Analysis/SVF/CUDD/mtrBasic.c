@@ -60,8 +60,8 @@
 
 ******************************************************************************/
 
-#include "llvm/Analysis/SVF/CUDD/util.h"
-#include "llvm/Analysis/SVF/CUDD/mtrInt.h"
+#include "CUDD/util.h"
+#include "CUDD/mtrInt.h"
 
 
 /*---------------------------------------------------------------------------*/

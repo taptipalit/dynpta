@@ -30,7 +30,7 @@
 #ifndef FILECHECK_H_
 #define FILECHECK_H_
 
-#include "llvm/Analysis/SVF/SABER/LeakChecker.h"
+#include "SABER/LeakChecker.h"
 
 /*!
  * File open/close checker to check consistency of file operations

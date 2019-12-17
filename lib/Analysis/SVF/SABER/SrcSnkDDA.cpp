@@ -28,9 +28,9 @@
  */
 
 
-#include "llvm/Analysis/SVF/SABER/SrcSnkDDA.h"
-#include "llvm/Analysis/SVF/MSSA/SVFGStat.h"
-#include "llvm/Analysis/SVF/Util/GraphUtil.h"
+#include "SABER/SrcSnkDDA.h"
+#include "MSSA/SVFGStat.h"
+#include "Util/GraphUtil.h"
 
 using namespace llvm;
 

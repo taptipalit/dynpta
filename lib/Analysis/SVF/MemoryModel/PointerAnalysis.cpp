@@ -27,16 +27,16 @@
  *      Author: rocky
  */
 
-#include "llvm/Analysis/SVF/MemoryModel/PointerAnalysis.h"
-#include "llvm/Analysis/SVF/MemoryModel/PAGBuilder.h"
-#include "llvm/Analysis/SVF/Util/GraphUtil.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
-#include "llvm/Analysis/SVF/Util/PTAStat.h"
-#include "llvm/Analysis/SVF/Util/ThreadCallGraph.h"
-#include "llvm/Analysis/SVF/Util/CPPUtil.h"
-#include "llvm/Analysis/SVF/Util/SVFModule.h"
-#include "llvm/Analysis/SVF/MemoryModel/CHA.h"
-#include "llvm/Analysis/SVF/MemoryModel/PTAType.h"
+#include "MemoryModel/PointerAnalysis.h"
+#include "MemoryModel/PAGBuilder.h"
+#include "Util/GraphUtil.h"
+#include "Util/AnalysisUtil.h"
+#include "Util/PTAStat.h"
+#include "Util/ThreadCallGraph.h"
+#include "Util/CPPUtil.h"
+#include "Util/SVFModule.h"
+#include "MemoryModel/CHA.h"
+#include "MemoryModel/PTAType.h"
 #include <fstream>
 #include <sstream>
 
@@ -47,11 +47,6 @@ using namespace cppUtil;
 static cl::opt<bool> TYPEPrint("print-type", cl::init(false),
                                cl::desc("Print type"));
 
-/*
-static cl::opt<bool> CFGOnly("cfg-only", cl::init(false), 
-        cl::desc("Perform points-to analysis to resolve cfg only"));
-        */
-
 static cl::opt<bool> FuncPointerPrint("print-fp", cl::init(false),
                                       cl::desc("Print targets of indirect call site"));
 
@@ -61,7 +56,7 @@ static cl::opt<bool> PTSPrint("print-pts", cl::init(false),
 static cl::opt<bool> PTSAllPrint("print-all-pts", cl::init(false),
                                  cl::desc("Print all points-to set of both top-level and address-taken variables"));
 
-static cl::opt<bool> PStat("stat", cl::init(false),
+static cl::opt<bool> PStat("stat", cl::init(true),
                            cl::desc("Statistic for Pointer analysis"));
 
 static cl::opt<unsigned> statBudget("statlimit",  cl::init(20),
@@ -72,9 +67,6 @@ static cl::opt<bool> PAGDotGraph("dump-pag", cl::init(false),
 
 static cl::opt<bool> PAGPrint("print-pag", cl::init(false),
                               cl::desc("Print PAG to command line"));
-
-static cl::opt<std::string> Graphtxt("graphtxt", cl::value_desc("filename"),
-                                     cl::desc("graph txt file to build PAG"));
 
 static cl::opt<unsigned> IndirectCallLimit("indCallLimit",  cl::init(50000),
         cl::desc("Indirect solved call edge limit"));
@@ -139,31 +131,24 @@ void PointerAnalysis::initialize(SVFModule svfModule) {
 
     /// whether we have already built PAG
     if(pag == NULL) {
-
-        DBOUT(DGENERAL, outs() << pasMsg("Building Symbol table ...\n"));
-        SymbolTableInfo* symTable = SymbolTableInfo::Symbolnfo();
-        symTable->buildMemModel(svfModule);
-
         DBOUT(DGENERAL, outs() << pasMsg("Building PAG ...\n"));
-        if (!Graphtxt.getValue().empty()) {
-            PAGBuilderFromFile fileBuilder(Graphtxt.getValue());
+        // We read PAG from a user-defined txt instead of parsing PAG from LLVM IR
+        if (SVFModule::pagReadFromTXT()) {
+            PAGBuilderFromFile fileBuilder(SVFModule::pagFileName());
             pag = fileBuilder.build();
-
         } else {
+            DBOUT(DGENERAL, outs() << pasMsg("Building Symbol table ...\n"));
+            SymbolTableInfo* symTable = SymbolTableInfo::Symbolnfo();
+            symTable->buildMemModel(svfModule);
+
             PAGBuilder builder;
             pag = builder.build(svfModule);
-            /*
-            if (CFGOnly) {
-                pag = builder.build(svfModule, PAGBuilder::CFG_ONLY);
-            } else {
-                // TODO, modify things
-                pag = builder.build(svfModule, PAGBuilder::FULL);
-            }
-            */
-        }
 
-        chgraph = new CHGraph();
-        chgraph->buildCHG(svfModule);
+            chgraph = new CHGraph(svfModule);
+            chgraph->buildCHG();
+
+            typeSystem = new TypeSystem(pag);
+        }
 
         // dump the PAG graph
         if (dumpGraph())
@@ -174,16 +159,14 @@ void PointerAnalysis::initialize(SVFModule svfModule) {
             pag->print();
     }
 
-    typeSystem = new TypeSystem(pag);
-
-    svfMod = svfModule;
-
-    /// initialise pta call graph
+    /// initialise pta call graph for every pointer analysis instance
     if(EnableThreadCallGraph)
         ptaCallGraph = new ThreadCallGraph(svfModule);
     else
         ptaCallGraph = new PTACallGraph(svfModule);
     callGraphSCCDetection();
+
+    svfMod = svfModule;
 }
 
 
@@ -239,7 +222,7 @@ void PointerAnalysis::dumpStat() {
 void PointerAnalysis::finalize() {
 
     /// Print statistics
-    dumpStat();
+    //dumpStat();
 
     PAG* pag = PAG::getPAG();
     // dump the PAG graph
@@ -292,7 +275,7 @@ void PointerAnalysis::validateTests() {
 
 void PointerAnalysis::dumpAllTypes()
 {
-    for (NodeBS::iterator nIter = this->getAllValidPtrs().begin();
+    for (NodeSet::iterator nIter = this->getAllValidPtrs().begin();
             nIter != this->getAllValidPtrs().end(); ++nIter) {
         const PAGNode* node = getPAG()->getPAGNode(*nIter);
         if (isa<DummyObjPN>(node) || isa<DummyValPN>(node))
@@ -313,24 +296,21 @@ void PointerAnalysis::dumpAllTypes()
 /*!
  * Constructor
  */
-BVDataPTAImpl::BVDataPTAImpl(PointerAnalysis::PTATY type) : PointerAnalysis(type) {
-    if(type == Andersen_WPA || type == AndersenWave_WPA || type == AndersenLCD_WPA || type == AndersenDD_WPA || type == AndersenCFG_WPA) {
-        ptD = new PTDataTy();
-    }
-    else if (type == AndersenWaveDiff_WPA || type == AndersenWaveDiffWithType_WPA) {
-        ptD = new DiffPTDataTy();
-    }
-    else if (type == FSSPARSE_WPA) {
-        if(INCDFPTData)
-            ptD = new IncDFPTDataTy();
-        else
-            ptD = new DFPTDataTy();
-    }
-    else if (type == FlowS_DDA) {
-        ptD = new PTDataTy();
-    }
-    else
-        assert(false && "no points-to data available");
+BVDataPTAImpl::BVDataPTAImpl(PointerAnalysis::PTATY type) :
+		PointerAnalysis(type) {
+	if (type == Andersen_WPA || type == AndersenWave_WPA
+			|| type == AndersenLCD_WPA || type == TypeCPP_WPA || type == FlowS_DDA
+            || type == SteensgaardFast_WPA) {
+		ptD = new PTDataTy();
+	} else if (type == AndersenWaveDiff_WPA || type == AndersenWaveDiffWithType_WPA) {
+		ptD = new DiffPTDataTy();
+	} else if (type == FSSPARSE_WPA) {
+		if (INCDFPTData)
+			ptD = new IncDFPTDataTy();
+		else
+			ptD = new DFPTDataTy();
+	} else
+		assert(false && "no points-to data available");
 }
 
 /*!
@@ -481,7 +461,7 @@ bool BVDataPTAImpl::readFromFile(const string& filename) {
  * Dump points-to of each pag node
  */
 void BVDataPTAImpl::dumpTopLevelPtsTo() {
-    for (NodeBS::iterator nIter = this->getAllValidPtrs().begin();
+    for (NodeSet::iterator nIter = this->getAllValidPtrs().begin();
             nIter != this->getAllValidPtrs().end(); ++nIter) {
         const PAGNode* node = getPAG()->getPAGNode(*nIter);
         if (getPAG()->isValidTopLevelPtr(node)) {
@@ -506,19 +486,13 @@ void BVDataPTAImpl::dumpTopLevelPtsTo() {
  */
 void PointerAnalysis::dumpPts(NodeID ptr, const PointsTo& pts) {
 
-    PAGNode* node = pag->getPAGNode(ptr);
+    const PAGNode* node = pag->getPAGNode(ptr);
     /// print the points-to set of node which has the maximum pts size.
     if (isa<DummyObjPN> (node)) {
         outs() << "##<Dummy Obj > id:" << node->getId();
-    } else if (!isa<DummyValPN>(node)) {
+    } else if (!isa<DummyValPN>(node) && !SVFModule::pagReadFromTXT()) {
         outs() << "##<" << node->getValue()->getName() << "> ";
         outs() << "Source Loc: " << getSourceLoc(node->getValue());
-        if (GepObjPN* gepObjNode = dyn_cast<GepObjPN>(node)) {
-            outs() << "Field sensitive object found ... \n";
-            LocationSet lSet = gepObjNode->getLocationSet();
-            outs() << "Offset ... " << lSet.getOffset() << "\n";
-        }
-
     }
     outs() << "\nPtr " << node->getId() << " ";
 
@@ -535,24 +509,21 @@ void PointerAnalysis::dumpPts(NodeID ptr, const PointsTo& pts) {
     outs() << "";
 
     for (NodeBS::iterator it = pts.begin(), eit = pts.end(); it != eit; ++it) {
-        PAGNode* node = pag->getPAGNode(*it);
+        const PAGNode* node = pag->getPAGNode(*it);
         if(isa<ObjPN>(node) == false)
             continue;
         NodeID ptd = node->getId();
         outs() << "!!Target NodeID " << ptd << "\t [";
-        PAGNode* pagNode = pag->getPAGNode(ptd);
+        const PAGNode* pagNode = pag->getPAGNode(ptd);
         if (isa<DummyValPN>(node))
             outs() << "DummyVal\n";
         else if (isa<DummyObjPN>(node))
             outs() << "Dummy Obj id: " << node->getId() << "]\n";
         else {
-            outs() << "<" << pagNode->getValue()->getName() << "> ";
-            if (GepObjPN* gepObjNode = dyn_cast<GepObjPN>(pagNode)) {
-                outs() << "Field sensitive object found ... \n";
-                LocationSet lSet = gepObjNode->getLocationSet();
-                outs() << "Offset ... " << lSet.getOffset() << "\n";
-            }
-            outs() << "Source Loc: " << getSourceLoc(pagNode->getValue()) << "] \n";
+        		if(!SVFModule::pagReadFromTXT()){
+        			outs() << "<" << pagNode->getValue()->getName() << "> ";
+        			outs() << "Source Loc: " << getSourceLoc(pagNode->getValue()) << "] \n";
+        		}
         }
     }
 }
@@ -577,8 +548,6 @@ void PointerAnalysis::printIndCSTargets(const llvm::CallSite cs, const FunctionS
     llvm::outs() << "\nNodeID: " << getFunPtr(cs);
     llvm::outs() << "\nCallSite: ";
     cs.getInstruction()->print(llvm::outs());
-    llvm::outs() << "\nParent function: ";
-    llvm::outs() << cs.getInstruction()->getParent()->getParent()->getName() << "\n";
     llvm::outs() << "\tLocation: " << analysisUtil::getSourceLoc(cs.getInstruction());
     llvm::outs() << "\t with Targets: ";
 
@@ -621,8 +590,6 @@ void PointerAnalysis::printIndCSTargets()
             llvm::outs() << "\nNodeID: " << csIt->second;
             llvm::outs() << "\nCallSite: ";
             cs.getInstruction()->print(llvm::outs());
-            llvm::outs() << "\nParent function: ";
-            llvm::outs() << cs.getInstruction()->getParent()->getParent()->getName() << "\n";
             llvm::outs() << "\tLocation: " << analysisUtil::getSourceLoc(cs.getInstruction());
             llvm::outs() << "\n\t!!!has no targets!!!\n";
         }
@@ -637,15 +604,12 @@ void PointerAnalysis::printIndCSTargets()
 void BVDataPTAImpl::onTheFlyCallGraphSolve(const CallSiteToFunPtrMap& callsites, CallEdgeMap& newEdges,CallGraph* callgraph) {
     for(CallSiteToFunPtrMap::const_iterator iter = callsites.begin(), eiter = callsites.end(); iter!=eiter; ++iter) {
         CallSite cs = iter->first;
-        /*
         if (isVirtualCallSite(cs)) {
             const Value *vtbl = getVCallVtblPtr(cs);
             assert(pag->hasValueNode(vtbl));
             NodeID vtblId = pag->getValueNode(vtbl);
-            //assert(false && "Haven't implemented value flow analysis for this yet!\n");
             resolveCPPIndCalls(cs, getPts(vtblId), newEdges,callgraph);
         } else
-        */
             resolveIndCalls(iter->first,getPts(iter->second),newEdges,callgraph);
     }
 }
@@ -660,7 +624,7 @@ void PointerAnalysis::resolveIndCalls(CallSite cs, const PointsTo& target, CallE
     for (PointsTo::iterator ii = target.begin(), ie = target.end();
             ii != ie; ii++) {
 
-        if(getNumOfResolvedIndCallEdge() > IndirectCallLimit) {
+        if(getNumOfResolvedIndCallEdge() >= IndirectCallLimit) {
             errMsg("Resolved Indirect Call Edges are Out-Of-Budget, please increase the limit");
             return;
         }
@@ -695,8 +659,7 @@ void PointerAnalysis::resolveIndCalls(CallSite cs, const PointsTo& target, CallE
 /*
  * Get virtual functions "vfns" based on CHA
  */
-void PointerAnalysis::getVFnsFromCHA(CallSite cs,
-                                     std::set<const Function*> &vfns) {
+void PointerAnalysis::getVFnsFromCHA(CallSite cs, VFunSet &vfns) {
     if (chgraph->csHasVFnsBasedonCHA(cs))
         vfns = chgraph->getCSVFsBasedonCHA(cs);
 }
@@ -704,22 +667,19 @@ void PointerAnalysis::getVFnsFromCHA(CallSite cs,
 /*
  * Get virtual functions "vfns" from PoninsTo set "target" for callsite "cs"
  */
-void PointerAnalysis::getVFnsFromPts(CallSite cs,
-                                     const PointsTo &target,
-                                     std::set<const Function*> &vfns) {
+void PointerAnalysis::getVFnsFromPts(CallSite cs, const PointsTo &target, VFunSet &vfns) {
 
     if (chgraph->csHasVtblsBasedonCHA(cs)) {
-        std::set<const Value*> vtbls;
-        const std::set<const Value*> &chaVtbls =
-            chgraph->getCSVtblsBasedonCHA(cs);
-        for (PointsTo::iterator it = target.begin(), eit = target.end();
-                it != eit; ++it) {
+        std::set<const GlobalValue*> vtbls;
+        const VTableSet &chaVtbls = chgraph->getCSVtblsBasedonCHA(cs);
+        for (PointsTo::iterator it = target.begin(), eit = target.end(); it != eit; ++it) {
             const PAGNode *ptdnode = pag->getPAGNode(*it);
-            if (ptdnode->hasValue()) {
-                const Value *vtbl = ptdnode->getValue();
-                if (chaVtbls.find(vtbl) != chaVtbls.end())
-                    vtbls.insert(vtbl);
-            }
+			if (ptdnode->hasValue()) {
+				if (const GlobalValue *vtbl = dyn_cast<GlobalValue>(ptdnode->getValue())) {
+					if (chaVtbls.find(vtbl) != chaVtbls.end())
+						vtbls.insert(vtbl);
+				}
+			}
         }
         chgraph->getVFnsFromVtbls(cs, vtbls, vfns);
     }
@@ -728,12 +688,9 @@ void PointerAnalysis::getVFnsFromPts(CallSite cs,
 /*
  * Connect callsite "cs" to virtual functions in "vfns"
  */
-void PointerAnalysis::connectVCallToVFns(CallSite cs,
-        const std::set<const Function*> &vfns,
-        CallEdgeMap& newEdges,
-        llvm::CallGraph* callgraph) {
+void PointerAnalysis::connectVCallToVFns(CallSite cs, const VFunSet &vfns, CallEdgeMap& newEdges, llvm::CallGraph* callgraph) {
     //// connect all valid functions
-    for (set<const Function*>::const_iterator fit = vfns.begin(),
+    for (VFunSet::const_iterator fit = vfns.begin(),
             feit = vfns.end(); fit != feit; ++fit) {
         const Function* callee = *fit;
         if (callee->isDeclaration() && svfMod.hasDefinition(callee))
@@ -750,14 +707,10 @@ void PointerAnalysis::connectVCallToVFns(CallSite cs,
 }
 
 /// Resolve cpp indirect call edges
-void PointerAnalysis::resolveCPPIndCalls(CallSite cs,
-        const PointsTo& target,
-        CallEdgeMap& newEdges,
-        CallGraph* callgraph) {
-    assert(pag->isIndirectCallSites(cs) && "not an indirect callsite?");
+void PointerAnalysis::resolveCPPIndCalls(CallSite cs, const PointsTo& target, CallEdgeMap& newEdges, CallGraph* callgraph) {
     assert(isVirtualCallSite(cs) && "not cpp virtual call");
 
-    std::set<const Function*> vfns;
+    VFunSet vfns;
     if (connectVCallOnCHA)
         getVFnsFromCHA(cs, vfns);
     else

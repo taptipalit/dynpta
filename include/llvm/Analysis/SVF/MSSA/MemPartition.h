@@ -36,7 +36,7 @@
 #ifndef DISNCTMRGENERATOR_H_
 #define DISNCTMRGENERATOR_H_
 
-#include "llvm/Analysis/SVF/MSSA/MemRegion.h"
+#include "MSSA/MemRegion.h"
 
 /*!
  * Distinct memory region generator.

@@ -28,9 +28,9 @@
  *      Author: Yulei Sui
  */
 
-#include "llvm/Analysis/SVF/Util/SVFModule.h"
-#include "llvm/Analysis/SVF/Util/PTACallGraph.h"
-#include "llvm/Analysis/SVF/Util/GraphUtil.h"
+#include "Util/SVFModule.h"
+#include "Util/PTACallGraph.h"
+#include "Util/GraphUtil.h"
 #include <llvm/Support/DOTGraphTraits.h>	// for dot graph traits
 #include <llvm/IR/InstIterator.h>	// for inst iteration
 
@@ -38,7 +38,7 @@ using namespace llvm;
 using namespace analysisUtil;
 
 
-static cl::opt<bool> CallGraphDotGraph("dump-callgraph", cl::init(true),
+static cl::opt<bool> CallGraphDotGraph("dump-callgraph", cl::init(false),
                                        cl::desc("Dump dot graph of Call Graph"));
 
 PTACallGraph::CallSiteToIdMap PTACallGraph::csToIdMap;
@@ -71,7 +71,7 @@ bool PTACallGraphNode::isReachableFromProgEntry() const
 
 
 /// Constructor
-PTACallGraph::PTACallGraph(SVFModule svfModule) {
+PTACallGraph::PTACallGraph(SVFModule svfModule, CGEK k): kind(k) {
     svfMod = svfModule;
     callGraphNodeNum = 0;
     numOfResolvedIndCallEdge = 0;

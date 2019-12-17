@@ -30,8 +30,8 @@
 #ifndef LEAKCHECKER_H_
 #define LEAKCHECKER_H_
 
-#include "llvm/Analysis/SVF/SABER/SrcSnkDDA.h"
-#include "llvm/Analysis/SVF/SABER/SaberCheckerAPI.h"
+#include "SABER/SrcSnkDDA.h"
+#include "SABER/SaberCheckerAPI.h"
 
 /*!
  * Static Memory Leak Detector

@@ -17,13 +17,13 @@ set(SOURCES
     Util/PTAStat.cpp
     Util/ThreadAPI.cpp
     Util/SVFModule.cpp
-    Util/SensitiveDataHelper.cpp
     MemoryModel/ConsG.cpp
     MemoryModel/LocationSet.cpp
     MemoryModel/LocMemModel.cpp
     MemoryModel/MemModel.cpp
     MemoryModel/PAGBuilder.cpp
     MemoryModel/PAG.cpp
+    MemoryModel/PTG.cpp
     MemoryModel/CHA.cpp
     MemoryModel/PointerAnalysis.cpp
     MSSA/MemPartition.cpp
@@ -42,19 +42,18 @@ set(SOURCES
     SABER/SaberSVFGBuilder.cpp
     SABER/SrcSnkDDA.cpp
     WPA/Andersen.cpp
-    WPA/AndersenDD.cpp
-    WPA/AndersenCFG.cpp
     WPA/AndersenLCD.cpp
     WPA/AndersenStat.cpp
     WPA/AndersenWave.cpp
     WPA/AndersenWaveDiff.cpp
     WPA/AndersenWaveDiffWithType.cpp
+    WPA/SteensgaardFast.cpp
     WPA/FlowSensitive.cpp
     WPA/FlowSensitiveStat.cpp
+    WPA/TypeAnalysis.cpp
     WPA/WPAPass.cpp)
 
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/llvm/Analysis/SVF)
+include_directories(${CMAKE_SOURCE_DIR}/include/llvm/Analysis/SVF)
 add_llvm_Library(LLVMSVF ${SOURCES})
 
 add_dependencies(LLVMSVF intrinsics_gen)

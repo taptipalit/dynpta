@@ -148,6 +148,15 @@ public:
         else
             return false;
     }
+    inline bool spush(Data data) {
+	if (data_set.find(data) == data_set.end()) {
+		data_list.push_front(data);
+		data_set.insert(data);
+		return true;
+	}
+	else
+		return false;
+	}
 
     /**
      * Pop a data from the END of work list.
@@ -166,17 +175,6 @@ public:
     inline void clear() {
         data_list.clear();
         data_set.clear();
-    }
-
-    inline int size() {
-        return data_set.size();
-    }
-
-    inline static void copyWorkList(FIFOWorkList& src, FIFOWorkList& dst) {
-        typename std::set<Data>::iterator it;
-        for (it = src.data_set.begin(); it != src.data_set.end(); it++) {
-            dst.push(*it);
-        }
     }
 
 private:
