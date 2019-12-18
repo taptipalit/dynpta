@@ -232,53 +232,6 @@ void WPAPass::findDirectSinkSites(PAGNode* source, std::set<PAGNode*>& sinkSites
 
 }
 
-void WPAPass::buildResultMaps(void) {
-    /*
-    PAG* pag = _pta->getPAG();
-    std::set<PAGNode*> initialSenObjSet; // keep track of where we were initially
-
-    for (PAGNode* senObj: SensitiveObjList) {
-        initialSenObjSet.insert(senObj);
-    }
-
-    for (PAG::iterator it = pag->begin(), eit = pag->end(); it != eit; it++) {
-        NodeID ptr = it->first;
-        PointsTo pts = _pta->getPts(it->first);
-        PAGNode* node = pag->getPAGNode(ptr);
-        if (isa<DummyValPN>(node) || isa<DummyObjPN>(node)) {
-            continue;
-        }
-
-        for (NodeBS::iterator ptIt = pts.begin(), ptEit = pts.end(); ptIt != ptEit; ++ptIt) {
-            PAGNode* ptNode = pag->getPAGNode(*ptIt);
-            if (!isa<ObjPN>(ptNode)) {
-                continue;
-            }
-            if (isa<DummyValPN>(ptNode) || isa<DummyObjPN>(ptNode)) {
-                continue;
-            }
-
-            if (node != ptNode) {
-                pagPtsToMap[node].insert(ptNode);
-                pagPtsFromMap[ptNode].insert(node);
-            }
-        }
-    }
-
-    std::map<PAGNode*, std::set<PAGNode*>>::iterator ptsToIt = pagPtsToMap.begin();
-
-    */
-    if (SteensgaardFast* steens = dyn_cast<SteensgaardFast>(_pta)) {
-        //doSteensPostProcessing();
-        computeSteensSubGraph();
-    } else {
-        doAndersenPostProcessing();
-    }
-    // Now, figure out how many nodes will be retained
-    //computeSubGraph(initialSenObjSet, consCG);
-
-}
-
 ConstraintGraph* WPAPass::computeSteensSubGraph() {
     PAG* pag = _pta->getPAG();
     int totalNumSets = 0;
@@ -681,6 +634,35 @@ llvm::AliasResult WPAPass::alias(const Value* V1, const Value* V2) {
     }
 
     return result;
+}
+
+
+void WPAPass::buildResultMaps(void) {
+    PAG* pag = _pta->getPAG();
+    for (PAG::iterator it = pag->begin(), eit = pag->end(); it != eit; it++) {
+        NodeID ptr = it->first;
+        PointsTo pts = _pta->getPts(it->first);
+        PAGNode* node = pag->getPAGNode(ptr);
+        if (isa<DummyValPN>(node) || isa<DummyObjPN>(node)) {
+            continue;
+        }
+
+        for (NodeBS::iterator ptIt = pts.begin(), ptEit = pts.end(); ptIt != ptEit; ++ptIt) {
+            PAGNode* ptNode = pag->getPAGNode(*ptIt);
+            if (!isa<ObjPN>(ptNode)) {
+                continue;
+            }
+            if (isa<DummyValPN>(ptNode) || isa<DummyObjPN>(ptNode)) {
+                continue;
+            }
+            if (node != ptNode) {
+                pagPtsToMap[node].insert(ptNode);
+                //pagPtsToMap[node] = ptNode;
+                //std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap;
+                pagPtsFromMap[ptNode].insert(node);
+            }
+        }
+    }
 }
 
 PAGNode* WPAPass::getPAGValNodeFromValue(Value* llvmValue) {

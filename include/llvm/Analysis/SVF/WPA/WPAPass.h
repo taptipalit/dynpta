@@ -46,6 +46,7 @@
 
 #include <vector>
 #include <set>
+#include <map>
 
 class SVFModule;
 
@@ -115,7 +116,6 @@ public:
         return "WPAPass";
     }
 
-    void buildResultMaps(void);
     void collectLocalSensitiveAnnotations(llvm::Module&);
 
     void collectGlobalSensitiveAnnotations(llvm::Module&);
@@ -138,6 +138,16 @@ public:
         }
         return nullptr;
     }
+
+    virtual std::map<PAGNode*, std::set<PAGNode*>>& getPAGPtsToMap() {
+        return pagPtsToMap;
+    }
+
+    virtual std::map<PAGNode*, std::set<PAGNode*>>& getPAGPtsFromMap() {
+        return pagPtsFromMap;
+    }
+
+    virtual void buildResultMaps(); 
 
     void findDirectSinkSites(PAGNode*, std::set<PAGNode*>&);
     void findIndirectSinkSites(PAGNode*, std::set<PAGNode*>&);
