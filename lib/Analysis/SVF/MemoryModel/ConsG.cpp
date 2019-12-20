@@ -758,6 +758,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
             for (ConstraintNode::const_iterator it = node->incomingAddrsBegin(),
                     eit = node->incomingAddrsEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                workList.push((*it)->getSrcID());
                 cloneAddrEdge(*it);
             }
 
@@ -765,6 +766,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
             for (ConstraintNode::const_iterator it = node->incomingStoresBegin(),
                     eit = node->incomingStoresEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                workList.push((*it)->getSrcID());
                 cloneStoreEdge(*it);
             }
 
@@ -772,6 +774,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
             for (ConstraintNode::const_iterator it = node->incomingLoadsBegin(),
                     eit = node->incomingLoadsEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                workList.push((*it)->getSrcID());
                 cloneLoadEdge(*it);
             }
 
@@ -779,6 +782,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
             for (ConstraintNode::const_iterator it = node->directInEdgeBegin(),
                     eit = node->directInEdgeEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getSrcID(), addedConsNodeList);
+                workList.push((*it)->getSrcID());
                 cloneDirectEdge(*it);
             }
 
@@ -786,6 +790,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
             for (ConstraintNode::const_iterator it = node->outgoingAddrsBegin(),
                     eit = node->outgoingAddrsEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                workList.push((*it)->getDstID());
                 cloneAddrEdge(*it); 
             }
 
@@ -793,6 +798,7 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
             for (ConstraintNode::const_iterator it = node->outgoingStoresBegin(),
                     eit = node->outgoingStoresEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                workList.push((*it)->getDstID());
                 cloneStoreEdge(*it); 
             }
 
@@ -801,12 +807,14 @@ void ConstraintGraph::createSubGraphReachableFrom(ConstraintGraph* oldCG, WorkLi
             for (ConstraintNode::const_iterator it = node->outgoingLoadsBegin(),
                     eit = node->outgoingLoadsEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                workList.push((*it)->getDstID());
                 cloneLoadEdge(*it); 
             }
 
             for (ConstraintNode::const_iterator it = node->directOutEdgeBegin(),
                     eit = node->directOutEdgeEnd(); it != eit; ++it) {
                 testAndAddNode((*it)->getDstID(), addedConsNodeList);
+                workList.push((*it)->getDstID());
                 cloneDirectEdge(*it); 
             }
 

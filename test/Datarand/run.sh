@@ -2,6 +2,7 @@
 
 rm *.png *.dot
 file="$1"
+analysis="$2"
 fileinst=$file"_inst"
 
 set -x
@@ -41,7 +42,7 @@ fi
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $fileinst.bc 
-$LLVMROOT/opt -encryption  -dump-pag -dump-consG $file.bc -o $fileinst.bc # -print-all-pts -debug-only=encryption 
+$LLVMROOT/opt -encryption $analysis -dump-pag -dump-consG $file.bc -o $fileinst.bc # -print-all-pts -debug-only=encryption 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc
 $LLVMROOT/llvm-dis $file.bc -o $file.ll
