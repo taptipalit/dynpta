@@ -1,0 +1,3 @@
+/tmp/dh_genprime-f184b0.o
+-r=/tmp/dh_genprime-f184b0.o,main,plx
+-r=/tmp/dh_genprime-f184b0.o,printf,

@@ -1,0 +1,3 @@
+/tmp/ecdh_curve25519-40c820.o
+-r=/tmp/ecdh_curve25519-40c820.o,main,plx
+-r=/tmp/ecdh_curve25519-40c820.o,printf,

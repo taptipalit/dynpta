@@ -1,0 +1,228 @@
+  4455ed:	66 44 0f 3a 20 f0 00 	pinsrb $0x0,%eax,%xmm14
+  4455fc:	66 44 0f 3a 20 f0 01 	pinsrb $0x1,%eax,%xmm14
+  44560b:	66 44 0f 3a 20 f0 02 	pinsrb $0x2,%eax,%xmm14
+  44561a:	66 44 0f 3a 20 f0 03 	pinsrb $0x3,%eax,%xmm14
+  445629:	66 44 0f 3a 20 f0 04 	pinsrb $0x4,%eax,%xmm14
+  445638:	66 44 0f 3a 20 f0 05 	pinsrb $0x5,%eax,%xmm14
+  445644:	66 44 0f 3a 20 f0 06 	pinsrb $0x6,%eax,%xmm14
+  445650:	66 44 0f 3a 20 f0 07 	pinsrb $0x7,%eax,%xmm14
+  44565c:	66 44 0f 3a 20 f0 08 	pinsrb $0x8,%eax,%xmm14
+  445668:	66 44 0f 3a 20 f0 09 	pinsrb $0x9,%eax,%xmm14
+  445674:	66 44 0f 3a 20 f0 0a 	pinsrb $0xa,%eax,%xmm14
+  445680:	66 44 0f 3a 20 f0 0b 	pinsrb $0xb,%eax,%xmm14
+  44568c:	66 44 0f 3a 20 f0 0c 	pinsrb $0xc,%eax,%xmm14
+  445698:	66 44 0f 3a 20 f0 0d 	pinsrb $0xd,%eax,%xmm14
+  4456a4:	66 44 0f 3a 20 f0 0e 	pinsrb $0xe,%eax,%xmm14
+  4456b0:	66 44 0f 3a 20 f0 0f 	pinsrb $0xf,%eax,%xmm14
+  445762:	66 44 0f c4 f0 00    	pinsrw $0x0,%eax,%xmm14
+  44576d:	66 44 0f c4 f0 01    	pinsrw $0x1,%eax,%xmm14
+  445778:	66 44 0f c4 f0 02    	pinsrw $0x2,%eax,%xmm14
+  445783:	66 44 0f c4 f0 03    	pinsrw $0x3,%eax,%xmm14
+  44578e:	66 44 0f c4 f0 04    	pinsrw $0x4,%eax,%xmm14
+  445799:	66 44 0f c4 f0 05    	pinsrw $0x5,%eax,%xmm14
+  4457a4:	66 44 0f c4 f0 06    	pinsrw $0x6,%eax,%xmm14
+  4457af:	66 44 0f c4 f0 07    	pinsrw $0x7,%eax,%xmm14
+  445858:	66 44 0f 3a 22 f0 00 	pinsrd $0x0,%eax,%xmm14
+  445864:	66 44 0f 3a 22 f0 01 	pinsrd $0x1,%eax,%xmm14
+  445870:	66 44 0f 3a 22 f0 02 	pinsrd $0x2,%eax,%xmm14
+  44587c:	66 44 0f 3a 22 f0 03 	pinsrd $0x3,%eax,%xmm14
+  445888:	66 44 0f 3a 22 f0 04 	pinsrd $0x4,%eax,%xmm14
+  445894:	66 44 0f 3a 22 f0 05 	pinsrd $0x5,%eax,%xmm14
+  4458a0:	66 44 0f 3a 22 f0 06 	pinsrd $0x6,%eax,%xmm14
+  4458ac:	66 44 0f 3a 22 f0 07 	pinsrd $0x7,%eax,%xmm14
+  445958:	66 4c 0f 3a 22 f0 00 	pinsrq $0x0,%rax,%xmm14
+  445965:	66 4c 0f 3a 22 f0 01 	pinsrq $0x1,%rax,%xmm14
+  445972:	66 4c 0f 3a 22 f0 02 	pinsrq $0x2,%rax,%xmm14
+  44597f:	66 4c 0f 3a 22 f0 03 	pinsrq $0x3,%rax,%xmm14
+  44598c:	66 4c 0f 3a 22 f0 04 	pinsrq $0x4,%rax,%xmm14
+  445999:	66 4c 0f 3a 22 f0 05 	pinsrq $0x5,%rax,%xmm14
+  4459a6:	66 4c 0f 3a 22 f0 06 	pinsrq $0x6,%rax,%xmm14
+  4459b3:	66 4c 0f 3a 22 f0 07 	pinsrq $0x7,%rax,%xmm14
+  445a50:	66 44 0f 3a 14 f0 00 	pextrb $0x0,%xmm14,%eax
+  445a5e:	66 44 0f 3a 14 f0 01 	pextrb $0x1,%xmm14,%eax
+  445a6c:	66 44 0f 3a 14 f0 02 	pextrb $0x2,%xmm14,%eax
+  445a7a:	66 44 0f 3a 14 f0 03 	pextrb $0x3,%xmm14,%eax
+  445a88:	66 44 0f 3a 14 f0 04 	pextrb $0x4,%xmm14,%eax
+  445a93:	66 44 0f 3a 14 f0 05 	pextrb $0x5,%xmm14,%eax
+  445a9e:	66 44 0f 3a 14 f0 06 	pextrb $0x6,%xmm14,%eax
+  445aa9:	66 44 0f 3a 14 f0 07 	pextrb $0x7,%xmm14,%eax
+  445ab4:	66 44 0f 3a 14 f0 08 	pextrb $0x8,%xmm14,%eax
+  445abf:	66 44 0f 3a 14 f0 09 	pextrb $0x9,%xmm14,%eax
+  445aca:	66 44 0f 3a 14 f0 0a 	pextrb $0xa,%xmm14,%eax
+  445ad5:	66 44 0f 3a 14 f0 0b 	pextrb $0xb,%xmm14,%eax
+  445ae0:	66 44 0f 3a 14 f0 0c 	pextrb $0xc,%xmm14,%eax
+  445aeb:	66 44 0f 3a 14 f0 0d 	pextrb $0xd,%xmm14,%eax
+  445af6:	66 44 0f 3a 14 f0 0e 	pextrb $0xe,%xmm14,%eax
+  445b01:	66 44 0f 3a 14 f0 0f 	pextrb $0xf,%xmm14,%eax
+  445bb1:	66 41 0f c5 c6 00    	pextrw $0x0,%xmm14,%eax
+  445bbb:	66 41 0f c5 c6 01    	pextrw $0x1,%xmm14,%eax
+  445bc5:	66 41 0f c5 c6 02    	pextrw $0x2,%xmm14,%eax
+  445bcf:	66 41 0f c5 c6 03    	pextrw $0x3,%xmm14,%eax
+  445bd9:	66 41 0f c5 c6 04    	pextrw $0x4,%xmm14,%eax
+  445be3:	66 41 0f c5 c6 05    	pextrw $0x5,%xmm14,%eax
+  445bed:	66 41 0f c5 c6 06    	pextrw $0x6,%xmm14,%eax
+  445bf7:	66 41 0f c5 c6 07    	pextrw $0x7,%xmm14,%eax
+  445ca3:	66 44 0f 3a 16 f0 00 	pextrd $0x0,%xmm14,%eax
+  445cae:	66 44 0f 3a 16 f0 01 	pextrd $0x1,%xmm14,%eax
+  445cb9:	66 44 0f 3a 16 f0 02 	pextrd $0x2,%xmm14,%eax
+  445cc4:	66 44 0f 3a 16 f0 03 	pextrd $0x3,%xmm14,%eax
+  445ccf:	66 44 0f 3a 16 f0 04 	pextrd $0x4,%xmm14,%eax
+  445cda:	66 44 0f 3a 16 f0 05 	pextrd $0x5,%xmm14,%eax
+  445ce5:	66 44 0f 3a 16 f0 06 	pextrd $0x6,%xmm14,%eax
+  445cf0:	66 44 0f 3a 16 f0 07 	pextrd $0x7,%xmm14,%eax
+  445d9d:	66 4c 0f 3a 16 f0 00 	pextrq $0x0,%xmm14,%rax
+  445da9:	66 4c 0f 3a 16 f0 01 	pextrq $0x1,%xmm14,%rax
+  445db5:	66 4c 0f 3a 16 f0 02 	pextrq $0x2,%xmm14,%rax
+  445dc1:	66 4c 0f 3a 16 f0 03 	pextrq $0x3,%xmm14,%rax
+  445dcd:	66 4c 0f 3a 16 f0 04 	pextrq $0x4,%xmm14,%rax
+  445dd9:	66 4c 0f 3a 16 f0 05 	pextrq $0x5,%xmm14,%rax
+  445de5:	66 4c 0f 3a 16 f0 06 	pextrq $0x6,%xmm14,%rax
+  445df1:	66 4c 0f 3a 16 f0 07 	pextrq $0x7,%xmm14,%rax
+  44651a:	0f 29 45 80          	movaps %xmm0,-0x80(%rbp)
+  44651e:	0f 29 4d 90          	movaps %xmm1,-0x70(%rbp)
+  446522:	0f 29 55 a0          	movaps %xmm2,-0x60(%rbp)
+  446526:	0f 29 5d b0          	movaps %xmm3,-0x50(%rbp)
+  44652a:	0f 29 65 c0          	movaps %xmm4,-0x40(%rbp)
+  44652e:	0f 29 6d d0          	movaps %xmm5,-0x30(%rbp)
+  446532:	0f 29 75 e0          	movaps %xmm6,-0x20(%rbp)
+  446536:	0f 29 7d f0          	movaps %xmm7,-0x10(%rbp)
+  4466ad:	66 4d 0f 3a 22 fa 00 	pinsrq $0x0,%r10,%xmm15
+  4466bb:	66 4d 0f 3a 22 fa 01 	pinsrq $0x1,%r10,%xmm15
+  4466c2:	66 45 0f 6f c7       	movdqa %xmm15,%xmm8
+  4466d1:	66 4d 0f 3a 22 fa 00 	pinsrq $0x0,%r10,%xmm15
+  4466e2:	66 4d 0f 3a 22 fa 01 	pinsrq $0x1,%r10,%xmm15
+  4466e9:	c4 43 3d 38 c7 01    	vinserti128 $0x1,%xmm15,%ymm8,%ymm8
+  4466f9:	66 4d 0f 3a 22 ca 00 	pinsrq $0x0,%r10,%xmm9
+  44670a:	66 4d 0f 3a 22 ca 01 	pinsrq $0x1,%r10,%xmm9
+  44671b:	66 4d 0f 3a 22 fa 00 	pinsrq $0x0,%r10,%xmm15
+  44672c:	66 4d 0f 3a 22 fa 01 	pinsrq $0x1,%r10,%xmm15
+  446733:	c4 43 35 38 cf 01    	vinserti128 $0x1,%xmm15,%ymm9,%ymm9
+  446743:	66 4d 0f 3a 22 d2 00 	pinsrq $0x0,%r10,%xmm10
+  446754:	66 4d 0f 3a 22 d2 01 	pinsrq $0x1,%r10,%xmm10
+  446765:	66 4d 0f 3a 22 fa 00 	pinsrq $0x0,%r10,%xmm15
+  446776:	66 4d 0f 3a 22 fa 01 	pinsrq $0x1,%r10,%xmm15
+  44677d:	c4 43 2d 38 d7 01    	vinserti128 $0x1,%xmm15,%ymm10,%ymm10
+  44678d:	66 4d 0f 3a 22 da 00 	pinsrq $0x0,%r10,%xmm11
+  44679e:	66 4d 0f 3a 22 da 01 	pinsrq $0x1,%r10,%xmm11
+  4467af:	66 4d 0f 3a 22 fa 00 	pinsrq $0x0,%r10,%xmm15
+  4467c0:	66 4d 0f 3a 22 fa 01 	pinsrq $0x1,%r10,%xmm15
+  4467c7:	c4 43 25 38 df 01    	vinserti128 $0x1,%xmm15,%ymm11,%ymm11
+  4467d7:	66 4d 0f 3a 22 e2 00 	pinsrq $0x0,%r10,%xmm12
+  4467e8:	66 4d 0f 3a 22 e2 01 	pinsrq $0x1,%r10,%xmm12
+  4467f9:	66 4d 0f 3a 22 fa 00 	pinsrq $0x0,%r10,%xmm15
+  44680a:	66 4d 0f 3a 22 fa 01 	pinsrq $0x1,%r10,%xmm15
+  446811:	c4 43 1d 38 e7 01    	vinserti128 $0x1,%xmm15,%ymm12,%ymm12
+  446821:	66 4d 0f 3a 22 ea 00 	pinsrq $0x0,%r10,%xmm13
+  446832:	66 4d 0f 3a 22 ea 01 	pinsrq $0x1,%r10,%xmm13
+  44683a:	f3 44 0f 6f 37       	movdqu (%rdi),%xmm14
+  44683f:	c4 63 7d 39 e8 00    	vextracti128 $0x0,%ymm13,%xmm0
+  446845:	66 44 0f ef f0       	pxor   %xmm0,%xmm14
+  44684a:	c4 63 7d 39 e0 01    	vextracti128 $0x1,%ymm12,%xmm0
+  446850:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446855:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  44685b:	c4 63 7d 39 e0 00    	vextracti128 $0x0,%ymm12,%xmm0
+  446861:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446866:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  44686c:	c4 63 7d 39 d8 01    	vextracti128 $0x1,%ymm11,%xmm0
+  446872:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446877:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  44687d:	c4 63 7d 39 d8 00    	vextracti128 $0x0,%ymm11,%xmm0
+  446883:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446888:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  44688e:	c4 63 7d 39 d0 01    	vextracti128 $0x1,%ymm10,%xmm0
+  446894:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446899:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  44689f:	c4 63 7d 39 d0 00    	vextracti128 $0x0,%ymm10,%xmm0
+  4468a5:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  4468aa:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  4468b0:	c4 63 7d 39 c8 01    	vextracti128 $0x1,%ymm9,%xmm0
+  4468b6:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  4468bb:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  4468c1:	c4 63 7d 39 c8 00    	vextracti128 $0x0,%ymm9,%xmm0
+  4468c7:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  4468cc:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  4468d2:	c4 63 7d 39 c0 01    	vextracti128 $0x1,%ymm8,%xmm0
+  4468d8:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  4468dd:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  4468e3:	c4 63 7d 39 c0 00    	vextracti128 $0x0,%ymm8,%xmm0
+  4468e9:	66 44 0f 38 df f0    	aesdeclast %xmm0,%xmm14
+  4468f0:	c4 63 7d 39 c0 00    	vextracti128 $0x0,%ymm8,%xmm0
+  4468f6:	66 44 0f ef f0       	pxor   %xmm0,%xmm14
+  4468fb:	c4 63 7d 39 c0 01    	vextracti128 $0x1,%ymm8,%xmm0
+  446901:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  446907:	c4 63 7d 39 c8 00    	vextracti128 $0x0,%ymm9,%xmm0
+  44690d:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  446913:	c4 63 7d 39 c8 01    	vextracti128 $0x1,%ymm9,%xmm0
+  446919:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  44691f:	c4 63 7d 39 d0 00    	vextracti128 $0x0,%ymm10,%xmm0
+  446925:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  44692b:	c4 63 7d 39 d0 01    	vextracti128 $0x1,%ymm10,%xmm0
+  446931:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  446937:	c4 63 7d 39 d8 00    	vextracti128 $0x0,%ymm11,%xmm0
+  44693d:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  446943:	c4 63 7d 39 d8 01    	vextracti128 $0x1,%ymm11,%xmm0
+  446949:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  44694f:	c4 63 7d 39 e0 00    	vextracti128 $0x0,%ymm12,%xmm0
+  446955:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  44695b:	c4 63 7d 39 e0 01    	vextracti128 $0x1,%ymm12,%xmm0
+  446961:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  446967:	c4 63 7d 39 e8 00    	vextracti128 $0x0,%ymm13,%xmm0
+  44696d:	66 44 0f 38 dd f0    	aesenclast %xmm0,%xmm14
+  446973:	f3 44 0f 7f 37       	movdqu %xmm14,(%rdi)
+  446979:	f3 44 0f 6f 37       	movdqu (%rdi),%xmm14
+  44697e:	c4 63 7d 39 c0 00    	vextracti128 $0x0,%ymm8,%xmm0
+  446984:	66 44 0f ef f0       	pxor   %xmm0,%xmm14
+  446989:	c4 63 7d 39 c0 01    	vextracti128 $0x1,%ymm8,%xmm0
+  44698f:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  446995:	c4 63 7d 39 c8 00    	vextracti128 $0x0,%ymm9,%xmm0
+  44699b:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  4469a1:	c4 63 7d 39 c8 01    	vextracti128 $0x1,%ymm9,%xmm0
+  4469a7:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  4469ad:	c4 63 7d 39 d0 00    	vextracti128 $0x0,%ymm10,%xmm0
+  4469b3:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  4469b9:	c4 63 7d 39 d0 01    	vextracti128 $0x1,%ymm10,%xmm0
+  4469bf:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  4469c5:	c4 63 7d 39 d8 00    	vextracti128 $0x0,%ymm11,%xmm0
+  4469cb:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  4469d1:	c4 63 7d 39 d8 01    	vextracti128 $0x1,%ymm11,%xmm0
+  4469d7:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  4469dd:	c4 63 7d 39 e0 00    	vextracti128 $0x0,%ymm12,%xmm0
+  4469e3:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  4469e9:	c4 63 7d 39 e0 01    	vextracti128 $0x1,%ymm12,%xmm0
+  4469ef:	66 44 0f 38 dc f0    	aesenc %xmm0,%xmm14
+  4469f5:	c4 63 7d 39 e8 00    	vextracti128 $0x0,%ymm13,%xmm0
+  4469fb:	66 44 0f 38 dd f0    	aesenclast %xmm0,%xmm14
+  446a01:	f3 44 0f 7f 37       	movdqu %xmm14,(%rdi)
+  446a07:	f3 44 0f 6f 37       	movdqu (%rdi),%xmm14
+  446a0c:	c4 63 7d 39 e8 00    	vextracti128 $0x0,%ymm13,%xmm0
+  446a12:	66 44 0f ef f0       	pxor   %xmm0,%xmm14
+  446a17:	c4 63 7d 39 e0 01    	vextracti128 $0x1,%ymm12,%xmm0
+  446a1d:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446a22:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  446a28:	c4 63 7d 39 e0 00    	vextracti128 $0x0,%ymm12,%xmm0
+  446a2e:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446a33:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  446a39:	c4 63 7d 39 d8 01    	vextracti128 $0x1,%ymm11,%xmm0
+  446a3f:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446a44:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  446a4a:	c4 63 7d 39 d8 00    	vextracti128 $0x0,%ymm11,%xmm0
+  446a50:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446a55:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  446a5b:	c4 63 7d 39 d0 01    	vextracti128 $0x1,%ymm10,%xmm0
+  446a61:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446a66:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  446a6c:	c4 63 7d 39 d0 00    	vextracti128 $0x0,%ymm10,%xmm0
+  446a72:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446a77:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  446a7d:	c4 63 7d 39 c8 01    	vextracti128 $0x1,%ymm9,%xmm0
+  446a83:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446a88:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  446a8e:	c4 63 7d 39 c8 00    	vextracti128 $0x0,%ymm9,%xmm0
+  446a94:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446a99:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  446a9f:	c4 63 7d 39 c0 01    	vextracti128 $0x1,%ymm8,%xmm0
+  446aa5:	66 0f 38 db c0       	aesimc %xmm0,%xmm0
+  446aaa:	66 44 0f 38 de f0    	aesdec %xmm0,%xmm14
+  446ab0:	c4 63 7d 39 c0 00    	vextracti128 $0x0,%ymm8,%xmm0
+  446ab6:	66 44 0f 38 df f0    	aesdeclast %xmm0,%xmm14
+  446abc:	f3 44 0f 7f 37       	movdqu %xmm14,(%rdi)
