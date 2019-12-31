@@ -46,7 +46,6 @@ void PTG::buildPTG() {
 void PTG::dumpMaps() {
 
     outs() << "\n.......... Dumping maps\n";
-    /*
     // The ptdMap
     outs() << "The elements in each set\n";
     for (PtdMapTyIt iter = ptdMap.begin(), eiter = ptdMap.end(); iter != eiter; iter++) {
@@ -58,7 +57,6 @@ void PTG::dumpMaps() {
         }
         outs() << "\n";
     }
-    */
 
     /*
     outs() << "The values in each set\n";
@@ -344,8 +342,11 @@ SetID PTG::find_pts(SetID setId) {
  *
  * Also, if no unification is needed, we just need to update them.
  */
-void PTG::unifyBackward(SetID s3) {
+SetID PTG::unifyBackward(SetID s3) {
     std::set<SetID> unifySet;
+    SetID unifiedID = -1;
+    bool cycle = false;
+
     auto range = ptsFromSetMap.equal_range(s3);
     for (auto it = range.first; it != range.second; it++) {
         unifySet.insert(it->second);
@@ -356,12 +357,28 @@ void PTG::unifyBackward(SetID s3) {
         DBOUT(DSTEENS, outs() << "Unifying backward\n";);
         std::vector<SetID> unifyVec(unifySet.begin(), unifySet.end());
         assert(unifyVec.size() && "Shouldn't try to backward unify more than two sets");
-        unify(unifyVec[0], unifyVec[1], false, true);
+        if (unifyVec[0] == s3 || unifyVec[1] == s3) {
+            cycle = true;
+        }
+        unifiedID = unify(unifyVec[0], unifyVec[1], false, true);
     }
+
+    if (cycle)
+        return unifiedID;
+    else
+        return s3;
 }
 
-void PTG::unifyForward(SetID s3) {
+/**
+ * Unify the pts-to sets of s3
+ *
+ * Returns the newly created set in case of cycles
+ * Returns s3 in case of no cycles
+ */
+SetID PTG::unifyForward(SetID s3) {
     std::set<SetID> unifySet;
+    SetID unifiedID = -1;
+    bool cycle = false;
     auto range = ptsToSetMap.equal_range(s3);
     for (auto it = range.first; it != range.second; it++) {
         unifySet.insert(it->second);
@@ -372,9 +389,16 @@ void PTG::unifyForward(SetID s3) {
         DBOUT(DSTEENS, outs() << "Unifying forward\n";);
         std::vector<SetID> unifyVec(unifySet.begin(), unifySet.end());
         assert(unifyVec.size() && "Shouldn't try to forward unify more than two sets");
-        unify(unifyVec[0], unifyVec[1], true, false);
+        if (unifyVec[0] == s3 || unifyVec[1] == s3) {
+            cycle = true;
+        }
+        unifiedID = unify(unifyVec[0], unifyVec[1], true, false);
     }
 
+    if (cycle) 
+        return unifiedID;
+    else
+        return s3;
 }
 
 SetID PTG::unifyBitVectors(SetID s1, SetID s2) {
@@ -417,21 +441,27 @@ SetID PTG::unifyBitVectors(SetID s1, SetID s2) {
  * However, if s1 --points-to--> s2, then we need a self-edge
  * s3 --points-to--> s3
  * Ditto with s2.
+ *
+ * Returns if a cycle was introduced in s3.
  */
-void PTG::insertPtsToRelationships(SetID s1, SetID s2, SetID s3) {
+bool PTG::insertPtsToRelationships(SetID s1, SetID s2, SetID s3) {
     auto s1PtsToIter = ptsToSetMap.equal_range(s1);
     std::set<SetID> s1Vec;
     std::set<SetID> s2Vec;
+    bool cycle = false;
 
     for (auto it = s1PtsToIter.first; it != s1PtsToIter.second; ++it) {
         s1Vec.insert(it->second);
     }
 
     for (SetID s1PtsTo: s1Vec) {
-        if (s1PtsTo == s1 || s1PtsTo == s2) 
+        if (s1PtsTo == s1 || s1PtsTo == s2) {
             s1PtsTo = s3;
+            cycle = true;
+        }
         checkAndInsertPtsTo(s3, s1PtsTo);
-        ptsFromSetMap.insert(SetPair(s1PtsTo, s3));
+        //ptsFromSetMap.insert(SetPair(s1PtsTo, s3));
+        checkAndInsertPtsFrom(s1PtsTo, s3);
     }
 
     // s2 points to B
@@ -442,24 +472,28 @@ void PTG::insertPtsToRelationships(SetID s1, SetID s2, SetID s3) {
     }
 
     for (SetID s2PtsTo: s2Vec) {
-        if (s2PtsTo == s1 || s2PtsTo == s2)
+        if (s2PtsTo == s1 || s2PtsTo == s2) {
             s2PtsTo = s3;
+            cycle = true;
+        }
         checkAndInsertPtsTo(s3, s2PtsTo);
-        ptsFromSetMap.insert(SetPair(s2PtsTo, s3));
+        //ptsFromSetMap.insert(SetPair(s2PtsTo, s3));
+        checkAndInsertPtsFrom(s2PtsTo, s3);
     }
+    return cycle;
 }
 
 /**
- * If a --points-to--> s1, then ashould also --points-to--> s1
- * Same with s2
- * However, if s1 --points-to--> s2, then we need a self-edge
- * s3 --points-to--> s3
- * Ditto with s2.
+ * Same as insertPtsToRelationships, but for the ptsFrom Relationsips
+ * a --> s1, b --> s2, etc
+ *
+ * Returns if a cycle was introduced in s3;
  */
-void PTG::insertPtsFromRelationships(SetID s1, SetID s2, SetID s3) {
+bool PTG::insertPtsFromRelationships(SetID s1, SetID s2, SetID s3) {
     auto s1PtsFromIter = ptsFromSetMap.equal_range(s1);
     std::vector<SetID> s1Vec;
     std::vector<SetID> s2Vec;
+    bool cycle = false;
 
     // A points to s1
     for (auto it = s1PtsFromIter.first; it != s1PtsFromIter.second; ++it) {
@@ -468,9 +502,12 @@ void PTG::insertPtsFromRelationships(SetID s1, SetID s2, SetID s3) {
     }
 
     for (SetID ptsFromS1: s1Vec) {
-        if (ptsFromS1 == s1 || ptsFromS1 == s2) 
+        if (ptsFromS1 == s1 || ptsFromS1 == s2) {
             ptsFromS1 = s3;
-        ptsToSetMap.insert(SetPair(ptsFromS1, s3));
+            cycle = true;
+        }
+        //ptsToSetMap.insert(SetPair(ptsFromS1, s3));
+        checkAndInsertPtsTo(ptsFromS1, s3);
         checkAndInsertPtsFrom(s3, ptsFromS1);
     }
 
@@ -482,11 +519,15 @@ void PTG::insertPtsFromRelationships(SetID s1, SetID s2, SetID s3) {
     }
 
     for (SetID ptsFromS2: s2Vec) {
-        if (ptsFromS2 == s1 || ptsFromS2 == s2) 
+        if (ptsFromS2 == s1 || ptsFromS2 == s2) {
             ptsFromS2 = s3;
-        ptsToSetMap.insert(SetPair(ptsFromS2, s3));
+            cycle = true;
+        }
+        //ptsToSetMap.insert(SetPair(ptsFromS2, s3));
+        checkAndInsertPtsTo(ptsFromS2, s3);
         checkAndInsertPtsFrom(s3, ptsFromS2);
     }
+    return cycle;
 }
 
 /**
@@ -581,15 +622,17 @@ void PTG::deleteStalePtsFromRelationships(SetID s1, SetID s2, SetID s3) {
     }
 }
 
-void PTG::adjustPointsToRelationships(SetID s1, SetID s2, SetID s3) {
+bool PTG::adjustPointsToRelationships(SetID s1, SetID s2, SetID s3) {
     //outs() << "Before adjusting pointers: unifying " << s1 << " and " << s2 << " into " << s3 << "\n";
     //dumpMaps();
-    insertPtsToRelationships(s1, s2, s3);
-    insertPtsFromRelationships(s1, s2, s3);
+    bool isCycle = false;
+    isCycle = insertPtsToRelationships(s1, s2, s3);
+    isCycle |= insertPtsFromRelationships(s1, s2, s3);
     deleteStalePtsToRelationships(s1, s2, s3);
     deleteStalePtsFromRelationships(s1, s2, s3);
     //outs() << "After adjusting pointers: unifying " << s1 << " and " << s2 << " into " << s3 << "\n";
     //dumpMaps();
+    return isCycle;
 }
 
 SetID PTG::unify(SetID s1, SetID s2, bool forwardUnify, bool backwardUnify) {
@@ -599,15 +642,20 @@ SetID PTG::unify(SetID s1, SetID s2, bool forwardUnify, bool backwardUnify) {
     // Create a set with the unified bitvector
     SetID s3 = unifyBitVectors(s1, s2);
 
-    adjustPointsToRelationships(s1, s2, s3);
+    bool cycle = adjustPointsToRelationships(s1, s2, s3);
 
     // Now, we should unify forwards and backwards
-    if (forwardUnify) {
-        unifyForward(s3);
+    //
+    // Note that if we're unifying the points-to sets, we can skip unifying
+    // backwards (because we've already unified them). The exception to this
+    // is when the forward unification causes a cycle. Then you have to do
+    // backwards too
+    if (forwardUnify || cycle) {
+        s3 = unifyForward(s3);
     }
 
-    if (backwardUnify) {
-        unifyBackward(s3);
+    if (backwardUnify || cycle) {
+        s3 = unifyBackward(s3);
     }
 
     // Done with s1 and s2
@@ -617,6 +665,38 @@ SetID PTG::unify(SetID s1, SetID s2, bool forwardUnify, bool backwardUnify) {
     if (s2 != EMPTYSET) {
         ptdMap.erase(s2);
     }
+
+    /*
+    SetID sarr[] = {s1, s2, s3};
+    for (SetID s: sarr) {
+        if (ptsToSetMap.count(s) > 1) {
+            errs() << "PtsToSet got screwed up for set ID: " << s << " ended up with : " << ptsToSetMap.count(s) << " items \n";
+        }
+
+        if (ptsFromSetMap.count(s) > 1) {
+            errs() << "PtsFromSet got screwed up for set ID: " << s << " ended up with : " << ptsFromSetMap.count(s) << " items \n";
+        }
+    }
+
+    if (s3 == 113712) {
+        // Check that there are no dangling pointers
+        errs() << "S3: Points-to set: " << ptsToSetMap.count(s3) << "\n";
+        errs() << "S3: Points-from set: " << ptsFromSetMap.count(s3) << "\n";
+    }
+
+    if (s1 == 113712) {
+        // Check that there are no dangling pointers
+        errs() << "S1: Points-to set: " << ptsToSetMap.count(s1) << "\n";
+        errs() << "S1: Points-from set: " << ptsFromSetMap.count(s1) << "\n";
+    }
+
+    if (s2 == 113712) {
+        // Check that there are no dangling pointers
+        errs() << "S2: Points-to set: " << ptsToSetMap.count(s2) << "\n";
+        errs() << "S2: Points-from set: " << ptsFromSetMap.count(s2) << "\n";
+    }
+    */
+    return s3;
 }
 
 // Unify

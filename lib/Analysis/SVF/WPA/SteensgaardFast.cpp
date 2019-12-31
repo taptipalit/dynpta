@@ -82,7 +82,7 @@ void SteensgaardFast::analyze(SVFModule svfModule) {
     outs() << "Steensgaard Analysis took: " << (long)steensAnalysisTime << " seconds.\n";
 
 
-    ptgraph->dumpMaps();
+    //ptgraph->dumpMaps();
 }
 
 /**
@@ -160,9 +160,9 @@ void SteensgaardFast::findPointsToFromChain(std::set<NodeID>& senIDs, std::set<S
         }
     }
 
-    outs() << "Sensitive sets\n";
+    errs() << "Sensitive sets\n";
     for (SetID setID: setSet) {
-        outs() << "Set ID: " << setID << "\n";
+        errs() << "Set ID: " << setID << "\n";
         for (SparseBitVector<>::iterator it = ptdMap[setID]->begin(), eit = ptdMap[setID]->end(); it != eit; it++) {
             NodeID nodeId = *it;
             retainedNodeList.push(nodeId);

@@ -154,8 +154,8 @@ private:
 
     SetID unify(SetID, SetID, bool forwardUnify = true, bool backwardUnify = true);
     SetID unifyBitVectors(SetID, SetID);
-    void unifyBackward(SetID);
-    void unifyForward(SetID);
+    SetID unifyBackward(SetID);
+    SetID unifyForward(SetID);
 
     // Which set does the input set point to?
     SetID find_pts(SetID);
@@ -176,9 +176,9 @@ private:
     void solveDerefConstraints();
     void solveAssignConstraints();
 
-    void adjustPointsToRelationships(SetID, SetID, SetID); 
-    void insertPtsToRelationships(SetID, SetID, SetID); 
-    void insertPtsFromRelationships(SetID, SetID, SetID);
+    bool adjustPointsToRelationships(SetID, SetID, SetID); 
+    bool insertPtsToRelationships(SetID, SetID, SetID); 
+    bool insertPtsFromRelationships(SetID, SetID, SetID);
     void deleteStalePtsToRelationships(SetID, SetID, SetID);
     void deleteStalePtsFromRelationships(SetID, SetID, SetID);
 

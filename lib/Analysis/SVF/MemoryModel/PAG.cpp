@@ -39,7 +39,7 @@ using namespace analysisUtil;
 static cl::opt<bool> HANDBLACKHOLE("blk", cl::init(false),
                                    cl::desc("Hanle blackhole edge"));
 
-static cl::opt<bool> FIELD_INSENSITIVE("field-insensitive", cl::init(true),
+static cl::opt<bool> FIELD_INSENSITIVE("field-insensitive", cl::init(false),
                                    cl::desc("Convert all GEP edges to COPY edges"));
 
 

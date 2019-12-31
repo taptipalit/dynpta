@@ -104,6 +104,7 @@ void Andersen::analyzeSubgraph(SVFModule svfModule) {
         double cgUpdateEnd = stat->getClk();
         timeOfUpdateCallGraph += (cgUpdateEnd - cgUpdateStart) / TIMEINTERVAL;
 
+        errs() << "Reanalyze: " << reanalyze << "\n";
     } while (reanalyze);
 
     DBOUT(DGENERAL, llvm::outs() << analysisUtil::pasMsg("Finish Solving Constraints\n"));

@@ -148,19 +148,36 @@ int mbedtls_pk_setup( mbedtls_pk_context *ctx, const mbedtls_pk_info_t *info )
 
     return( 0 );
 }
+int mbedtls_rsa_import_raw( mbedtls_rsa_context *ctx) {
+    return 0;
+}
 
+static int pk_parse_key_pkcs1_der( mbedtls_rsa_context *rsa) {
+    mbedtls_rsa_import_raw( rsa);
+}
+
+static inline mbedtls_rsa_context *mbedtls_pk_rsa( const mbedtls_pk_context pk )
+{
+    return( (mbedtls_rsa_context *) (pk).pk_ctx );
+}
 
 void mbedtls_pk_parse_key( mbedtls_pk_context *pk) {
     const mbedtls_pk_info_t *pk_info;
 
     pk_info = mbedtls_pk_info_from_type(MBEDTLS_PK_RSA);
     mbedtls_pk_setup(pk, pk_info);
+    pk_parse_key_pkcs1_der( mbedtls_pk_rsa( *pk ));
+}
+
+void mbedtls_pk_parse_keyfile( mbedtls_pk_context *ctx) {
+
+    mbedtls_pk_parse_key(ctx);
 }
 
 int main(void) {
     SENSITIVE mbedtls_pk_context pkey;
     mbedtls_pk_init( &pkey );
-    mbedtls_pk_parse_key(&pkey);
+    mbedtls_pk_parse_keyfile(&pkey);
 
     return 0;
 }

@@ -103,7 +103,7 @@ public:
         assert(typeSystem != nullptr && "TypeSystem should be setup");
         assert(ptaCallGraph != nullptr && "PTACallGraph should be setup");
         assert(consCG != nullptr && "Constraint Graph should be set up and not null");
-        consCG->dumpInitial();
+//        consCG->dumpInitial();
         stat = new AndersenStat(this);
     }
 
@@ -185,6 +185,9 @@ public:
         setGraph(this->consCG);
     }
 
+    /// Update call graph for the input indirect callsites
+    virtual bool updateCallGraph(const CallSiteToFunPtrMap& callsites);
+
 
 protected:
     /// Reanalyze if any constraint value changed
@@ -214,9 +217,6 @@ protected:
     virtual inline bool addCopyEdge(NodeID src, NodeID dst) {
         return consCG->addCopyCGEdge(src, dst);
     }
-
-    /// Update call graph for the input indirect callsites
-    virtual bool updateCallGraph(const CallSiteToFunPtrMap& callsites);
 
     /// Merge sub node to its rep
     virtual void mergeNodeToRep(NodeID nodeId,NodeID newRepId);
