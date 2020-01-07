@@ -806,6 +806,7 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
 
   // First, change the ABI of every function in the module.  ABI-listed
   // functions keep their original ABI and get a wrapper function.
+/*
   for (std::vector<Function *>::iterator i = FnsToInstrument.begin(),
                                          e = FnsToInstrument.end();
        i != e; ++i) {
@@ -903,6 +904,7 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
       *i = nullptr;
     }
   }
+*/
 
   for (Function *i : FnsToInstrument) {
     if (!i || i->isDeclaration())
@@ -926,8 +928,9 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
         // DFSanVisitor may delete Inst, so keep track of whether it was a
         // terminator.
         bool IsTerminator = isa<TerminatorInst>(Inst);
-        if (!DFSF.SkipInsts.count(Inst))
+        /*if (!DFSF.SkipInsts.count(Inst))
           DFSanVisitor(DFSF).visit(Inst);
+	*/
         if (IsTerminator)
           break;
         Inst = Next;

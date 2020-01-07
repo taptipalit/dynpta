@@ -5,7 +5,14 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <dirent.h>
+#include <inttypes.h>
 
+struct MyMalloc {
+	void* baseAddress;
+	void* currentAvailableAddress;
+	void* lastAddress;
+	}customMalloc;
+uint64_t rbp, rsp;
 uint64_t lastAddr __attribute__ ((aligned (16)));
 int dirty __attribute__ ((aligned (16)));
 char asm_str[100] __attribute__ ((aligned (16)));
@@ -31,7 +38,67 @@ void writeback_cache() {
     dirty = 0;
 }
 
+void initializeCustomMalloc(){
+	uint64_t temp;
+        asm("\t mov %%rbp,%0" : "=r"(temp));
+	uint64_t* value = temp;
+	rbp = *value;
+	printf("RBP = 0x%" PRIx64 "\n", rbp);
+	long size = 67108864;
+	int* tempLastAddress;
+	int incrementSize = size/4;
+	customMalloc.baseAddress = malloc(size);
+	printf( "CustomMalloc baseAddress = %p for size = %d bytes.\n", customMalloc.baseAddress, size);
+	customMalloc.currentAvailableAddress = customMalloc.baseAddress;
+	printf( "CustomMalloc currentAvailableAddress = %p \n", customMalloc.currentAvailableAddress);
+	tempLastAddress = customMalloc.baseAddress;
+	tempLastAddress = tempLastAddress + incrementSize;
+	customMalloc.lastAddress = tempLastAddress;
+	printf( "CustomMalloc lastAddress = %p\n", customMalloc.lastAddress);
+}
+
+
+void* getSafeMalloc(long size) {
+	long roundedSize = -1;
+	if (size % 16 == 0) {
+		roundedSize = size;
+	} else {
+		roundedSize = size + 16;
+	}
+
+	void* Ptr = customMalloc.currentAvailableAddress;
+	int* tempAddress;
+	int incrementSize = roundedSize/4; 
+	tempAddress = customMalloc.currentAvailableAddress;
+	tempAddress = tempAddress + incrementSize;
+	customMalloc.currentAvailableAddress = tempAddress;
+	printf( "Malloc sensitivePtr = %p for size = %d bytes.\n", Ptr, roundedSize);
+	printf( "CustomMalloc currentAvailableAddress = %p \n", customMalloc.currentAvailableAddress);
+	return Ptr;
+
+}
+
+int checkBounds (void* Ptr) {
+        //asm("\t mov %%rsp,%0" : "=r"(rsp));
+        //printf("RSP = 0x%" PRIx64 "\n", rsp);
+	
+	//printf(" Address is %p ",Ptr);
+	int* tempAddress = Ptr;
+	if ((tempAddress >= customMalloc.baseAddress && tempAddress <= customMalloc.lastAddress) || (tempAddress >= rsp && tempAddress <= rbp)){
+		//printf(" and Address is in the sensitive range\n");
+		return 0;
+	}
+	else {
+		printf(" and Address is not in the sensitive range\n");
+		return 1;
+	}
+}
+
+
 void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
+	//printf ("Encrypted_Byte: %p ",ptr);
+	//printf ("Value to be encrypted : %d",byte_arg);
+	//printf("and %" PRIu8 "\n", byte_arg);
 	int offset = (uint64_t)ptr % 16;
 
 	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
@@ -102,6 +169,9 @@ void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
 }
 
 void setEncryptedValueWord(void* ptr, uint16_t word_arg) {
+	//printf ("Encryted_Word: %p ",ptr); 
+	//printf ("Value to be encrypted : %d ",word_arg);
+	//printf("and %" PRIu16 "\n", word_arg);
 	int offset = (uint64_t)ptr % 16;
 
 	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
@@ -149,6 +219,9 @@ void setEncryptedValueWord(void* ptr, uint16_t word_arg) {
 }
 
 void setEncryptedValueDWord(void* ptr, uint32_t dword_arg) {
+	//printf ("Encryted_DWord: %p",ptr); 
+	//printf ("Value to be encrypted : %d ",dword_arg);
+	//printf("and %" PRIu32 "\n", dword_arg);
 	int offset = (uint64_t)ptr % 16;
 
 	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
@@ -196,6 +269,9 @@ void setEncryptedValueDWord(void* ptr, uint32_t dword_arg) {
 }
 
 void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
+	//printf ("Encryted_QWord: %p",ptr); 
+	//printf ("Value to be encrypted : %d ",qword_arg);
+	//printf("and %" PRIu64 "\n", qword_arg);
 	int offset = (uint64_t)ptr % 16;
 
 	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
@@ -241,6 +317,7 @@ void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
 
 
 uint8_t getDecryptedValueByte(void* ptr) {
+	//printf ("Decryted_Byte: %p\n",ptr);
 	int offset = (uint64_t)ptr % 16;
 	register uint32_t result = 0;
 	uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
@@ -309,11 +386,13 @@ uint8_t getDecryptedValueByte(void* ptr) {
 			break;
 
 	}
+	//printf ("After decrypted : %d ",result);
+	//printf("and %" PRIu8 "\n", result);
 	return (uint8_t)result;
-
 }
 
 uint16_t getDecryptedValueWord(void* ptr) {
+	//printf ("Decryted_Word: %p\n",ptr); 
 	int offset = (uint64_t)ptr % 16;
 	register uint32_t result = 0;
 
@@ -357,10 +436,13 @@ uint16_t getDecryptedValueWord(void* ptr) {
 			asm("pextrw $7, %%xmm15, %0\n\t": "=r"(result) : );
 			break;
 	}
+	//printf ("After decrypted : %d ",result);
+	//printf("and %" PRIu16 "\n", result);
 	return (uint16_t)result;
 }
 
 uint32_t getDecryptedValueDWord(void* ptr) {
+	//printf ("Decryted_DWord: %p\n",ptr); 
 	int offset = (uint64_t)ptr % 16;
 	register uint32_t dword_result;
 
@@ -407,10 +489,13 @@ uint32_t getDecryptedValueDWord(void* ptr) {
 			asm("pextrd $7, %%xmm15, %0\n\t": "=r"(dword_result) : );
 			break;
 	}
+	//printf ("After decrypted : %d ",dword_result);
+	//printf("and %" PRIu32 "\n", dword_result);
 	return dword_result;
 }
 
 uint64_t getDecryptedValueQWord(void* ptr) {
+	//printf ("Decryted_QWord: %p\n",ptr); 
 	int offset = (uint64_t)ptr % 16;
 	register uint64_t qword_result;
 
@@ -454,6 +539,8 @@ uint64_t getDecryptedValueQWord(void* ptr) {
 			asm("pextrq $7, %%xmm15, %0\n\t": "=r"(qword_result) : );
 			break;
 	}
+	//printf ("After decrypted : %d ",qword_result);
+	//printf("and %" PRIu64 "\n", qword_result);
 	return qword_result;
 }
 
@@ -643,7 +730,7 @@ void* aes_malloc(long size) {
         roundedSize = size + 16;
     }
     void* Ptr = aligned_alloc(16, roundedSize);
-    //fprintf(stderr, "Malloc ptr = %p for size = %d bytes.\n", Ptr, roundedSize);
+    //printf( "Malloc ptr = %p for size = %d bytes.\n", Ptr, roundedSize);
     return Ptr;
 }
 

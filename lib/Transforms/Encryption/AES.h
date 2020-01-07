@@ -3,6 +3,15 @@
 
 #include "EncryptionInternal.h"
 #include <cstring>
+#include "llvm/Pass.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Function.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/InstrTypes.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 namespace external{
 
@@ -58,7 +67,7 @@ namespace external{
 		
 			llvm::Function* encryptCacheFunction;
 			llvm::Function* decryptCacheFunction;
-            llvm::Function* writebackFunction;
+            		llvm::Function* writebackFunction;
 
 			llvm::Function* encryptLoopByteFunction;
 			llvm::Function* encryptLoopWordFunction;
@@ -69,30 +78,45 @@ namespace external{
 			llvm::Function* decryptLoopWordFunction;
 			llvm::Function* decryptLoopDWordFunction;
 			llvm::Function* decryptLoopQWordFunction;
+			llvm::Function* safeMalloc;
+			llvm::Function* checkBounds;
+			llvm::Function* initializeCustomMalloc;
+			llvm::Function* DFSanSetLabelFn;
+			llvm::Function* DFSanReadLabelFn;
 
-            llvm::Function* aesMallocFunction;
-            llvm::Function* aesCallocFunction;
-            llvm::Function* memcpySensDstFunction;
-            llvm::Function* memcpySensSrcFunction;
+            		llvm::Function* aesMallocFunction;
+            		llvm::Function* aesCallocFunction;
+            		llvm::Function* memcpySensDstFunction;
+            		llvm::Function* memcpySensSrcFunction;
 
-            llvm::IntegerType* I128Ty;
+            		llvm::IntegerType* I128Ty;
 
 			void addExternAESFuncDecls(llvm::Module&);
-            bool findTrueOffset(StructType*, int, int*, StructType**, int*);
-            llvm::Module* M;
-		public:
+            		bool findTrueOffset(StructType*, int, int*, StructType**, int*);
+            		llvm::Module* M;
+			public:
 			void initializeAes(llvm::Module&);
 
-            bool allFieldsSensitive(StructType*);
-            bool  widenSensitiveComplexType(GepObjPN*, std::map<PAGNode*, std::set<PAGNode*>>&);
+            		bool allFieldsSensitive(StructType*);
+            		bool  widenSensitiveComplexType(GepObjPN*, std::map<PAGNode*, std::set<PAGNode*>>&);
 			// For AES Cache
 			void widenSensitiveAllocationSites(llvm::Module&, std::vector<PAGNode*>&,
 				std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
+	    		void allocateSeparateMemoryForHeapObjects(llvm::Module&, std::set<PAGNode*>*,
+                                std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
+	    		void SetLabelsForSensitiveObjects(llvm::Module&, std::set<PAGNode*>*,
+                                std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
+	    		void widenAllocaAllocations(llvm::Module&, std::set<PAGNode*>*,
+                                std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
 
-            Type* findBaseType(Type*);
+            		Type* findBaseType(Type*);
 			OffsetXMMPair* findValueInCache(llvm::Value* ptr, int offsetBytes);
 			llvm::Value* setEncryptedValueCached(llvm::StoreInst*);
+			llvm::Value* setEncryptedValueCachedPartitioning(llvm::StoreInst*);
+			llvm::Value* setEncryptedValueCachedDfsan(llvm::StoreInst*);
 			llvm::Value* getDecryptedValueCached(llvm::LoadInst*);
+			llvm::Value* getDecryptedValueCachedPartitioning(llvm::LoadInst*);
+			llvm::Value* getDecryptedValueCachedDfsan(llvm::LoadInst*);
 
 			llvm::Value* insertExtractByteFromXMM(llvm::LoadInst*, int byteOffset, int xmmRegNo);
 			llvm::Value* insertExtractWordFromXMM(llvm::LoadInst*, int wordOffset, int xmmRegNo);
