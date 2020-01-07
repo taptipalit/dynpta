@@ -1,0 +1,955 @@
+Writing 'pag_initial.dot'...
+Writing 'callgraph_initial.dot'...
+Writing 'consCG_final.dot'...
+Writing 'pag_final.dot'...
+----------------------------------------------
+##<Dummy Obj > id:0
+Ptr 0 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<malloc> 
+Source Loc: 
+Ptr 90 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.1> 
+Alias: .str.1
+Source Loc: Glob 
+Ptr 7 		PointsTo: { 9 }
+
+!!Target NodeID 9	 [<.str.1> 
+Alias: .str.1
+Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<main> 
+Alias: main
+Source Loc: in line: 9 file: example_struct1.c
+Ptr 14 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<ptr> 
+Alias: ptr
+Alias: ptr14
+Source Loc: ln: 14 fl: example_struct1.c
+Ptr 21 		PointsTo: { 19 41 54 }
+
+!!Target NodeID 19	 [<s> 
+Alias: s
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 41	 [<call> 
+Alias: call
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 54	 [<call5> 
+Alias: call5
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<s> 
+Source Loc: ln: 11 fl: example_struct1.cField sensitive object found ... 
+Offset ... 1
+
+Ptr 111 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<b> 
+Alias: b
+Source Loc: ln: 13 fl: example_struct1.c
+Ptr 28 		PointsTo: { 111 112 113 }
+
+!!Target NodeID 111	 [<s> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 112	 [<call> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 113	 [<call5> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 14 fl: example_struct1.c
+Ptr 35 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 42 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<b3> 
+Alias: b3
+Source Loc: ln: 18 fl: example_struct1.c
+Ptr 49 		PointsTo: { 111 112 113 }
+
+!!Target NodeID 111	 [<s> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 112	 [<call> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 113	 [<call5> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<a6> 
+Alias: a6
+Source Loc: ln: 21 fl: example_struct1.c
+Ptr 56 		PointsTo: { 108 109 110 }
+
+!!Target NodeID 108	 [<s> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 109	 [<call> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 110	 [<call5> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 63 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<a12> 
+Alias: a12
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 70 		PointsTo: { 108 109 110 }
+
+!!Target NodeID 108	 [<s> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 109	 [<call> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 110	 [<call5> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<printf> 
+Alias: printf
+Source Loc: 
+Ptr 77 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 2nd arg llvm.dbg.declare 
+Ptr 84 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<Dummy Obj > id:1
+Ptr 1 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 0th arg malloc 
+Ptr 91 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 8 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<main> 
+Source Loc: in line: 9 file: example_struct1.c
+Ptr 15 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 
+Ptr 22 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<call> 
+Source Loc: ln: 16 fl: example_struct1.cField sensitive object found ... 
+Offset ... 1
+
+Ptr 112 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 13 fl: example_struct1.c
+Ptr 29 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 36 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<malloc> 
+Alias: malloc
+Source Loc: 
+Ptr 43 		PointsTo: { 44 }
+
+!!Target NodeID 44	 [<malloc> 
+Alias: malloc
+Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 18 fl: example_struct1.c
+Ptr 50 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 21 fl: example_struct1.c
+Ptr 57 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<b9> 
+Alias: b9
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 64 		PointsTo: { 111 112 113 }
+
+!!Target NodeID 111	 [<s> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 112	 [<call> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 113	 [<call5> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 71 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 24 fl: example_struct1.c
+Ptr 78 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> 
+Source Loc: 
+Ptr 85 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+
+Ptr 2 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<printf> 
+Source Loc: 
+Ptr 92 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.1> 
+Alias: .str.1
+Source Loc: Glob 
+Ptr 9 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<retval> 
+Alias: retval
+Source Loc: 
+Ptr 16 		PointsTo: { 17 }
+
+!!Target NodeID 17	 [<retval> 
+Alias: retval
+Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 23 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<call5> 
+Source Loc: ln: 20 fl: example_struct1.cField sensitive object found ... 
+Offset ... 1
+
+Ptr 113 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 30 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> 
+Alias: llvm.var.annotation
+Source Loc: 
+Ptr 37 		PointsTo: { 38 }
+
+!!Target NodeID 38	 [<llvm.var.annotation> 
+Alias: llvm.var.annotation
+Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<malloc> 
+Alias: malloc
+Source Loc: 
+Ptr 44 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 51 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 58 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 65 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<b13> 
+Alias: b13
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 72 		PointsTo: { 111 112 113 }
+
+!!Target NodeID 111	 [<s> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 112	 [<call> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 113	 [<call5> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> 
+Alias: llvm.dbg.declare
+Source Loc: 
+Ptr 79 		PointsTo: { 80 }
+
+!!Target NodeID 80	 [<llvm.dbg.declare> 
+Alias: llvm.dbg.declare
+Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 0th arg llvm.var.annotation 
+Ptr 86 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+
+Ptr 3 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<printf> 
+Source Loc: 
+Ptr 93 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.2> 
+Alias: .str.2
+Source Loc: Glob 
+Ptr 10 		PointsTo: { 12 }
+
+!!Target NodeID 12	 [<.str.2> 
+Alias: .str.2
+Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<retval> 
+Alias: retval
+Source Loc: 
+Ptr 17 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.2> 
+Source Loc: Glob Field sensitive object found ... 
+Offset ... 0
+
+Ptr 107 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 11 fl: example_struct1.c
+Ptr 24 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str> 
+Source Loc: Glob Field sensitive object found ... 
+Offset ... 0
+
+Ptr 114 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 14 fl: example_struct1.c
+Ptr 31 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> 
+Alias: llvm.var.annotation
+Source Loc: 
+Ptr 38 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 16 fl: example_struct1.c
+Ptr 45 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 19 fl: example_struct1.c
+Ptr 52 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<b7> 
+Alias: b7
+Source Loc: ln: 22 fl: example_struct1.c
+Ptr 59 		PointsTo: { 111 112 113 }
+
+!!Target NodeID 111	 [<s> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 112	 [<call> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 113	 [<call5> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<a10> 
+Alias: a10
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 66 		PointsTo: { 108 109 110 }
+
+!!Target NodeID 108	 [<s> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 109	 [<call> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 110	 [<call5> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 73 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> 
+Alias: llvm.dbg.declare
+Source Loc: 
+Ptr 80 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 1st arg llvm.var.annotation 
+Ptr 87 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str> 
+Alias: .str
+Source Loc: Glob 
+Ptr 4 		PointsTo: { 6 }
+
+!!Target NodeID 6	 [<.str> 
+Alias: .str
+Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 0th arg printf 
+Ptr 94 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 11 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<s> 
+Alias: 
+Alias: 
+Alias: s
+Alias: 
+Alias: 
+Alias: 
+Alias: 
+Alias: 
+Alias: 
+Alias: 
+Alias: 
+Source Loc: ln: 11 fl: example_struct1.c
+Ptr 18 		PointsTo: { 19 41 54 }
+
+!!Target NodeID 19	 [<s> 
+Alias: s
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 41	 [<call> 
+Alias: call
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 54	 [<call5> 
+Alias: call5
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<s> 
+Source Loc: ln: 11 fl: example_struct1.cField sensitive object found ... 
+Offset ... 0
+
+Ptr 108 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<a> 
+Alias: a
+Source Loc: ln: 12 fl: example_struct1.c
+Ptr 25 		PointsTo: { 108 109 110 }
+
+!!Target NodeID 108	 [<s> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 109	 [<call> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 110	 [<call5> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<.str.1> 
+Source Loc: Glob Field sensitive object found ... 
+Offset ... 0
+
+Ptr 115 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<ptr1> 
+Alias: ptr1
+Source Loc: ln: 14 fl: example_struct1.c
+Ptr 32 		PointsTo: { 21 }
+
+!!Target NodeID 21	 [<ptr> 
+Alias: ptr
+Alias: ptr14
+Source Loc: ln: 14 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 15 fl: example_struct1.c
+Ptr 39 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<a2> 
+Alias: a2
+Source Loc: ln: 17 fl: example_struct1.c
+Ptr 46 		PointsTo: { 108 109 110 }
+
+!!Target NodeID 108	 [<s> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 109	 [<call> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 110	 [<call5> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<call5> 
+Alias: call5
+Source Loc: ln: 20 fl: example_struct1.c
+Ptr 53 		PointsTo: { 54 }
+
+!!Target NodeID 54	 [<call5> 
+Alias: call5
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 22 fl: example_struct1.c
+Ptr 60 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 67 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 
+Ptr 74 		PointsTo: { 107 }
+
+!!Target NodeID 107	 [<.str.2> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> 
+Source Loc: 
+Ptr 81 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 2nd arg llvm.var.annotation 
+Ptr 88 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 5 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.2> 
+Alias: .str.2
+Source Loc: Glob 
+Ptr 12 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<s> 
+Alias: s
+Source Loc: ln: 11 fl: example_struct1.c
+Ptr 19 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<call> 
+Source Loc: ln: 16 fl: example_struct1.cField sensitive object found ... 
+Offset ... 0
+
+Ptr 109 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 12 fl: example_struct1.c
+Ptr 26 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 
+Ptr 33 		PointsTo: { 114 }
+
+!!Target NodeID 114	 [<.str> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<call> 
+Alias: call
+Source Loc: ln: 16 fl: example_struct1.c
+Ptr 40 		PointsTo: { 41 }
+
+!!Target NodeID 41	 [<call> 
+Alias: call
+Source Loc: ln: 16 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 17 fl: example_struct1.c
+Ptr 47 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<call5> 
+Alias: call5
+Source Loc: ln: 20 fl: example_struct1.c
+Ptr 54 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 61 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<b11> 
+Alias: b11
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 68 		PointsTo: { 111 112 113 }
+
+!!Target NodeID 111	 [<s> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 112	 [<call> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 113	 [<call5> 
+Field sensitive object found ... 
+Offset ... 1
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<call14> 
+Alias: call14
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 75 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 0th arg llvm.dbg.declare 
+Ptr 82 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 3rd arg llvm.var.annotation 
+Ptr 89 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str> 
+Alias: .str
+Source Loc: Glob 
+Ptr 6 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<main> 
+Alias: main
+Source Loc: in line: 9 file: example_struct1.c
+Ptr 13 		PointsTo: { 14 }
+
+!!Target NodeID 14	 [<main> 
+Alias: main
+Source Loc: in line: 9 file: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<ptr14> 
+Alias: ptr
+Alias: ptr14
+Source Loc: ln: 19 fl: example_struct1.c
+Ptr 20 		PointsTo: { 21 }
+
+!!Target NodeID 21	 [<ptr> 
+Alias: ptr
+Alias: ptr14
+Source Loc: ln: 14 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<call5> 
+Source Loc: ln: 20 fl: example_struct1.cField sensitive object found ... 
+Offset ... 0
+
+Ptr 110 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 27 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 
+Ptr 34 		PointsTo: { 115 }
+
+!!Target NodeID 115	 [<.str.1> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<call> 
+Alias: call
+Source Loc: ln: 16 fl: example_struct1.c
+Ptr 41 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 48 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 20 fl: example_struct1.c
+Ptr 55 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<a8> 
+Alias: a8
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 62 		PointsTo: { 108 109 110 }
+
+!!Target NodeID 108	 [<s> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 11 fl: example_struct1.c] 
+!!Target NodeID 109	 [<call> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 16 fl: example_struct1.c] 
+!!Target NodeID 110	 [<call5> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 20 fl: example_struct1.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 23 fl: example_struct1.c
+Ptr 69 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<printf> 
+Alias: printf
+Source Loc: 
+Ptr 76 		PointsTo: { 77 }
+
+!!Target NodeID 77	 [<printf> 
+Alias: printf
+Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 1st arg llvm.dbg.declare 
+Ptr 83 		PointsTo: {empty}
+
+----------------------------------------------
+Writing 'callgraph_final.dot'...

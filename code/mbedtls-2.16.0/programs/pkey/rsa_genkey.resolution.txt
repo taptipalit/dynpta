@@ -1,0 +1,3 @@
+/tmp/rsa_genkey-a43b83.o
+-r=/tmp/rsa_genkey-a43b83.o,main,plx
+-r=/tmp/rsa_genkey-a43b83.o,printf,

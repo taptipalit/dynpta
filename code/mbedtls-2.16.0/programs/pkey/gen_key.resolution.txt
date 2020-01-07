@@ -1,0 +1,3 @@
+/tmp/gen_key-3ba018.o
+-r=/tmp/gen_key-3ba018.o,main,plx
+-r=/tmp/gen_key-3ba018.o,printf,

@@ -1,0 +1,458 @@
+Writing 'pag_initial.dot'...
+Writing 'callgraph_initial.dot'...
+Writing 'consCG_final.dot'...
+Writing 'pag_final.dot'...
+----------------------------------------------
+##<Dummy Obj > id:0
+Ptr 0 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 1st arg llvm.dbg.declare 
+Ptr 45 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.1> 
+Alias: .str.1
+Source Loc: Glob 
+Ptr 7 		PointsTo: { 9 }
+
+!!Target NodeID 9	 [<.str.1> 
+Alias: .str.1
+Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<ctx> 
+Source Loc: ln: 52 fl: breaktest.cField sensitive object found ... 
+Offset ... 0
+
+Ptr 52 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<retval> 
+Alias: retval
+Source Loc: 
+Ptr 14 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 51 fl: breaktest.c
+Ptr 21 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> 
+Alias: llvm.var.annotation
+Source Loc: 
+Ptr 28 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 35 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> 
+Alias: llvm.dbg.declare
+Source Loc: 
+Ptr 42 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str> 
+Alias: .str
+Source Loc: Glob 
+Ptr 4 		PointsTo: { 6 }
+
+!!Target NodeID 6	 [<.str> 
+Alias: .str
+Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 1st arg llvm.var.annotation 
+Ptr 49 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<main> 
+Alias: main
+Source Loc: in line: 50 file: breaktest.c
+Ptr 11 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.1> 
+Source Loc: Glob Field sensitive object found ... 
+Offset ... 0
+
+Ptr 56 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<ctx> 
+Alias: ctx
+Source Loc: ln: 52 fl: breaktest.c
+Ptr 18 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 51 fl: breaktest.c
+Ptr 25 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 53 fl: breaktest.c
+Ptr 32 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 39 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<Dummy Obj > id:1
+Ptr 1 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 2nd arg llvm.dbg.declare 
+Ptr 46 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 8 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<ctx> 
+Source Loc: ln: 52 fl: breaktest.cField sensitive object found ... 
+Offset ... 2
+
+Ptr 53 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<sobj> 
+Alias: sobj
+Source Loc: ln: 51 fl: breaktest.c
+Ptr 15 		PointsTo: { 16 }
+
+!!Target NodeID 16	 [<sobj> 
+Alias: sobj
+Source Loc: ln: 51 fl: breaktest.c] 
+----------------------------------------------
+----------------------------------------------
+##<sobj1> 
+Alias: sobj1
+Source Loc: ln: 51 fl: breaktest.c
+Ptr 22 		PointsTo: { 16 }
+
+!!Target NodeID 16	 [<sobj> 
+Alias: sobj
+Source Loc: ln: 51 fl: breaktest.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 52 fl: breaktest.c
+Ptr 29 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<buf> 
+Alias: buf
+Source Loc: ln: 59 fl: breaktest.c
+Ptr 36 		PointsTo: { 53 }
+
+!!Target NodeID 53	 [<ctx> 
+Field sensitive object found ... 
+Offset ... 2
+Source Loc: ln: 52 fl: breaktest.c] 
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> 
+Source Loc: 
+Ptr 43 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 5 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 2nd arg llvm.var.annotation 
+Ptr 50 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<main> 
+Source Loc: in line: 50 file: breaktest.c
+Ptr 12 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 
+Ptr 19 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 26 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<nr2> 
+Alias: nr2
+Source Loc: ln: 57 fl: breaktest.c
+Ptr 33 		PointsTo: { 52 }
+
+!!Target NodeID 52	 [<ctx> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 52 fl: breaktest.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 62 fl: breaktest.c
+Ptr 40 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+
+Ptr 2 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> 
+Source Loc: 
+Ptr 47 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str.1> 
+Alias: .str.1
+Source Loc: Glob 
+Ptr 9 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<sobj> 
+Source Loc: ln: 51 fl: breaktest.cField sensitive object found ... 
+Offset ... 0
+
+Ptr 54 		PointsTo: { 52 }
+
+!!Target NodeID 52	 [<ctx> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 52 fl: breaktest.c] 
+----------------------------------------------
+----------------------------------------------
+##<sobj> 
+Alias: sobj
+Source Loc: ln: 51 fl: breaktest.c
+Ptr 16 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 
+Ptr 23 		PointsTo: { 55 }
+
+!!Target NodeID 55	 [<.str> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<nr> 
+Alias: nr
+Source Loc: ln: 53 fl: breaktest.c
+Ptr 30 		PointsTo: { 52 }
+
+!!Target NodeID 52	 [<ctx> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 52 fl: breaktest.c] 
+----------------------------------------------
+----------------------------------------------
+##<arrayidx> 
+Alias: arrayidx
+Source Loc: ln: 59 fl: breaktest.c
+Ptr 37 		PointsTo: { 53 }
+
+!!Target NodeID 53	 [<ctx> 
+Field sensitive object found ... 
+Offset ... 2
+Source Loc: ln: 52 fl: breaktest.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 0th arg llvm.dbg.declare 
+Ptr 44 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<.str> 
+Alias: .str
+Source Loc: Glob 
+Ptr 6 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 3rd arg llvm.var.annotation 
+Ptr 51 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<retval> 
+Alias: retval
+Source Loc: 
+Ptr 13 		PointsTo: { 14 }
+
+!!Target NodeID 14	 [<retval> 
+Alias: retval
+Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: Can only get source location for instruction, argument, global var or function.
+Ptr 20 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.var.annotation> 
+Alias: llvm.var.annotation
+Source Loc: 
+Ptr 27 		PointsTo: { 28 }
+
+!!Target NodeID 28	 [<llvm.var.annotation> 
+Alias: llvm.var.annotation
+Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 57 fl: breaktest.c
+Ptr 34 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<llvm.dbg.declare> 
+Alias: llvm.dbg.declare
+Source Loc: 
+Ptr 41 		PointsTo: { 42 }
+
+!!Target NodeID 42	 [<llvm.dbg.declare> 
+Alias: llvm.dbg.declare
+Source Loc: ] 
+----------------------------------------------
+----------------------------------------------
+
+Ptr 3 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 0th arg llvm.var.annotation 
+Ptr 48 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<main> 
+Alias: main
+Source Loc: in line: 50 file: breaktest.c
+Ptr 10 		PointsTo: { 11 }
+
+!!Target NodeID 11	 [<main> 
+Alias: main
+Source Loc: in line: 50 file: breaktest.c] 
+----------------------------------------------
+----------------------------------------------
+##<.str> 
+Source Loc: Glob Field sensitive object found ... 
+Offset ... 0
+
+Ptr 55 		PointsTo: {empty}
+
+----------------------------------------------
+----------------------------------------------
+##<ctx> 
+Alias: ctx
+Source Loc: ln: 52 fl: breaktest.c
+Ptr 17 		PointsTo: { 18 }
+
+!!Target NodeID 18	 [<ctx> 
+Alias: ctx
+Source Loc: ln: 52 fl: breaktest.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: 
+Ptr 24 		PointsTo: { 56 }
+
+!!Target NodeID 56	 [<.str.1> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: Glob ] 
+----------------------------------------------
+----------------------------------------------
+##<ptr> 
+Alias: ptr
+Source Loc: ln: 53 fl: breaktest.c
+Ptr 31 		PointsTo: { 54 }
+
+!!Target NodeID 54	 [<sobj> 
+Field sensitive object found ... 
+Offset ... 0
+Source Loc: ln: 51 fl: breaktest.c] 
+----------------------------------------------
+----------------------------------------------
+##<> 
+Alias: 
+Source Loc: ln: 59 fl: breaktest.c
+Ptr 38 		PointsTo: {empty}
+
+----------------------------------------------
+Writing 'callgraph_final.dot'...
+ node
