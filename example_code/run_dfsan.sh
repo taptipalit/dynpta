@@ -7,16 +7,16 @@ filedfsan=$fileinst"_dfs"
 
 set -x
 
-LLVMROOT=/home/jfmoon/build-dfsan/bin
+LLVMROOT=$LLVM_CUSTOM_PARTITION_BIN
 
 rm null_helper.c aes_inreg.s aes_inmemkey.s aes_helper.c internal_libc.c
 #LLVMROOT=/mnt/donotuse_comparisonONLY/DataRandomization/install/bin
 
-ln -s /home/jfmoon/LLVM-custom/lib/Transforms/Encryption/null_helper.c_ null_helper.c
-ln -s /home/jfmoon/LLVM-custom/lib/Transforms/Encryption/aes_inmemkey.s aes_inmemkey.s
-ln -s /home/jfmoon/LLVM-custom/lib/Transforms/Encryption/aes_inreg.s aes_inreg.s
-ln -s /home/jfmoon/LLVM-custom/lib/Transforms/Encryption/aes_helper.c_ aes_helper.c
-ln -s /home/jfmoon/LLVM-custom/lib/Transforms/LibcTransform/internal_libc.c_ internal_libc.c
+ln -s $LLVM_CUSTOM_SRC/lib/Transforms/Encryption/null_helper.c_ null_helper.c
+ln -s $LLVM_CUSTOM_SRC/lib/Transforms/Encryption/aes_inmemkey.s aes_inmemkey.s
+ln -s $LLVM_CUSTOM_SRC/lib/Transforms/Encryption/aes_inreg.s aes_inreg.s
+ln -s $LLVM_CUSTOM_SRC/lib/Transforms/Encryption/aes_helper.c_ aes_helper.c
+ln -s $LLVM_CUSTOM_SRC/lib/Transforms/LibcTransform/internal_libc.c_ internal_libc.c
 
 GGDB=-ggdb 
 $LLVMROOT/clang -O0 -c $GGDB -emit-llvm $file.c -o $file.bc
