@@ -42,7 +42,7 @@ fi
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $fileinst.bc 
-$LLVMROOT/opt -encryption -partitioning=false -DFSAN=true -debug-only=encryption  $file.bc -o $fileinst.bc 
+$LLVMROOT/opt -encryption -ander -partitioning=false -DFSAN=true -debug-only=encryption  $file.bc -o $fileinst.bc 
 $LLVMROOT/opt --dfsan $fileinst.bc -o $filedfsan.bc
 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
