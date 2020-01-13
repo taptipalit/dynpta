@@ -32,8 +32,8 @@
 #ifndef POINTSTO_H_
 #define POINTSTO_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/ConditionalPT.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
+#include "MemoryModel/ConditionalPT.h"
+#include "Util/AnalysisUtil.h"
 
 /// Overloading operator << for dumping conditional variable
 //@{

@@ -31,8 +31,8 @@
 #define BITVECTORCOND_H_
 
 #include <stdio.h>
-#include "llvm/Analysis/SVF/Util/BasicTypes.h"
-#include "llvm/Analysis/SVF/CUDD/cuddInt.h"
+#include "Util/BasicTypes.h"
+#include "CUDD/cuddInt.h"
 
 /**
  * Using Cudd as conditions.

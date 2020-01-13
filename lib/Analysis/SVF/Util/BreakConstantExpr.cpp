@@ -50,7 +50,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/InstIterator.h"
 
-#include "llvm/Analysis/SVF/Util/BreakConstantExpr.h"
+#include "Util/BreakConstantExpr.h"
 
 #include <iostream>
 #include <map>
@@ -162,6 +162,9 @@ convertExpression (ConstantExpr * CE, Instruction * InsertPt) {
     case Instruction::Add:
     case Instruction::Sub:
     case Instruction::Mul:
+    case Instruction::FAdd:
+    case Instruction::FSub:
+    case Instruction::FMul:
     case Instruction::UDiv:
     case Instruction::SDiv:
     case Instruction::FDiv:

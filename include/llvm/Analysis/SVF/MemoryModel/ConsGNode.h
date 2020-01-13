@@ -30,7 +30,6 @@
 #ifndef CONSGNODE_H_
 #define CONSGNODE_H_
 
-#include <llvm/ADT/BitVector.h>
 /*!
  * Constraint node
  */
@@ -40,91 +39,14 @@ class ConstraintNode : public GenericConsNodeTy {
 public:
     typedef ConstraintEdge::ConstraintEdgeSetTy::iterator iterator;
     typedef ConstraintEdge::ConstraintEdgeSetTy::const_iterator const_iterator;
-    typedef FIFOWorkList<NodeID> WorkList;
-
 private:
-    static const int MAX_FIELDS = 120;
     bool _isPWCNode;
-
-    int numTimesVisited;
-
-    int numOutEdges;
-
-    class SensitiveFlowBV;
-
-    class SensitiveFlowBV {
-        public:
-            llvm::BitVector sensitiveFieldFlows; // A short-cut to avoid traversing the individual lists in the nested struct
-            SensitiveFlowBV* nestedSensitiveFieldFlows[MAX_FIELDS];
-
-
-            /*
-             * Should be used only at the beginning to mark everything
-             * sensitive
-             */
-            void setAllSensitiveFieldFlows() {
-                sensitiveFieldFlows.set();
-            }
-
-            bool setSensitiveFieldFlow(int field) {
-                if (!sensitiveFieldFlows.test(field)) {
-                    nestedSensitiveFieldFlows[field] = new SensitiveFlowBV();
-                    sensitiveFieldFlows.set(field);
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-
-            bool unionBV(llvm::BitVector& newBV) {
-                llvm::BitVector oldBV(sensitiveFieldFlows);
-                sensitiveFieldFlows |= newBV;
-                if (sensitiveFieldFlows != oldBV) {
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-
-            llvm::BitVector& getSensitiveFieldFlows() {
-                return sensitiveFieldFlows;
-            }
-
-            bool isSensitiveFieldFlow(int field) {
-                return sensitiveFieldFlows.test(field);
-            }
-
-            SensitiveFlowBV* getChildSfbv(int offset) {
-                assert(offset < MAX_FIELDS);
-                return nestedSensitiveFieldFlows[offset];
-            }
-
-            SensitiveFlowBV(): sensitiveFieldFlows(MAX_FIELDS, false) {
-                for (int i = 0; i < MAX_FIELDS; i++) {
-                    nestedSensitiveFieldFlows[i] = nullptr;
-                }
-            }
-    };
-
-    SensitiveFlowBV* sensitiveFlowBV;
 
     ConstraintEdge::ConstraintEdgeSetTy loadInEdges; ///< all incoming load edge of this node
     ConstraintEdge::ConstraintEdgeSetTy loadOutEdges; ///< all outgoing load edge of this node
-    
-    ConstraintEdge::ConstraintEdgeSetTy loadValInEdges; ///< all incoming load value edge of this node
-    ConstraintEdge::ConstraintEdgeSetTy loadValOutEdges; ///< all outgoing load value edge of this node
-
 
     ConstraintEdge::ConstraintEdgeSetTy storeInEdges; ///< all incoming store edge of this node
-    ConstraintEdge::ConstraintEdgeSetTy storeValInEdges;
     ConstraintEdge::ConstraintEdgeSetTy storeOutEdges; ///< all outgoing store edge of this node
-    ConstraintEdge::ConstraintEdgeSetTy storeValOutEdges; // <out outgoing store value edge of this node
-
-    ConstraintEdge::ConstraintEdgeSetTy callValInEdges;
-    ConstraintEdge::ConstraintEdgeSetTy callValOutEdges;
-
-    ConstraintEdge::ConstraintEdgeSetTy retValInEdges;
-    ConstraintEdge::ConstraintEdgeSetTy retValOutEdges;
 
     /// Copy/call/ret/gep incoming edge of this node,
     /// To be noted: this set is only used when SCC detection, and node merges
@@ -136,90 +58,8 @@ private:
 
 public:
 
-    ConstraintNode(NodeID i): GenericConsNodeTy(i,0), _isPWCNode(false), numTimesVisited(0) {
-        sensitiveFlowBV = new SensitiveFlowBV();
-    }
+    ConstraintNode(NodeID i): GenericConsNodeTy(i,0), _isPWCNode(false) {
 
-    void setSensitiveFlowBV(SensitiveFlowBV* sensitiveFlowBV) {
-        this->sensitiveFlowBV = sensitiveFlowBV;
-    }
-
-    SensitiveFlowBV* getSensitiveFlowBV() {
-        return sensitiveFlowBV;
-    }
-
-    
-    /*
-     * Invoked by the target of an incoming field sensitive edge
-     * Propagate the sensitivity
-     */
-    inline bool appendFieldSensitivePath(int idx, SensitiveFlowBV* incomingSfbv) {
-        bool changed = false;
-        changed |= this->sensitiveFlowBV->setSensitiveFieldFlow(idx);
-        changed |= doDeepUnion(this->sensitiveFlowBV->getChildSfbv(idx), incomingSfbv);
-        return changed;
-    }
-
-    inline bool doDeepUnion(SensitiveFlowBV* dstSfbv, SensitiveFlowBV* srcSfbv) {
-        bool changed = false;
-        // Union the pointers
-
-        if (srcSfbv && dstSfbv) {
-            // A better way to find the set bits
-            int i = srcSfbv->getSensitiveFieldFlows().find_first();
-            while (i != -1) {
-                if (!dstSfbv->getSensitiveFieldFlows().test(i)) {
-                    // Create new Object
-                    dstSfbv->nestedSensitiveFieldFlows[i] = new SensitiveFlowBV();
-                    changed = true;
-                }
-                changed |= doDeepUnion(dstSfbv->nestedSensitiveFieldFlows[i],
-                        srcSfbv->nestedSensitiveFieldFlows[i]);
-                i = srcSfbv->getSensitiveFieldFlows().find_next(i);
-            }
-            /*
-            for (int i = 0; i < MAX_FIELDS; i++) {
-                if (srcSfbv->getSensitiveFieldFlows().test(i)) {
-            
-                }
-            }
-            */
-            changed |= dstSfbv->unionBV(srcSfbv->getSensitiveFieldFlows());
-        }
-        //llvm::errs() << "Returning changed: " << changed << "\n";
-        return changed;
-    }
-
-    inline bool fieldUnion(SensitiveFlowBV* srcSfbv) {
-        return doDeepUnion(this->sensitiveFlowBV, srcSfbv); // srcSfbv can't be null
-    }
-
-    inline bool isSensitiveFieldFlow(int field) {
-        return sensitiveFlowBV->isSensitiveFieldFlow(field);
-    }
-
-    inline bool updateChildSensitiveFieldFlow(ConstraintNode* parent, int childOffset) {
-        bool changed = false;
-        SensitiveFlowBV* childSfbv = parent->getSensitiveFlowBV()->getChildSfbv(childOffset);
-        changed |= doDeepUnion(this->sensitiveFlowBV, childSfbv); // srcSfbv can't be null
-        return changed;
-    }
-
-    inline void setAllSensitiveFieldFlows() {
-        // Set all fields, to two levels
-        this->sensitiveFlowBV->setAllSensitiveFieldFlows();
-        for (int i = 0; i < MAX_FIELDS; i++) {
-            this->sensitiveFlowBV->nestedSensitiveFieldFlows[i] = new SensitiveFlowBV();
-            this->sensitiveFlowBV->nestedSensitiveFieldFlows[i]->setAllSensitiveFieldFlows();
-        }
-    }
-
-    inline int getNumTimesVisited() {
-        return numTimesVisited;
-    }
-
-    inline void incNumTimesVisited() {
-        numTimesVisited++;
     }
 
     /// Whether a node involves in PWC, if so, all its points-to elements should become field-insensitive.
@@ -301,20 +141,6 @@ public:
         return loadInEdges.end();
     }
 
-    inline const_iterator outgoingLoadValsBegin() const {
-        return loadValOutEdges.begin();
-    }
-    inline const_iterator outgoingLoadValsEnd() const {
-        return loadValOutEdges.end();
-    }
-    inline const_iterator incomingLoadValsBegin() const {
-        return loadValInEdges.begin();
-    }
-    inline const_iterator incomingLoadValsEnd() const {
-        return loadValInEdges.end();
-    }
-
-
     inline const_iterator outgoingStoresBegin() const {
         return storeOutEdges.begin();
     }
@@ -327,55 +153,7 @@ public:
     inline const_iterator incomingStoresEnd() const {
         return storeInEdges.end();
     }
-
-    // Call Val
-    inline const_iterator outgoingCallValsBegin() const {
-        return callValOutEdges.begin();
-    }
-
-    inline const_iterator outgoingCallValsEnd() const {
-        return callValOutEdges.end();
-    }
-
-    inline const_iterator incomingCallValsBegin() const {
-        return callValInEdges.begin();
-    }
-
-    inline const_iterator incomingCallValsEnd() const {
-        return callValInEdges.end();
-    }
-
-    // Ret Val
-    inline const_iterator outgoingRetValsBegin() const {
-        return retValOutEdges.begin();
-    }
-
-    inline const_iterator outgoingRetValsEnd() const {
-        return retValOutEdges.end();
-    }
-
-    inline const_iterator incomingRetValsBegin() const {
-        return retValInEdges.begin();
-    }
-
-    inline const_iterator incomingRetValsEnd() const {
-        return retValInEdges.end();
-    }
-
-
-    inline const_iterator outgoingStoreValsBegin() const {
-        return storeValOutEdges.begin();
-    }
-    inline const_iterator outgoingStoreValsEnd() const {
-        return storeValOutEdges.end();
-    }
-    inline const_iterator incomingStoreValsBegin() const {
-        return storeValInEdges.begin();
-    }
-    inline const_iterator incomingStoreValsEnd() const {
-        return storeValInEdges.end();
-    }
-   //@}
+    //@}
 
     ///  Add constraint graph edges
     //@{
@@ -395,41 +173,12 @@ public:
         addressInEdges.insert(inEdge);
         addIncomingEdge(inEdge);
     }
-
-    inline void addIncomingCallValEdge(CallValCGEdge* outEdge) {
-        bool added1 = callValInEdges.insert(outEdge).second;
-        bool added2 = addIncomingEdge(outEdge);
-        assert(added1 && added2 && "edge not added, duplicated adding!!");
-    }
-    inline void addIncomingRetValEdge(RetValCGEdge* outEdge) {
-        bool added1 = retValInEdges.insert(outEdge).second;
-        bool added2 = addIncomingEdge(outEdge);
-        assert(added1 && added2 && "edge not added, duplicated adding!!");
-    }
-
-    inline bool hasNoOutEdges() {
-        // Check
-        if (OutEdges.size() == 0) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     inline void addIncomingLoadEdge(LoadCGEdge* inEdge) {
         loadInEdges.insert(inEdge);
         addIncomingEdge(inEdge);
     }
-    inline void addIncomingLoadValEdge(LoadValCGEdge* inEdge) {
-        loadValInEdges.insert(inEdge);
-        addIncomingEdge(inEdge);
-    }
     inline void addIncomingStoreEdge(StoreCGEdge* inEdge) {
         storeInEdges.insert(inEdge);
-        addIncomingEdge(inEdge);
-    }
-    inline void addIncomingStoreValEdge(StoreValCGEdge* inEdge) {
-        storeValInEdges.insert(inEdge);
         addIncomingEdge(inEdge);
     }
     inline void addIncomingDirectEdge(ConstraintEdge* inEdge) {
@@ -447,31 +196,8 @@ public:
         bool added2 = addOutgoingEdge(outEdge);
         assert(added1 && added2 && "edge not added, duplicated adding!!");
     }
-
-    inline void addOutgoingCallValEdge(CallValCGEdge* outEdge) {
-        bool added1 = callValOutEdges.insert(outEdge).second;
-        bool added2 = addOutgoingEdge(outEdge);
-        assert(added1 && added2 && "edge not added, duplicated adding!!");
-    }
-    inline void addOutgoingRetValEdge(RetValCGEdge* outEdge) {
-        bool added1 = retValOutEdges.insert(outEdge).second;
-        bool added2 = addOutgoingEdge(outEdge);
-        assert(added1 && added2 && "edge not added, duplicated adding!!");
-    }
-
-    inline void addOutgoingLoadValEdge(LoadValCGEdge* outEdge) {
-        bool added1 = loadValOutEdges.insert(outEdge).second;
-        bool added2 = addOutgoingEdge(outEdge);
-        assert(added1 && added2 && "edge not added, duplicated adding!!");
-    }
-
     inline void addOutgoingStoreEdge(StoreCGEdge* outEdge) {
         bool added1 = storeOutEdges.insert(outEdge).second;
-        bool added2 = addOutgoingEdge(outEdge);
-        assert(added1 && added2 && "edge not added, duplicated adding!!");
-    }
-    inline void addOutgoingStoreValEdge(StoreValCGEdge* outEdge) {
-        bool added1 = storeValOutEdges.insert(outEdge).second;
         bool added2 = addOutgoingEdge(outEdge);
         assert(added1 && added2 && "edge not added, duplicated adding!!");
     }
@@ -488,101 +214,49 @@ public:
     inline void removeOutgoingAddrEdge(AddrCGEdge* outEdge) {
         Size_t num1 = addressOutEdges.erase(outEdge);
         Size_t num2 = removeOutgoingEdge(outEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
+        assert((num1 && num2) && "edge not in the set, can not remove!!!");
     }
 
     inline void removeIncomingAddrEdge(AddrCGEdge* inEdge) {
         Size_t num1 = addressInEdges.erase(inEdge);
         Size_t num2 = removeIncomingEdge(inEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
+        assert((num1 && num2) && "edge not in the set, can not remove!!!");
     }
 
     inline void removeOutgoingDirectEdge(ConstraintEdge* outEdge) {
         Size_t num1 = directOutEdges.erase(outEdge);
         Size_t num2 = removeOutgoingEdge(outEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
+        assert((num1 && num2) && "edge not in the set, can not remove!!!");
     }
 
     inline void removeIncomingDirectEdge(ConstraintEdge* inEdge) {
         Size_t num1 = directInEdges.erase(inEdge);
         Size_t num2 = removeIncomingEdge(inEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
+        assert((num1 && num2) && "edge not in the set, can not remove!!!");
     }
 
     inline void removeOutgoingLoadEdge(LoadCGEdge* outEdge) {
         Size_t num1 = loadOutEdges.erase(outEdge);
         Size_t num2 = removeOutgoingEdge(outEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
+        assert((num1 && num2) && "edge not in the set, can not remove!!!");
     }
 
     inline void removeIncomingLoadEdge(LoadCGEdge* inEdge) {
         Size_t num1 = loadInEdges.erase(inEdge);
         Size_t num2 = removeIncomingEdge(inEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
+        assert((num1 && num2) && "edge not in the set, can not remove!!!");
     }
 
     inline void removeOutgoingStoreEdge(StoreCGEdge* outEdge) {
         Size_t num1 = storeOutEdges.erase(outEdge);
         Size_t num2 = removeOutgoingEdge(outEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
+        assert((num1 && num2) && "edge not in the set, can not remove!!!");
     }
 
     inline void removeIncomingStoreEdge(StoreCGEdge* inEdge) {
         Size_t num1 = storeInEdges.erase(inEdge);
         Size_t num2 = removeIncomingEdge(inEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
-    }
-
-    // Load value edges
-    inline void removeOutgoingLoadValEdge(LoadValCGEdge* outEdge) {
-        Size_t num1 = loadValOutEdges.erase(outEdge);
-        Size_t num2 = removeOutgoingEdge(outEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
-    }
-
-    inline void removeIncomingLoadValEdge(LoadValCGEdge* inEdge) {
-        Size_t num1 = loadValInEdges.erase(inEdge);
-        Size_t num2 = removeIncomingEdge(inEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
-    }
-
-    // Store value edges
-    inline void removeOutgoingStoreValEdge(StoreValCGEdge* outEdge) {
-        Size_t num1 = storeValOutEdges.erase(outEdge);
-        Size_t num2 = removeOutgoingEdge(outEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
-    }
-
-    inline void removeIncomingStoreValEdge(StoreValCGEdge* inEdge) {
-        Size_t num1 = storeValInEdges.erase(inEdge);
-        Size_t num2 = removeIncomingEdge(inEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
-    }
-
-    // Call value edges
-    inline void removeOutgoingCallValEdge(CallValCGEdge* outEdge) {
-        Size_t num1 = callValOutEdges.erase(outEdge);
-        Size_t num2 = removeOutgoingEdge(outEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
-    }
-
-    inline void removeIncomingCallValEdge(CallValCGEdge* inEdge) {
-        Size_t num1 = callValInEdges.erase(inEdge);
-        Size_t num2 = removeIncomingEdge(inEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
-    }
-
-    // Return value edges
-    inline void removeOutgoingRetValEdge(RetValCGEdge* outEdge) {
-        Size_t num1 = retValOutEdges.erase(outEdge);
-        Size_t num2 = removeOutgoingEdge(outEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
-    }
-
-    inline void removeIncomingRetValEdge(RetValCGEdge* inEdge) {
-        Size_t num1 = retValInEdges.erase(inEdge);
-        Size_t num2 = removeIncomingEdge(inEdge);
-        //assert((num1 && num2) && "edge not in the set, can not remove!!!");
+        assert((num1 && num2) && "edge not in the set, can not remove!!!");
     }
     //@}
 

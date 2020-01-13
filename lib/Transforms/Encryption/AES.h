@@ -14,6 +14,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 namespace external{
+    using namespace llvm;
 
 	class OffsetXMMPair {
 		public:

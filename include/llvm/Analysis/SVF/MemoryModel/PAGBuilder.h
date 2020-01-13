@@ -30,9 +30,8 @@
 #ifndef PAGBUILDER_H_
 #define PAGBUILDER_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/PAG.h"
-#include "llvm/Analysis/SVF/Util/ExtAPI.h"
-#include "llvm/Analysis/SVF/Util/SensitiveDataHelper.h"
+#include "MemoryModel/PAG.h"
+#include "Util/ExtAPI.h"
 
 #include <llvm/IR/InstVisitor.h>	// for instruction visitor
 
@@ -42,12 +41,9 @@ class SVFModule;
  *  PAG Builder
  */
 class PAGBuilder: public llvm::InstVisitor<PAGBuilder> {
-public: 
-    enum Mode {CFG_ONLY, FULL};
 private:
     PAG* pag;
     SVFModule svfMod;
-    SensitiveDataHelper* sensitiveHelper;
 public:
     /// Constructor
     PAGBuilder(): pag(PAG::getPAG()) {
@@ -105,8 +101,8 @@ public:
     //@{
     void visitGlobal(SVFModule svfModule);
     void InitialGlobal(const llvm::GlobalVariable *gvar, llvm::Constant *C,
-                       u32_t offset, u32_t fieldidx);
-    NodeID getGlobalVarField(const llvm::GlobalVariable *gvar, u32_t offset, u32_t fieldidx);
+                       u32_t offset);
+    NodeID getGlobalVarField(const llvm::GlobalVariable *gvar, u32_t offset);
     //@}
 
     /// Process constant expression

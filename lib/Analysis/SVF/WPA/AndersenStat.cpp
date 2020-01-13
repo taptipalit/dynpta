@@ -26,8 +26,8 @@
  *  Created on: Oct 12, 2013
  *      Author: Yulei Sui
  */
-#include "llvm/Analysis/SVF/WPA/WPAStat.h"
-#include "llvm/Analysis/SVF/WPA/Andersen.h"
+#include "WPA/WPAStat.h"
+#include "WPA/Andersen.h"
 
 using namespace llvm;
 using namespace analysisUtil;

@@ -27,10 +27,10 @@
  *      Author: Yulei Sui
  */
 
-#include "llvm/Analysis/SVF/MSSA/MemPartition.h"
-#include "llvm/Analysis/SVF/MSSA/MemSSA.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
-#include "llvm/Analysis/SVF/MSSA/SVFGStat.h"
+#include "MSSA/MemPartition.h"
+#include "MSSA/MemSSA.h"
+#include "Util/AnalysisUtil.h"
+#include "MSSA/SVFGStat.h"
 
 #include <llvm/Analysis/DominanceFrontier.h>
 #include <llvm/IR/InstIterator.h>	// for inst iteration

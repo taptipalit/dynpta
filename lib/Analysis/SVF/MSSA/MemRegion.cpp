@@ -27,10 +27,10 @@
  *      Author: Yulei Sui
  */
 
-#include "llvm/Analysis/SVF/MSSA/MemRegion.h"
-#include "llvm/Analysis/SVF/MSSA/MSSAMuChi.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
-#include "llvm/Analysis/SVF/Util/SVFModule.h"
+#include "MSSA/MemRegion.h"
+#include "MSSA/MSSAMuChi.h"
+#include "Util/AnalysisUtil.h"
+#include "Util/SVFModule.h"
 
 #include <llvm/Support/raw_ostream.h>	// for output
 #include <llvm/Support/CommandLine.h>	// for cl::opt

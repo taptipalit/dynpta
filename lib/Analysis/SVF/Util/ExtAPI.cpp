@@ -7,7 +7,7 @@
  * Modified by Yulei Sui 2013
 */
 
-#include "llvm/Analysis/SVF/Util/ExtAPI.h"
+#include "Util/ExtAPI.h"
 #include <stdio.h>
 
 using namespace std;

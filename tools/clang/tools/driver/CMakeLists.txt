@@ -1,3 +1,5 @@
+include_directories(${CMAKE_SOURCE_DIR}/include/llvm/Analysis/SVF)
+
 set( LLVM_LINK_COMPONENTS
   ${LLVM_TARGETS_TO_BUILD}
   Analysis

@@ -30,7 +30,7 @@
 #ifndef LOCMEMMODEL_H_
 #define LOCMEMMODEL_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/MemModel.h"
+#include "MemoryModel/MemModel.h"
 
 /*!
  * Bytes/bits-level modeling of memory locations to handle weakly type languages.

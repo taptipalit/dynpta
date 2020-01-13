@@ -30,13 +30,15 @@
 #ifndef ANDERSENPASS_H_
 #define ANDERSENPASS_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/PointerAnalysis.h"
-#include "llvm/Analysis/SVF/WPA/WPAStat.h"
-#include "llvm/Analysis/SVF/WPA/WPASolver.h"
-#include "llvm/Analysis/SVF/MemoryModel/ConsG.h"
-#include "llvm/Analysis/SVF/Util/SensitiveDataHelper.h"
+#include "MemoryModel/PointerAnalysis.h"
+#include "WPA/WPAStat.h"
+#include "WPA/WPASolver.h"
+#include "MemoryModel/ConsG.h"
+#include "MemoryModel/PTG.h"
 #include <llvm/PassAnalysisSupport.h>	// analysis usage
 #include <llvm/Support/Debug.h>		// DEBUG TYPE
+#include <vector>
+#include <set>
 
 class PTAType;
 class SVFModule;
@@ -47,18 +49,6 @@ typedef WPASolver<ConstraintGraph*> WPAConstraintSolver;
 
 class Andersen:  public WPAConstraintSolver, public BVDataPTAImpl {
 
-private:
-    llvm::SparseBitVector<> SensitiveObjList;
-    bool isSensitivePointsTo(PointsTo& ptsTo) {
-        if (ptsTo.intersects(SensitiveObjList)) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-protected:
-    int problematicPWC;
 
 public:
     typedef std::set<const ConstraintEdge*> EdgeSet;
@@ -74,9 +64,6 @@ public:
     static Size_t numOfProcessedGep;	/// Number of processed Gep edge
     static Size_t numOfProcessedLoad;	/// Number of processed Load edge
     static Size_t numOfProcessedStore;	/// Number of processed Store edge
-
-    static Size_t numOfSensitiveCopy; /// Number of sensitive Copy edges encountered
-    static Size_t numCopyEdge;          /// Total number of copy edges encountered
 
     static Size_t numOfSCCDetection;
     static double timeOfSCCDetection;
@@ -94,7 +81,6 @@ public:
         :  BVDataPTAImpl(type), consCG(NULL)
     {
         reanalyze = false;
-        problematicPWC = 0;
     }
 
     /// Destructor
@@ -103,35 +89,33 @@ public:
             delete consCG;
         consCG = NULL;
     }
-    //virtual bool runOnModule(llvm::Module& svfModule);
-    /// Andersen analysis
+
+    /// Andersen analysis (Steensgaard analysis override them)
     virtual void analyze(SVFModule svfModule);
-    //void analyze(llvm::Module& svfModule);
 
-    void collectGlobalSensitiveAnnotations(llvm::Module& module);
+    virtual void analyzeSubgraph(SVFModule svfModule);
 
-    void collectLocalSensitiveAnnotations(llvm::Module& module);
-
-    bool isSensitiveObj(NodeID nodeID) {
-        if (SensitiveObjList.test(nodeID)) {
-            return true;
-        } else {
-            return false;
-        }
+    virtual inline void initializeSubgraph(SVFModule svfModule) {
+        resetData();
+        // Make sure that everything else is configured correctly
+        assert(pag != nullptr && "PAG should be setup");
+        assert(chgraph != nullptr && "CHGraph should be setup");
+        assert(typeSystem != nullptr && "TypeSystem should be setup");
+        assert(ptaCallGraph != nullptr && "PTACallGraph should be setup");
+        assert(consCG != nullptr && "Constraint Graph should be set up and not null");
+//        consCG->dumpInitial();
+        stat = new AndersenStat(this);
     }
 
     /// Initialize analysis
     virtual inline void initialize(SVFModule svfModule) {
-    //virtual inline void initialize(llvm::Module& svfModule) {
         resetData();
-        assert(svfModule.getModuleNum() == 1 && "More than one module, don't know what to do with this");
         /// Build PAG
         PointerAnalysis::initialize(svfModule);
-        //collectGlobalSensitiveAnnotations(svfModule.getModuleRef(0));
-        //collectLocalSensitiveAnnotations(svfModule.getModuleRef(0));
         /// Build Constraint Graph
         consCG = new ConstraintGraph(pag);
         setGraph(consCG);
+        consCG->dumpInitial();
         /// Create statistic class
         stat = new AndersenStat(this);
 
@@ -143,6 +127,7 @@ public:
     virtual inline void finalize() {
         /// dump constraint graph if PAGDotGraph flag is enabled
         consCG->dump();
+        consCG->print();
         /// sanitize field insensitive obj
         /// TODO: Fields has been collapsed during Andersen::collapseField().
         //	sanitizePts();
@@ -168,7 +153,9 @@ public:
                 || pta->getAnalysisTy() == AndersenLCD_WPA
                 || pta->getAnalysisTy() == AndersenWave_WPA
                 || pta->getAnalysisTy() == AndersenWaveDiff_WPA
-                || pta->getAnalysisTy() == AndersenWaveDiffWithType_WPA);
+                || pta->getAnalysisTy() == AndersenWaveDiffWithType_WPA
+		|| pta->getAnalysisTy() == Steensgard_WPA
+        || pta->getAnalysisTy() == SteensgaardFast_WPA);
     }
     //@}
 
@@ -192,10 +179,15 @@ public:
         return consCG;
     }
 
+    /// Set constraint graph
     void setConstraintGraph(ConstraintGraph* consCG) {
         this->consCG = consCG;
-        setGraph(consCG);
+        setGraph(this->consCG);
     }
+
+    /// Update call graph for the input indirect callsites
+    virtual bool updateCallGraph(const CallSiteToFunPtrMap& callsites);
+
 
 protected:
     /// Reanalyze if any constraint value changed
@@ -204,10 +196,9 @@ protected:
     /// Override WPASolver function in order to use the default solver
     virtual void processNode(NodeID nodeId);
 
-    
     /// handling various constraints
     //@{
-    virtual void processAllAddr();
+    void processAllAddr();
 
     virtual bool processLoad(NodeID node, const ConstraintEdge* load);
 
@@ -227,11 +218,10 @@ protected:
         return consCG->addCopyCGEdge(src, dst);
     }
 
-    /// Update call graph for the input indirect callsites
-    virtual bool updateCallGraph(const CallSiteToFunPtrMap& callsites);
-
     /// Merge sub node to its rep
     virtual void mergeNodeToRep(NodeID nodeId,NodeID newRepId);
+
+    //virtual void steensgardRemove(NodeID nodeId);
 
     /// Merge sub node in a SCC cycle to their rep node
     //@{
@@ -252,6 +242,8 @@ protected:
 
     /// Constraint Graph
     ConstraintGraph* consCG;
+
+    virtual void profileConstraintGraph();
 
     /// Sanitize pts for field insensitive objects
     void sanitizePts() {
@@ -283,30 +275,56 @@ protected:
     }
 };
 
-/* 
- * CFG Only Andersen Analysis
- *
- */
-class AndersenCFG : public Andersen {
+/* Steengaard Points-to only */
+class SteensgaardFast : public Andersen {
+ 
 private:
-    static AndersenCFG* cfgAndersen; // static instance
-    SensitiveDataHelper* sensitiveHelper;
+    PTG* ptgraph;
 
-public:
-    AndersenCFG(PTATY type = AndersenCFG_WPA) : Andersen(type) {
-        sensitiveHelper = SensitiveDataHelper::getSensitiveDataHelper();
+public: 
+
+    SteensgaardFast(PTATY type = SteensgaardFast_WPA) : Andersen(type) {}
+
+	void analyze(SVFModule svfModule);
+
+    // No pushing anything into worklists
+	virtual void processAddr(const AddrCGEdge* addr);
+
+    PointsTo& getPts(NodeID nodeID) {
+        assert(ptgraph != nullptr && "PTG is null and trying to get the points-to");
+        return ptgraph->getPts(nodeID);
     }
 
-protected:
-    virtual void processNode(NodeID nodeId);
+    // Overloaded function, returns the new copy edges added
+    // Updates the constraint graph with the new points-to edges discovered
+    // Uses SteensgaardFast's getPts() overridden function to access the PTG
+    // data-structures
+    //
+    // Returns the new copy edges inserted after solving in the vector
+    bool updateCallGraph(const CallSiteToFunPtrMap&, std::vector<ConstraintEdge*>&);
 
-    virtual void processAllAddr();
-
-     /// Update call graph for the input indirect callsites
-    virtual bool updateCallGraph(const CallSiteToFunPtrMap& callsites);
-
+    
+    void findPointsToFromChain(std::set<NodeID>& senIDs, std::set<SetID>& setSet, int&, int&, WorkList&);
 };
 
+/* Steengard Class */
+class Steensgard : public Andersen {
+ 
+public: 
+	void analyze(SVFModule svfModule);
+
+	virtual void steensgardProcessNodeInitial(NodeID nodeId);
+
+	virtual void steensgardProcessNode(NodeID nodeId);
+
+	virtual void steensgardWorklistProcess(NodeID nodeId);
+
+	void steensgardProcessAllAddr();
+
+	virtual void steensgardProcessAddr(const AddrCGEdge* addr);
+
+	virtual void steensgardMerge(NodeID nodeId,NodeID newRepId);
+};
 /*
  * Wave propagation based Andersen Analysis
  */
@@ -320,7 +338,6 @@ public:
 
     /// Create an singleton instance directly instead of invoking llvm pass manager
     static AndersenWave* createAndersenWave(SVFModule svfModule) {
-    //static AndersenWave* createAndersenWave(llvm::Module& svfModule) {
         if(waveAndersen==NULL) {
             waveAndersen = new AndersenWave();
             waveAndersen->analyze(svfModule);
@@ -389,7 +406,6 @@ public:
 
     /// Create an singleton instance directly instead of invoking llvm pass manager
     static AndersenWaveDiff* createAndersenWaveDiff(SVFModule svfModule) {
-    //static AndersenWaveDiff* createAndersenWaveDiff(llvm::Module& svfModule) {
         if(diffWave==NULL) {
             diffWave = new AndersenWaveDiff();
             diffWave->analyze(svfModule);
@@ -522,7 +538,6 @@ public:
     AndersenLCD(PTATY type = AndersenLCD_WPA): Andersen(type) {}
 
     /// Create an singleton instance directly instead of invoking llvm pass manager
-    //static AndersenLCD* createAndersenWave(llvm::Module& svfModule) {
     static AndersenLCD* createAndersenWave(SVFModule svfModule) {
         if(lcdAndersen==NULL) {
             lcdAndersen = new AndersenLCD();
@@ -555,73 +570,5 @@ private:
         return false;
     }
 };
-
-/*
- * Demand-driven Andersen Analysis
- */
-class AndersenDD : public Andersen {
-private:
-    static AndersenDD* ddAndersen; // static instance
-    PAG::CallSiteToFunPtrMap* callSiteToFunPtrMap;
-
-protected:
-    void preprocessAllAddr();
-
-public:
-
-    void setCallSiteToFunPtrMap(PAG::CallSiteToFunPtrMap* callSiteToFunPtrMap) {
-        this->callSiteToFunPtrMap = callSiteToFunPtrMap;
-    }
-
-    PAG::CallSiteToFunPtrMap* getCallSiteToFunPtrMap() {
-        return this->callSiteToFunPtrMap;
-    }
-
-    AndersenDD(PTATY type = AndersenDD_WPA) : Andersen(type) {}
-
-    virtual void processNode(NodeID nodeId);
-    virtual void analyze(SVFModule svfModule);
-    virtual bool updateCallGraph(const CallSiteToFunPtrMap& callsites);
-
-    ConstraintGraph* findSensitiveSubGraph(ConstraintGraph*);
-
-    /// Initialize analysis
-    virtual inline void initialize(SVFModule svfModule) {
-    //virtual inline void initialize(llvm::Module& svfModule) {
-        resetData();
-        assert(svfModule.getModuleNum() == 1 && "More than one module, don't know what to do with this");
-        /// Build PAG (should skip because pag is already set)
-        assert(pag && "AndersenDD is dependent on AndersenCFG. The PAG should be generated by AndersenCFG and fed into this");
-        PointerAnalysis::initialize(svfModule);
-        collectGlobalSensitiveAnnotations(svfModule.getModuleRef(0));
-        collectLocalSensitiveAnnotations(svfModule.getModuleRef(0));
-        // Verify that we already have the constraint graph from the
-        // AndersenCFG fed into this
-        assert(consCG && "AndersenDD is dependent on AndersenCFG. The constraint graph of AndersenCFG is fed into this analysis.");
-        /// Build Constraint Graph
-        //consCG = new ConstraintGraph(pag);
-        //setGraph(consCG);
-        
-        // Now, we build the sensitive sub-graph
-        ConstraintGraph* sensitiveSubGraph = findSensitiveSubGraph(consCG);
-        consCG = sensitiveSubGraph;
-        consCG->dumpSensitiveGraph();
-        setGraph(consCG);
-        
-        /// Create statistic class
-        stat = new AndersenStat(this);
-
-    }
-
-
-    static AndersenDD* createAndersenDD(SVFModule svfModule) {
-        if (ddAndersen==NULL) {
-            ddAndersen = new AndersenDD();
-            ddAndersen->analyze(svfModule);
-            return ddAndersen;
-        }
-    }
-};
-
 
 #endif /* ANDERSENPASS_H_ */

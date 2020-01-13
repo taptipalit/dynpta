@@ -32,8 +32,8 @@
  *
  */
 
-#include "llvm/Analysis/SVF/MSSA/SVFGOPT.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
+#include "MSSA/SVFGOPT.h"
+#include "Util/AnalysisUtil.h"
 #include <llvm/Support/CommandLine.h>
 
 using namespace llvm;

@@ -30,8 +30,8 @@
 #ifndef MEMORYSSAPASS_H_
 #define MEMORYSSAPASS_H_
 
-#include "llvm/Analysis/SVF/MSSA/MemRegion.h"
-#include "llvm/Analysis/SVF/MSSA/MSSAMuChi.h"
+#include "MSSA/MemRegion.h"
+#include "MSSA/MSSAMuChi.h"
 
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/ADT/DenseMap.h>			// for dense map

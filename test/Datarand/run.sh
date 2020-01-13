@@ -2,11 +2,12 @@
 
 rm *.png *.dot
 file="$1"
+analysis="$2"
 fileinst=$file"_inst"
 
 set -x
 
-LLVMROOT=/mnt/Projects/LLVM-custom/install/bin
+LLVMROOT=/mnt/Projects/LLVM-custom/build/bin
 
 rm null_helper.c aes_inreg.s aes_inmemkey.s aes_helper.c internal_libc.c
 #LLVMROOT=/mnt/donotuse_comparisonONLY/DataRandomization/install/bin
@@ -41,7 +42,7 @@ fi
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $fileinst.bc 
-$LLVMROOT/opt -encryption -print-all-pts -dump-pag -debug-only=encryption -dump-consG $file.bc -o $fileinst.bc 
+$LLVMROOT/opt -encryption $analysis -dump-pag -dump-consG $file.bc -o $fileinst.bc # -print-all-pts -debug-only=encryption 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc
 $LLVMROOT/llvm-dis $file.bc -o $file.ll
@@ -58,7 +59,7 @@ then
     exit 1
 fi
 
-musl-clang -static $GGDB aes_inreg.s aes_helper.c $fileinst.o -o $file
+musl-clang -static $GGDB aes_inreg.s aes_helper.c $fileinst.o -o $file.exe
 if [ $? -ne 0 ]
 then
     exit 1

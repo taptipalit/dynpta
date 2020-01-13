@@ -30,8 +30,8 @@
 #ifndef THREADAPI_CPP_
 #define THREADAPI_CPP_
 
-#include "llvm/Analysis/SVF/Util/ThreadAPI.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
+#include "Util/ThreadAPI.h"
+#include "Util/AnalysisUtil.h"
 #include <llvm/IR/Module.h>
 #include <llvm/IR/InstIterator.h>	// for inst iteration
 #include <iostream>		/// std output

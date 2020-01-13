@@ -30,10 +30,9 @@
 #ifndef CONSG_H_
 #define CONSG_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/ConsGEdge.h"
-#include "llvm/Analysis/SVF/MemoryModel/ConsGNode.h"
-#include "llvm/Support/raw_ostream.h"
-#include <map>
+#include "MemoryModel/ConsGEdge.h"
+#include "MemoryModel/ConsGNode.h"
+#include <vector>
 
 /*!
  * Constraint graph for Andersen's analysis
@@ -46,83 +45,31 @@ public:
     typedef llvm::DenseMap<NodeID, ConstraintNode *> ConstraintNodeIDToNodeMapTy;
     typedef ConstraintEdge::ConstraintEdgeSetTy::iterator ConstraintNodeIter;
     typedef llvm::DenseMap<NodeID, NodeID> NodeToRepMap;
+    typedef llvm::DenseMap<NodeID,int> NodeCountMap;
+    typedef llvm::DenseMap<NodeID,std::vector<NodeID>> RepToNodeMap;
     typedef llvm::DenseMap<NodeID, NodeBS> NodeToSubsMap;
     typedef FIFOWorkList<NodeID> WorkList;
-    typedef std::map<llvm::Type*, std::list<int>> TypeToFieldMapTy; // Map the Type to flattened fields
-    typedef std::list<llvm::StructType*> ExplicitSensitiveTypesListTy;
-
 private:
-    bool selective;
-
     PAG*pag;
     NodeToRepMap nodeToRepMap;
+    RepToNodeMap repToNodeMap;
     NodeToSubsMap nodeToSubsMap;
+    NodeCountMap nodeCountMap;
 
     ConstraintEdge::ConstraintEdgeSetTy AddrCGEdgeSet;
     ConstraintEdge::ConstraintEdgeSetTy directEdgeSet;
     ConstraintEdge::ConstraintEdgeSetTy LoadCGEdgeSet;
-    ConstraintEdge::ConstraintEdgeSetTy LoadValCGEdgeSet;
     ConstraintEdge::ConstraintEdgeSetTy StoreCGEdgeSet;
-    ConstraintEdge::ConstraintEdgeSetTy StoreValCGEdgeSet;
 
-    ConstraintEdge::ConstraintEdgeSetTy CallValCGEdgeSet;
-    ConstraintEdge::ConstraintEdgeSetTy RetValCGEdgeSet;
-
-    TypeToFieldMapTy PrunedTypeToFieldMap;
-    ExplicitSensitiveTypesListTy ExplicitSensitiveList;
+    bool selective;
 
     EdgeID edgeIndex;
-
-    void printPrunedTypes() {
-        TypeToFieldMapTy::iterator it;
-        llvm::errs() << "------------------ SENSITIVE TYPES ---------------------\n";
-        for (it = PrunedTypeToFieldMap.begin(); it != PrunedTypeToFieldMap.end(); it++) {
-            llvm::errs() << it->first->getStructName() << ":\n";
-            std::list<int>& l = it->second;
-            for (int i: l) {
-                llvm::errs() << "offset: " << i << "\n";
-            }
-        }
-    }
-
 
     WorkList nodesToBeCollapsed;
 
     void buildCG();
 
     void destroy();
-
-    std::list<int>& getSensitiveFields(llvm::Type* type) {
-        return PrunedTypeToFieldMap[type];
-    }
-
-    void appendSensitiveField(llvm::Type* type, int offset) {
-        PrunedTypeToFieldMap[type].push_back(offset);
-    }
-
-    bool isSensitiveType(llvm::StructType* stType) {
-        return (std::find(ExplicitSensitiveList.begin(), ExplicitSensitiveList.end(), stType) != ExplicitSensitiveList.end());
-    }
-
-
-    bool isSensitiveField(llvm::Type* type, int offset) {
-        if (PrunedTypeToFieldMap.count(type) == 0)
-            return false;
-        std::list<int> sensitiveFields = PrunedTypeToFieldMap[type];
-        if (std::find(sensitiveFields.begin(), sensitiveFields.end(), offset) == sensitiveFields.end()) {
-            return false;
-        } else {
-            return true;
-        }
-    }
-
-    bool isPrunedType(llvm::Type* type) {
-        if (PrunedTypeToFieldMap.find(type) == PrunedTypeToFieldMap.end()) {
-            return false;
-        } else {
-            return true;
-        }
-    }
 
     /// Wappers used internally, not expose to Andernsen Pass
     //@{
@@ -138,88 +85,24 @@ private:
         return pag->getVarargNode(value);
     }
     //@}
-    
-    /// Clone routines and helpers
-    //@{
-    void cloneAddrEdge(ConstraintEdge*);
-
-    void cloneStoreValEdge(ConstraintEdge*);
-
-    void cloneStoreEdge(ConstraintEdge*);
-
-    void cloneLoadEdge(ConstraintEdge*);
-
-    void cloneLoadValEdge(ConstraintEdge*);
-
-    void cloneDirectEdge(ConstraintEdge*);
-
-    void cloneCallValEdge(ConstraintEdge*);
-
-    void cloneRetValEdge(ConstraintEdge*);
-
-    void testAndAddNode(NodeID, llvm::SparseBitVector<>&);
-    //@}
-
 
 public:
+    PAG* getPAG() {
+        return pag;
+    }
     /// Constructor
-    ConstraintGraph(PAG* p): pag(p), PrunedTypeToFieldMap(), ExplicitSensitiveList(), edgeIndex(0)  {
-        this->selective = false;
+    ConstraintGraph(PAG* p): pag(p), selective(true), edgeIndex(0) {
         buildCG();
     }
 
-    ConstraintGraph(PAG* p, bool selective): pag(p), PrunedTypeToFieldMap(), ExplicitSensitiveList(), edgeIndex(0) {
-        // Do nothing
-        // Invoke only when copying from elsewhere
-        this->selective = selective;
+    ConstraintGraph(PAG* p, bool selective): pag(p), selective(true), edgeIndex(0) {
     }
+
     /// Destructor
     virtual ~ConstraintGraph() {
         destroy();
     }
-    void removePrunedNodes(ConstraintNode*, ConstraintGraph*);
-    void removeAllIncomingEdges(ConstraintNode*, WorkList&);
 
-    virtual inline Size_t getVariableGepEdgeNum() {
-        int vargep = 0;
-        for(ConstraintEdge::ConstraintEdgeSetTy::iterator it = this->getDirectCGEdges().begin(),
-                eit = this->getDirectCGEdges().end(); it!=eit; ++it) {
-            ConstraintEdge* edge = *it;
-            if (edge->getEdgeKind() == ConstraintEdge::VariantGep) {
-                vargep++;
-            }
-        }
-        return vargep;
-    }
-
-    virtual inline Size_t getNormalGepEdgeNum() {
-        int normalgep = 0;
-        for(ConstraintEdge::ConstraintEdgeSetTy::iterator it = this->getDirectCGEdges().begin(),
-                eit = this->getDirectCGEdges().end(); it!=eit; ++it) {
-            ConstraintEdge* edge = *it;
-            if (edge->getEdgeKind() == ConstraintEdge::NormalGep) {
-                normalgep++;
-            }
-        }
-        return normalgep;
-    }
-
-    virtual inline Size_t getTotalEdgeNum() const {
-        int addrSize = AddrCGEdgeSet.size();
-        int directSize = directEdgeSet.size();
-        int loadSize = LoadCGEdgeSet.size();
-        int storeSize = StoreCGEdgeSet.size();
-        int storeValSize = StoreValCGEdgeSet.size();
-        int callSize = CallValCGEdgeSet.size();
-        int retSize = RetValCGEdgeSet.size();
-        return addrSize + directSize + loadSize + storeSize + storeValSize + callSize + retSize;
-    }
-
-
-    void annotateGraphWithSensitiveFlows(ConstraintGraph*, WorkList&);
-    void createMinSubGraphReachableFrom(ConstraintGraph*, WorkList&);
-
-    void createSubGraphReachableFrom(ConstraintGraph*, WorkList&);
     /// Get/add/remove constraint node
     //@{
     inline ConstraintNode* getConstraintNode(NodeID id) const {
@@ -229,13 +112,6 @@ public:
     inline void addConstraintNode(ConstraintNode* node, NodeID id) {
         addGNode(id,node);
     }
-
-    inline void getAllNodes(WorkList& workList) {
-        for (IDToNodeMapTy::iterator it = IDToNodeMap.begin(); it != IDToNodeMap.end(); it++) {
-            workList.push(it->first);
-        }
-    }
-
     inline bool hasConstraintNode(NodeID id) const {
         return hasGNode(id);
     }
@@ -243,6 +119,16 @@ public:
         removeGNode(node);
     }
     //@}
+
+    //// Return the Edge. This is used by SteensgaardFast only at the moment
+    inline ConstraintEdge* getCopyEdge(NodeID srcID, NodeID dstID) {
+        ConstraintNode* src = getConstraintNode(srcID);
+        ConstraintNode* dst = getConstraintNode(dstID);
+        ConstraintEdge edge(src, dst, ConstraintEdge::Copy);
+        ConstraintEdge::ConstraintEdgeSetTy::iterator it = directEdgeSet.find(&edge);
+        assert(it != directEdgeSet.end() && "Trying to get an edge that doesn't exist");
+        return *it;
+    }
 
     //// Return true if this edge exits
     inline bool hasEdge(ConstraintNode* src, ConstraintNode* dst, ConstraintEdge::ConstraintEdgeK kind) {
@@ -256,25 +142,9 @@ public:
             return StoreCGEdgeSet.find(&edge) != StoreCGEdgeSet.end();
         else if(kind == ConstraintEdge::Load)
             return LoadCGEdgeSet.find(&edge) != LoadCGEdgeSet.end();
-        else if (kind == ConstraintEdge::StoreVal)
-            return StoreValCGEdgeSet.find(&edge) != StoreValCGEdgeSet.end();
-        else if (kind == ConstraintEdge::LoadVal)
-            return LoadValCGEdgeSet.find(&edge) != LoadValCGEdgeSet.end();
-        else if (kind == ConstraintEdge::CallVal)
-            return CallValCGEdgeSet.find(&edge) != CallValCGEdgeSet.end();
-        else if (kind == ConstraintEdge::RetVal)
-            return RetValCGEdgeSet.find(&edge) != RetValCGEdgeSet.end();
         else
             assert(false && "no other kind!");
         return false;
-    }
-
-    PAG* getPAG() {
-        return this->pag;
-    }
-
-    void setPAG(PAG* p) {
-        this->pag = p;
     }
 
     ///Add a PAG edge into Edge map
@@ -288,17 +158,19 @@ public:
     bool addVariantGepCGEdge(NodeID src, NodeID dst);
     /// Add Load edge
     bool addLoadCGEdge(NodeID src, NodeID dst);
-    /// Add Load Value edge
-    bool addLoadValCGEdge(NodeID src, NodeID dst);
     /// Add Store edge
     bool addStoreCGEdge(NodeID src, NodeID dst);
-    /// Add Store Value edge
-    bool addStoreValCGEdge(NodeID src, NodeID dst);
-    /// Add Call Value edge
-    bool addCallValCGEdge(NodeID src, NodeID dst);
-    /// Add Ret Value edge
-    bool addRetValCGEdge(NodeID src, NodeID dst);
     //@}
+
+    void cloneAddrEdge(ConstraintEdge*);
+
+    void cloneStoreEdge(ConstraintEdge*);
+
+    void cloneLoadEdge(ConstraintEdge*);
+
+    void cloneDirectEdge(ConstraintEdge*);
+
+    void cloneRetValEdge(ConstraintEdge*);
 
     ///Get PAG edge
     //@{
@@ -318,14 +190,6 @@ public:
     inline ConstraintEdge::ConstraintEdgeSetTy& getStoreCGEdges() {
         return StoreCGEdgeSet;
     }
-    /// Get Load Value edges
-    inline ConstraintEdge::ConstraintEdgeSetTy& getLoadValCGEdges() {
-        return LoadValCGEdgeSet;
-    }
-    /// Get Store edges
-    inline ConstraintEdge::ConstraintEdgeSetTy& getStoreValCGEdges() {
-        return StoreValCGEdgeSet;
-    }
     //@}
 
     /// Used for cycle elimination
@@ -342,14 +206,6 @@ public:
     void removeLoadEdge(LoadCGEdge* edge);
     /// Remove store edge from their src and dst edge sets
     void removeStoreEdge(StoreCGEdge* edge);
-    /// Remove load value edge from their src and dst edge sets
-    void removeLoadValEdge(LoadValCGEdge* edge);
-    /// Remove store value edge from their src and dst edge sets
-    void removeStoreValEdge(StoreValCGEdge* edge);
-    /// Remove a call value edge from their src and dst edge sets
-    void removeCallValEdge(CallValCGEdge* edge);
-    /// Remove a return value edge from their src and dst edge sets
-    void removeRetValEdge(RetValCGEdge* edge);
     //@}
 
     /// SCC rep/sub nodes methods
@@ -368,6 +224,33 @@ public:
     }
     inline void setRep(NodeID node, NodeID rep) {
         nodeToRepMap[node] = rep;
+    }
+
+    inline NodeID getRep(NodeID node) {
+	NodeToRepMap::const_iterator it = nodeToRepMap.find(node);
+	if (it==nodeToRepMap.end())
+		return node;
+	else return it->second;
+    }
+
+    inline void setNodeToRep(NodeID node,NodeID rep) {
+	//std::vector<NodeID> temp = repToNodeMap[rep];
+	//temp.push_back(node);
+	//repToNodeMap[rep] = temp;
+	repToNodeMap[rep].push_back(node);
+    }
+
+    inline std::vector<NodeID> getNode(NodeID rep){
+		//std::vector<NodeID> temp = repToNodeMap[rep];
+		//repToNodeMap[rep].clear();
+		//return temp;
+		return repToNodeMap[rep];
+    }
+    inline int getCount(NodeID node) {
+                int temp = nodeCountMap[node];
+                temp++;
+                nodeCountMap[node] = temp;
+                return temp;
     }
     inline void setSubs(NodeID node, NodeBS& subs) {
         nodeToSubsMap[node] |= subs;
@@ -391,6 +274,27 @@ public:
         bool gepOut = moveOutEdgesToRepNode(node, rep);
         return (gepIn || gepOut);
     }
+
+    /// Move incoming direct edges of a sub node which is outside the SCC to its rep node
+    /// Remove incoming direct edges of a sub node which is inside the SCC from its rep node
+    /// Return TRUE if there's a gep edge inside this SCC (PWC).
+    bool steensgardMoveInEdgesToRepNode(ConstraintNode*node, ConstraintNode* rep );
+
+    /// Move outgoing direct edges of a sub node which is outside the SCC to its rep node
+    /// Remove outgoing direct edges of sub node which is inside the SCC from its rep node
+    /// Return TRUE if there's a gep edge inside this SCC (PWC).
+    bool steensgardMoveOutEdgesToRepNode(ConstraintNode*node, ConstraintNode* rep );
+
+    /// Move incoming/outgoing direct edges of a sub node to its rep node
+    /// Return TRUE if there's a gep edge inside this SCC (PWC).
+    inline bool steensgardMoveEdgesToRepNode(ConstraintNode*node, ConstraintNode* rep ) {
+        bool gepIn = steensgardMoveInEdgesToRepNode(node, rep);
+        bool gepOut = steensgardMoveOutEdgesToRepNode(node, rep);
+        return (gepIn || gepOut);
+    }
+
+    void testAndAddNode(NodeID, llvm::SparseBitVector<>&);
+    void createSubGraphReachableFrom(ConstraintGraph*, WorkList&);
 
     /// Parameter passing
     void connectCaller2CalleeParams(llvm::CallSite cs, const llvm::Function *F, NodePairSet& cpySrcNodes);
@@ -473,26 +377,13 @@ public:
     }
     //@}
 
-    /// Dump graph into dot file
+    void dump(llvm::StringRef);
+    /// Dump final graph into dot file
     void dump();
-
-    /// Dump sensitive graph into dot file
-    void dumpSensitiveGraph();
-
-    void addExplicitSensitiveType(llvm::Type* type) {
-        llvm::Type* baseType = findBaseType(type);
-        llvm::StructType* stType = llvm::dyn_cast<llvm::StructType>(baseType);
-        if (stType) {
-            //assert(stType && "Initial starting nodes are always structs!");
-            ExplicitSensitiveList.push_back(stType);
-        } else {
-            llvm::errs() << "*********** Alert *********** : marked sensitive simple type. This is probably ok though\n";
-        }
-    }
-
-    llvm::Type* findBaseType(llvm::Type*);
-    void populatePrunedFlattenedFieldOffsets(ConstraintGraph*);
-    void pruneNonSensitiveEdges(ConstraintGraph*, WorkList&);
+    /// Dump initial graph into dot file
+    void dumpInitial();
+    /// Print CG into terminal
+    void print();
 };
 
 

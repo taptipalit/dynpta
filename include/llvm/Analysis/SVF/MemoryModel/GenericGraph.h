@@ -30,10 +30,9 @@
 #ifndef GENERICGRAPH_H_
 #define GENERICGRAPH_H_
 
-#include "llvm/Analysis/SVF/Util/BasicTypes.h"
+#include "Util/BasicTypes.h"
 #include <llvm/ADT/GraphTraits.h>
 #include <llvm/ADT/STLExtras.h>			// for mapped_iter
-
 
 /*!
  * Generic edge on the graph as base class
@@ -82,6 +81,12 @@ public:
     NodeType* getDstNode() const {
         return dst;
     }
+    inline void setNewSrcNode (NodeTy* s){
+	src = s;
+    }
+    inline void setNewDstNode (NodeTy* d){
+        dst = d;
+    }
     //@}
 
     /// Add the hash function for std::set (we also can overload operator< to implement this)
@@ -128,7 +133,7 @@ public:
     typedef typename GEdgeSetTy::const_iterator const_iterator;
     ///@}
 
-protected:
+private:
     NodeID id;		///< Node ID
     GNodeK nodeKind;	///< Node kind
 
@@ -248,12 +253,12 @@ public:
     ///@{
     inline Size_t removeIncomingEdge(EdgeType* edge) {
         iterator it = InEdges.find(edge);
-        //assert(it != InEdges.end() && "can not find in edge in SVFG node");
+        assert(it != InEdges.end() && "can not find in edge in SVFG node");
         return InEdges.erase(edge);
     }
     inline Size_t removeOutgoingEdge(EdgeType* edge) {
         iterator it = OutEdges.find(edge);
-        //assert(it != OutEdges.end() && "can not find out edge in SVFG node");
+        assert(it != OutEdges.end() && "can not find out edge in SVFG node");
         return OutEdges.erase(edge);
     }
     ///@}
@@ -338,6 +343,8 @@ public:
     /// Get a node
     inline NodeType* getGNode(NodeID id) const {
         const_iterator it = IDToNodeMap.find(id);
+	if (it == IDToNodeMap.end())
+		return NULL;
         assert(it != IDToNodeMap.end() && "Node not found!");
         return it->second;
     }
@@ -362,7 +369,7 @@ public:
     inline Size_t getTotalNodeNum() const {
         return nodeNum;
     }
-    virtual inline Size_t getTotalEdgeNum() const {
+    inline Size_t getTotalEdgeNum() const {
         return edgeNum;
     }
     /// Increase number of node/edge

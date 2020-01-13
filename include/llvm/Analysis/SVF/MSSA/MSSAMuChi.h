@@ -30,7 +30,7 @@
 #ifndef MSSAMUCHI_H_
 #define MSSAMUCHI_H_
 
-#include "llvm/Analysis/SVF/MSSA/MemRegion.h"
+#include "MSSA/MemRegion.h"
 
 
 class MSSADEF;

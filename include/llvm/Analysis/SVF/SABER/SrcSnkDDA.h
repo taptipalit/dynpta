@@ -30,11 +30,11 @@
 #ifndef SRCSNKANALYSIS_H_
 #define SRCSNKANALYSIS_H_
 
-#include "llvm/Analysis/SVF/SABER/CFLSolver.h"
-#include "llvm/Analysis/SVF/MSSA/SVFGOPT.h"
-#include "llvm/Analysis/SVF/SABER/ProgSlice.h"
-#include "llvm/Analysis/SVF/SABER/SaberSVFGBuilder.h"
-#include "llvm/Analysis/SVF/WPA/Andersen.h"
+#include "SABER/CFLSolver.h"
+#include "MSSA/SVFGOPT.h"
+#include "SABER/ProgSlice.h"
+#include "SABER/SaberSVFGBuilder.h"
+#include "WPA/Andersen.h"
 
 typedef CFLSolver<SVFG*,CxtDPItem> CFLSrcSnkSolver;
 

@@ -30,8 +30,8 @@
 #ifndef RCG_H_
 #define RCG_H_
 
-#include <llvm/Analysis/SVF/Util/PTACallGraph.h>
-#include "llvm/Analysis/SVF/WPA/Andersen.h"
+#include <Util/PTACallGraph.h>
+#include "WPA/Andersen.h"
 
 class SVFModule;
 /*!
@@ -139,6 +139,16 @@ public:
     /// Destructor
     virtual ~ThreadCallGraph() {
     }
+
+    /// ClassOf
+    //@{
+    static inline bool classof(const ThreadCallGraph *) {
+        return true;
+    }
+    static inline bool classof(const PTACallGraph *g) {
+        return g->getKind() == PTACallGraph::ThdCallGraph;
+    }
+    //@}
 
     /// Update call graph using pointer results
     void updateCallGraph(PointerAnalysis* pta);

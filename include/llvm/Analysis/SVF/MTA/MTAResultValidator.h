@@ -9,10 +9,10 @@
 #define MTARESULTVALIDATOR_H_
 
 #include <MemoryModel/PointerAnalysis.h>
-#include "llvm/Analysis/SVF/MTA/TCT.h"
-#include "llvm/Analysis/SVF/MTA/MHP.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
-#include "llvm/Analysis/SVF/Util/ThreadCallGraph.h"
+#include "MTA/TCT.h"
+#include "MTA/MHP.h"
+#include "Util/AnalysisUtil.h"
+#include "Util/ThreadCallGraph.h"
 
 /*!
  * Validate the result of context-sensitive analysis, including context-sensitive

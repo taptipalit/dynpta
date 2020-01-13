@@ -37,17 +37,16 @@
 #ifndef WPA_H_
 #define WPA_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/PointerAnalysis.h"
+#include "MemoryModel/PointerAnalysis.h"
+#include "MemoryModel/ConsG.h"
+#include "WPA/Andersen.h"
 #include <llvm/Analysis/AliasAnalysis.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Pass.h>
-#include "llvm/Analysis/SVF/Util/SVFModule.h"
-#include "llvm/Analysis/SVF/WPA/Andersen.h"
-#include "llvm/Analysis/SVF/WPA/FlowSensitive.h"
-#include <llvm/Support/CommandLine.h>
-#include <iostream>
-using namespace std;
-using namespace llvm;
+
+#include <vector>
+#include <set>
+#include <map>
 
 class SVFModule;
 
@@ -59,18 +58,12 @@ class SVFModule;
 // and I want to see what breaks.
 class WPAPass: public llvm::ModulePass {
     typedef std::vector<PointerAnalysis*> PTAVector;
+    typedef FIFOWorkList<NodeID> WorkList;
 
 public:
     /// Pass ID
     static char ID;
-    
-    std::map<llvm::Value*, std::set<llvm::Value*>> ptsToMap;
-    std::map<llvm::Value*, std::set<llvm::Value*>> ptsFromMap;
 
-    std::map<PAGNode*, std::set<PAGNode*>> pagPtsToMap;
-    std::map<PAGNode*, std::set<PAGNode*>> pagPtsFromMap;
-
-    
     enum AliasCheckRule {
         Conservative,	///< return MayAlias if any pta says alias
         Veto,			///< return NoAlias if any pta says no alias
@@ -79,7 +72,6 @@ public:
 
     /// Constructor needs TargetLibraryInfo to be passed to the AliasAnalysis
     WPAPass() : llvm::ModulePass(ID) {
-	initializeWPAPassPass(*PassRegistry::getPassRegistry());
 
     }
 
@@ -107,25 +99,45 @@ public:
     virtual llvm::AliasResult alias(const llvm::Value* V1,	const llvm::Value* V2);
 
     /// We start from here
-    virtual bool runOnModule(llvm::Module& module);// {
-	/*dbgs() << "1";
-        return runOnModule(module);
-    }*/
+    virtual bool runOnModule(llvm::Module& module) {
+        SVFModule *svfModule = new SVFModule(module);
+        runOnModule(*svfModule);
+        delete svfModule;
+        return false;
+    }
 
     /// Run pointer analysis on SVFModule
     void runOnModule(SVFModule svfModule);
-    //virtual bool runOnModule(SVFModule svfModule);
+
+    void performLayeredPointerAnalysis(SVFModule svfModule, llvm::Module*);
 
     /// PTA name
     virtual inline llvm::StringRef getPassName() const {
         return "WPAPass";
     }
 
-    virtual PointerAnalysis* getPTA(); 
+    void collectLocalSensitiveAnnotations(llvm::Module&);
 
-    virtual PAG* getPAG();
+    void collectGlobalSensitiveAnnotations(llvm::Module&);
 
-    virtual ConstraintGraph* getConstraintGraph();
+    void computeSubGraph(std::set<PAGNode*>&, ConstraintGraph*); 
+
+    ConstraintGraph* computeSteensSubGraph();
+
+    bool isSensitiveObj(PAGNode*);
+
+    PAGNode* getPAGValNodeFromValue(llvm::Value*);
+
+    PAG* getPAG() {
+        return _pta->getPAG();
+    }
+
+    ConstraintGraph* getConstraintGraph() {
+        if (Andersen* aa = llvm::dyn_cast<Andersen>(_pta)) {
+            return aa->getConstraintGraph();
+        }
+        return nullptr;
+    }
 
     virtual std::map<PAGNode*, std::set<PAGNode*>>& getPAGPtsToMap() {
         return pagPtsToMap;
@@ -136,28 +148,31 @@ public:
     }
 
     virtual void buildResultMaps(); 
-    
-     virtual std::map<llvm::Value*, std::set<llvm::Value*>>& getPtsToMap() {
-        return ptsToMap;
-    }
 
-    virtual std::map<llvm::Value*, std::set<llvm::Value*>>& getPtsFromMap() {
-        return ptsFromMap;
-    }
+    void findDirectSinkSites(PAGNode*, std::set<PAGNode*>&);
+    void findIndirectSinkSites(PAGNode*, std::set<PAGNode*>&);
+    void performSourceSinkAnalysis(llvm::Module&);
+
+    void doSteensPostProcessing();
+
+    void doAndersenPostProcessing();
 private:
     /// Create pointer analysis according to specified kind and analyze the module.
     void runPointerAnalysis(SVFModule svfModule, u32_t kind);
-    //void runPointerAnalysis(llvm::Module& svfModule, u32_t kind);
 
     PTAVector ptaVector;	///< all pointer analysis to be executed.
     PointerAnalysis* _pta;	///<  pointer analysis to be executed.
+
+    std::vector<PAGNode*> SensitiveObjList;
+    std::map<PAGNode*, std::set<PAGNode*>> pagPtsToMap;
+    std::map<PAGNode*, std::set<PAGNode*>> pagPtsFromMap;
 };
 
 namespace llvm {
-	class ModulePass;
-	class Module;
+    class ModulePass;
+    class Module;
 
-	ModulePass *createWPAPass();
+    ModulePass *createWPAPass();
 }
 
 #endif /* WPA_H_ */

@@ -26,11 +26,11 @@
  *  Created on: Apr 15, 2014
  *      Author: Yulei Sui
  */
-#include "llvm/Analysis/SVF/Util/SVFModule.h"
-#include "llvm/Analysis/SVF/MSSA/MemSSA.h"
-#include "llvm/Analysis/SVF/MSSA/SVFG.h"
-#include "llvm/Analysis/SVF/MSSA/SVFGBuilder.h"
-#include "llvm/Analysis/SVF/WPA/Andersen.h"
+#include "Util/SVFModule.h"
+#include "MSSA/MemSSA.h"
+#include "MSSA/SVFG.h"
+#include "MSSA/SVFGBuilder.h"
+#include "WPA/Andersen.h"
 
 using namespace llvm;
 using namespace analysisUtil;

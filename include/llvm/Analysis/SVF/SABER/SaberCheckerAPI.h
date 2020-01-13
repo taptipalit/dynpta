@@ -30,7 +30,7 @@
 #ifndef SABERCHECKERAPI_H_
 #define SABERCHECKERAPI_H_
 
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
+#include "Util/AnalysisUtil.h"
 
 /*
  * Saber Checker API class contains interfaces for various bug checking

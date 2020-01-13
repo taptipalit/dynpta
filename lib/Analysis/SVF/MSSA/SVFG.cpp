@@ -27,12 +27,12 @@
  *      Author: Yulei Sui
  */
 
-#include "llvm/Analysis/SVF/MSSA/SVFG.h"
-#include "llvm/Analysis/SVF/MSSA/SVFGOPT.h"
-#include "llvm/Analysis/SVF/MSSA/SVFGStat.h"
-#include "llvm/Analysis/SVF/Util/GraphUtil.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
-#include "llvm/Analysis/SVF/Util/SVFModule.h"
+#include "MSSA/SVFG.h"
+#include "MSSA/SVFGOPT.h"
+#include "MSSA/SVFGStat.h"
+#include "Util/GraphUtil.h"
+#include "Util/AnalysisUtil.h"
+#include "Util/SVFModule.h"
 
 using namespace llvm;
 using namespace analysisUtil;
@@ -538,6 +538,7 @@ SVFGEdge* SVFG::getSVFGEdge(const SVFGNode* src, const SVFGNode* dst, SVFGEdge::
 SVFGEdge* SVFG::addIntraDirectVFEdge(NodeID srcId, NodeID dstId) {
     SVFGNode* srcNode = getSVFGNode(srcId);
     SVFGNode* dstNode = getSVFGNode(dstId);
+    checkIntraVFEdgeParents(srcNode, dstNode);
     if(SVFGEdge* edge = hasIntraSVFGEdge(srcNode,dstNode, SVFGEdge::IntraDirect)) {
         assert(edge->isDirectVFGEdge() && "this should be a direct value flow edge!");
         return NULL;
@@ -587,6 +588,7 @@ SVFGEdge* SVFG::addIntraIndirectVFEdge(NodeID srcId, NodeID dstId, const PointsT
 {
     SVFGNode* srcNode = getSVFGNode(srcId);
     SVFGNode* dstNode = getSVFGNode(dstId);
+    checkIntraVFEdgeParents(srcNode, dstNode);
     if(SVFGEdge* edge = hasIntraSVFGEdge(srcNode,dstNode,SVFGEdge::IntraIndirect)) {
         assert(isa<IndirectSVFGEdge>(edge) && "this should be a indirect value flow edge!");
         return (cast<IndirectSVFGEdge>(edge)->addPointsTo(cpts) ? edge : NULL);

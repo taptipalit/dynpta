@@ -30,9 +30,9 @@
 #ifndef MEMORYREGION_H_
 #define MEMORYREGION_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/PointerAnalysis.h"
-#include "llvm/Analysis/SVF/Util/PTACallGraph.h"
-#include "llvm/Analysis/SVF/Util/WorkList.h"
+#include "MemoryModel/PointerAnalysis.h"
+#include "Util/PTACallGraph.h"
+#include "Util/WorkList.h"
 
 #include <llvm/Support/raw_ostream.h>	// for output
 #include <set>

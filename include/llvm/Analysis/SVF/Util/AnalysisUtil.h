@@ -30,10 +30,10 @@
 #ifndef AnalysisUtil_H_
 #define AnalysisUtil_H_
 
-#include "llvm/Analysis/SVF/Util/SVFModule.h"
-#include "llvm/Analysis/SVF/Util/ExtAPI.h"
-#include "llvm/Analysis/SVF/Util/ThreadAPI.h"
-#include "llvm/Analysis/SVF/Util/BasicTypes.h"
+#include "Util/SVFModule.h"
+#include "Util/ExtAPI.h"
+#include "Util/ThreadAPI.h"
+#include "Util/BasicTypes.h"
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>
@@ -472,6 +472,9 @@ const llvm::Value * stripConstantCasts(const llvm::Value *val);
 
 /// Strip off the all casts
 llvm::Value *stripAllCasts(llvm::Value *val) ;
+
+/// Get the type of the heap allocation
+const llvm::Type *getTypeOfHeapAlloc(const llvm::Instruction *inst) ;
 
 /// Return corresponding constant expression, otherwise return NULL
 //@{

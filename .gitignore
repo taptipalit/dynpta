@@ -25,10 +25,12 @@
 #Bitcode files
 *.bc
 *.ll
+*.tmp
 #Graph dot files
 *.dot
 #Image files
 *.png
+*.exe
 
 # Nested build directory
 /build

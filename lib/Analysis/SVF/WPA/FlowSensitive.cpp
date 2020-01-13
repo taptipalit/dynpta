@@ -27,10 +27,10 @@
  *      Author: Yulei Sui
  */
 
-#include "llvm/Analysis/SVF/Util/SVFModule.h"
-#include "llvm/Analysis/SVF/WPA/WPAStat.h"
-#include "llvm/Analysis/SVF/WPA/FlowSensitive.h"
-#include "llvm/Analysis/SVF/WPA/Andersen.h"
+#include "Util/SVFModule.h"
+#include "WPA/WPAStat.h"
+#include "WPA/FlowSensitive.h"
+#include "WPA/Andersen.h"
 #include <llvm/Support/Debug.h>		// DEBUG TYPE
 
 using namespace llvm;

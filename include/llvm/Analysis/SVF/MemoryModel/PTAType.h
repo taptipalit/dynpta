@@ -34,7 +34,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <set>
 #include <map>
-#include "llvm/Analysis/SVF/Util/BasicTypes.h"
+#include "Util/BasicTypes.h"
 
 class PAGNode;
 class PAG;

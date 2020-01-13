@@ -27,7 +27,7 @@
  *      Author: Yulei Sui
  */
 
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
+#include "Util/AnalysisUtil.h"
 
 #include <llvm/Analysis/Utils/Local.h>	// for FindDbgAddrUses
 #include <llvm/IR/GlobalVariable.h>	// for GlobalVariable
@@ -40,7 +40,7 @@
 #include <llvm/IR/InstIterator.h>	// for inst iteration
 #include <llvm/Analysis/CFG.h>	// for CFG
 #include <llvm/IR/CFG.h>		// for CFG
-#include "llvm/Analysis/SVF/Util/Conditions.h"
+#include "Util/Conditions.h"
 #include <sys/resource.h>		/// increase stack size
 #include <llvm/IRReader/IRReader.h>     /// for isIRFile
 #include <llvm/Bitcode/BitcodeReader.h>     /// for isBitcode
@@ -219,6 +219,21 @@ Value * analysisUtil::stripAllCasts(Value *val) {
 }
 
 /*!
+ * Return the type of the object from a heap allocation
+ */
+const Type* analysisUtil::getTypeOfHeapAlloc(const Instruction *inst){
+	assert(isHeapAllocExtCall(inst) && "not a heap allocation instruction?");
+	const PointerType* type = dyn_cast<PointerType>(inst->getType());
+	if(const Instruction* nextInst =  inst->getNextNode()){
+		if(const CastInst* cast = dyn_cast<CastInst>(nextInst)){
+			type = dyn_cast<PointerType>(cast->getType());
+		}
+	}
+	assert(type && "not a pointer type?");
+	return type->getElementType();
+}
+
+/*!
  * Get position of a successor basic block
  */
 u32_t analysisUtil::getBBSuccessorPos(const BasicBlock *BB, const BasicBlock *Succ) {
@@ -269,23 +284,13 @@ std::string analysisUtil::getSourceLocOfFunction(const llvm::Function *F)
 {
     std::string str;
     raw_string_ostream rawstr(str);
-    NamedMDNode* CU_Nodes = F->getParent()->getNamedMetadata("llvm.dbg.cu");
-    if(CU_Nodes) {
-        /*
-         * Looks like the DICompileUnt->getSubprogram was moved into Function::
-         */
-        for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
-            DICompileUnit *CUNode = cast<DICompileUnit>(CU_Nodes->getOperand(i));
-            /*
-             * https://reviews.llvm.org/D18074?id=50385
-             * looks like the relevant
-             */
-            if (DISubprogram *SP =  F->getSubprogram()) {
-                if (SP->describes(F))
-                    rawstr << "in line: " << SP->getLine()
-                           << " file: " << SP->getFilename();
-            }
-        }
+   /*	
+    * https://reviews.llvm.org/D18074?id=50385	
+    * looks like the relevant	
+    */
+    if (DISubprogram *SP =  F->getSubprogram()) {
+        if (SP->describes(F))
+            rawstr << "in line: " << SP->getLine() << " file: " << SP->getFilename();
     }
     return rawstr.str();
 }

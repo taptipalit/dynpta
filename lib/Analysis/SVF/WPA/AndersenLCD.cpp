@@ -27,8 +27,8 @@
  *      Author: Yulei Sui
  */
 
-#include "llvm/Analysis/SVF/WPA/Andersen.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
+#include "WPA/Andersen.h"
+#include "Util/AnalysisUtil.h"
 
 #include <llvm/Support/CommandLine.h> // for tool output file
 using namespace llvm;

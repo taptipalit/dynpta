@@ -246,8 +246,10 @@ bool AESCache::widenSensitiveComplexType(GepObjPN* gepObjPN, std::map<PAGNode*, 
             // Because offsets are flattened we need to do this
             findTrueOffset(stType, offset, &beg, &nestedType, &nestedOffset);
             // Widen the field
-            nestedType->addSensitiveFieldOffset(nestedOffset);
-            errs() << "Widening sensitive complex type: " << nestedType->getName() << " with offset: " << nestedOffset << " original type: " << stType->getName() << " original offset: " << offset << " \n";
+            if (nestedType) {
+                nestedType->addSensitiveFieldOffset(nestedOffset);
+                errs() << "Widening sensitive complex type: " << nestedType->getName() << " with offset: " << nestedOffset << " original type: " << stType->getName() << " original offset: " << offset << " \n";
+            }
 
             return true;
         }

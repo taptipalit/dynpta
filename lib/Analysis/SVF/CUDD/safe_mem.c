@@ -1,7 +1,7 @@
 /* LINTLIBRARY */
 
 #include <stdio.h>
-#include "llvm/Analysis/SVF/CUDD/util.h"
+#include "CUDD/util.h"
 
 /*
  *  These are interface routines to be placed between a program and the

@@ -30,7 +30,7 @@
 #ifndef ANDERSENMEMSSA_H_
 #define ANDERSENMEMSSA_H_
 
-#include "llvm/Analysis/SVF/MSSA/SVFGOPT.h"
+#include "MSSA/SVFGOPT.h"
 #include <llvm/Analysis/DominanceFrontier.h>
 
 /*!

@@ -94,6 +94,7 @@ set(SOURCES
        restart.c
 )
 
+include_directories(${CMAKE_SOURCE_DIR}/include/llvm/Analysis/SVF)
 add_llvm_loadable_module(Cudd ${SOURCES})
 add_llvm_library(LLVMCudd ${SOURCES})
 

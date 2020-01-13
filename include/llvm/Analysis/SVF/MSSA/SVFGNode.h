@@ -30,9 +30,9 @@
 #ifndef SVFGNODE_H_
 #define SVFGNODE_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/PointerAnalysis.h"
-#include "llvm/Analysis/SVF/MSSA/SVFGEdge.h"
-#include "llvm/Analysis/SVF/MemoryModel/GenericGraph.h"
+#include "MemoryModel/PointerAnalysis.h"
+#include "MSSA/SVFGEdge.h"
+#include "MemoryModel/GenericGraph.h"
 
 /*!
  * Sparse Value Flow Graph Node, representing different kinds of variable definitions

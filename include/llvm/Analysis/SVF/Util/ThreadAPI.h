@@ -30,8 +30,8 @@
 #ifndef THREADAPI_H_
 #define THREADAPI_H_
 
-#include "llvm/Analysis/SVF/Util/BasicTypes.h"
-#include "llvm/Analysis/SVF/Util/SVFModule.h"
+#include "Util/BasicTypes.h"
+#include "Util/SVFModule.h"
 #include <llvm/ADT/StringMap.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/CallSite.h>

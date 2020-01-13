@@ -30,7 +30,7 @@
 #ifndef DOUBLEFREECHECKER_H_
 #define DOUBLEFREECHECKER_H_
 
-#include "llvm/Analysis/SVF/SABER/LeakChecker.h"
+#include "SABER/LeakChecker.h"
 
 /*!
  * Double free checker to check deallocations of memory

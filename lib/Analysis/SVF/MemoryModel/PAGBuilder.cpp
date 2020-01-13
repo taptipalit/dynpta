@@ -27,11 +27,10 @@
  *      Author: Yulei Sui
  */
 
-#include "llvm/Analysis/SVF/MemoryModel/PAGBuilder.h"
-#include "llvm/Analysis/SVF/Util/SVFModule.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
-#include "llvm/Analysis/SVF/Util/CPPUtil.h"
-#include "llvm/Analysis/SVF/Util/SensitiveDataHelper.h"
+#include "MemoryModel/PAGBuilder.h"
+#include "Util/SVFModule.h"
+#include "Util/AnalysisUtil.h"
+#include "Util/CPPUtil.h"
 
 #include <fstream>	// for PAGBuilderFromFile
 #include <string>	// for PAGBuilderFromFile
@@ -47,10 +46,7 @@ using namespace analysisUtil;
  * Start building PAG here
  */
 PAG* PAGBuilder::build(SVFModule svfModule) {
-    errs() << "Started building PAG\n";
     svfMod = svfModule;
-    sensitiveHelper = SensitiveDataHelper::getSensitiveDataHelper();
-    sensitiveHelper->collectFuncPtrTypes(svfModule.getModuleRef(0));
     /// initial external library information
     /// initial PAG nodes
     initalNode();
@@ -81,8 +77,10 @@ PAG* PAGBuilder::build(SVFModule svfModule) {
                 // if this is the function does not have caller (e.g. main)
                 // or a dead function, we may create a black hole address edge for it
                 if(analysisUtil::ArgInNoCallerFunction(&*I)) {
-                    if(I->getType()->isPointerTy())
-                        pag->addBlackHoleAddrEdge(argValNodeId);
+                    if(I->getType()->isPointerTy()) {
+                        //errs() << "Black Hole: Adding black hole node for function that doesn't have a caller\n";
+                        //pag->addBlackHoleAddrEdge(argValNodeId);
+                    }
                 }
                 pag->addFunArgs(&fun,pag->getPAGNode(argValNodeId));
             }
@@ -101,7 +99,6 @@ PAG* PAGBuilder::build(SVFModule svfModule) {
     sanityCheck();
 
     pag->initialiseCandidatePointers();
-    errs() << "Ended building PAG\n";
 
     return pag;
 }
@@ -177,6 +174,8 @@ void PAGBuilder::processCE(const Value *val) {
             DBOUT(DPAGBuild,
                   outs() << "handle gep constant expression " << *ref << "\n");
             const Constant* opnd = gepce->getOperand(0);
+            // handle recursive constant express case (gep (bitcast (gep X 1)) 1)
+            processCE(opnd);
             LocationSet ls;
             bool constGep = computeGepOffset(gepce, ls);
             // must invoke pag methods here, otherwise it will be a dead recursion cycle
@@ -188,26 +187,27 @@ void PAGBuilder::processCE(const Value *val) {
              * so bb/inst of this edge may be rewritten several times, we treat it as global here.
              */
             pag->addGepEdge(pag->getValueNode(opnd), pag->getValueNode(gepce), ls, constGep);
+	        //pag->addCopyEdge(pag->getValueNode(opnd), pag->getValueNode(gepce));
             pag->setCurrentLocation(cval, cbb);
-            // handle recursive constant express case (gep (bitcast (gep X 1)) 1)
-            processCE(opnd);
         }
         else if (const ConstantExpr* castce = isCastConstantExpr(ref)) {
             DBOUT(DPAGBuild,
                   outs() << "handle cast constant expression " << *ref << "\n");
             const Constant* opnd = castce->getOperand(0);
+            processCE(opnd);
             const llvm::Value* cval = pag->getCurrentValue();
             const llvm::BasicBlock* cbb = pag->getCurrentBB();
             pag->setCurrentLocation(castce, NULL);
             pag->addCopyEdge(pag->getValueNode(opnd), pag->getValueNode(castce));
             pag->setCurrentLocation(cval, cbb);
-            processCE(opnd);
         }
         else if (const ConstantExpr* selectce = isSelectConstantExpr(ref)) {
             DBOUT(DPAGBuild,
                   outs() << "handle select constant expression " << *ref << "\n");
             const Constant* src1 = selectce->getOperand(1);
             const Constant* src2 = selectce->getOperand(2);
+            processCE(src1);
+            processCE(src2);
             const llvm::Value* cval = pag->getCurrentValue();
             const llvm::BasicBlock* cbb = pag->getCurrentBB();
             pag->setCurrentLocation(selectce, NULL);
@@ -219,8 +219,6 @@ void PAGBuilder::processCE(const Value *val) {
             pag->addPhiNode(pag->getPAGNode(nres),pag->getPAGNode(nsrc1),NULL);
             pag->addPhiNode(pag->getPAGNode(nres),pag->getPAGNode(nsrc2),NULL);
             pag->setCurrentLocation(cval, cbb);
-            processCE(src1);
-            processCE(src2);
         }
         // if we meet a int2ptr, then it points-to black hole
         else if (const ConstantExpr* int2Ptrce = isInt2PtrConstantExpr(ref)) {
@@ -233,7 +231,7 @@ void PAGBuilder::processCE(const Value *val) {
  * FIXME:Here we only get the field that actually used in the program
  * We ignore the initialization of global variable field that not used in the program
  */
-NodeID PAGBuilder::getGlobalVarField(const GlobalVariable *gvar, u32_t offset, u32_t fieldidx) {
+NodeID PAGBuilder::getGlobalVarField(const GlobalVariable *gvar, u32_t offset) {
 
     // if the global variable do not have any field needs to be initialized
     if (offset == 0 && gvar->getInitializer()->getType()->isSingleValueType()) {
@@ -245,7 +243,7 @@ NodeID PAGBuilder::getGlobalVarField(const GlobalVariable *gvar, u32_t offset, u
         const Type *gvartype = gvar->getType();
         while (const PointerType *ptype = dyn_cast<PointerType>(gvartype))
             gvartype = ptype->getElementType();
-        return pag->getGepValNode(gvar, LocationSet(offset), gvartype, fieldidx);
+        return pag->getGepValNode(gvar, LocationSet(offset), gvartype, offset);
     }
 }
 
@@ -261,7 +259,7 @@ NodeID PAGBuilder::getGlobalVarField(const GlobalVariable *gvar, u32_t offset, u
  * struct Z n = {10,&z.s}; // store z.s n ,  &z.s constant expression (constant expression)
  */
 void PAGBuilder::InitialGlobal(const GlobalVariable *gvar, Constant *C,
-                               u32_t offset, u32_t fieldidx) {
+                               u32_t offset) {
     DBOUT(DPAGBuild,
           outs() << "global " << *gvar << " constant initializer: " << *C
           << "\n");
@@ -270,7 +268,7 @@ void PAGBuilder::InitialGlobal(const GlobalVariable *gvar, Constant *C,
         NodeID src = getValueNode(C);
         // get the field value if it is avaiable, otherwise we create a dummy field node.
         pag->setCurrentLocation(gvar, NULL);
-        NodeID field = getGlobalVarField(gvar, offset, fieldidx);
+        NodeID field = getGlobalVarField(gvar, offset);
 
         if (isa<GlobalVariable>(C) || isa<Function>(C)) {
             pag->setCurrentLocation(C, NULL);
@@ -287,15 +285,15 @@ void PAGBuilder::InitialGlobal(const GlobalVariable *gvar, Constant *C,
     } else if (isa<ConstantArray>(C)) {
         if (cppUtil::isValVtbl(gvar) == false)
             for (u32_t i = 0, e = C->getNumOperands(); i != e; i++)
-                InitialGlobal(gvar, cast<Constant>(C->getOperand(i)), offset, i);
+                InitialGlobal(gvar, cast<Constant>(C->getOperand(i)), offset);
 
     } else if (isa<ConstantStruct>(C)) {
         const StructType *sty = cast<StructType>(C->getType());
         const std::vector<u32_t>& offsetvect =
-            SymbolTableInfo::Symbolnfo()->getStructOffsetVec(sty);
+            SymbolTableInfo::Symbolnfo()->getFattenFieldIdxVec(sty);
         for (u32_t i = 0, e = C->getNumOperands(); i != e; i++) {
             u32_t off = offsetvect[i];
-            InitialGlobal(gvar, cast<Constant>(C->getOperand(i)), offset + off, i);
+            InitialGlobal(gvar, cast<Constant>(C->getOperand(i)), offset + off);
         }
 
     } else {
@@ -321,7 +319,7 @@ void PAGBuilder::visitGlobal(SVFModule svfModule) {
         if (gvar->hasDefinitiveInitializer()) {
             Constant *C = gvar->getInitializer();
             DBOUT(DPAGBuild, outs() << "add global var node " << *gvar << "\n");
-            InitialGlobal(gvar, C, 0, 0);
+            InitialGlobal(gvar, C, 0);
         }
     }
 
@@ -381,9 +379,9 @@ void PAGBuilder::visitPHINode(PHINode &inst) {
             const BasicBlock* bb = inst.getIncomingBlock(i);
             pag->addCopyEdge(src, dst);
             pag->addPhiNode(pag->getPAGNode(dst),pag->getPAGNode(src),bb);
-
         }
     }
+
 }
 
 /*
@@ -399,18 +397,6 @@ void PAGBuilder::visitLoadInst(LoadInst &inst) {
         NodeID src = getValueNode(inst.getPointerOperand());
 
         pag->addLoadEdge(src, dst);
-        
-    } else {
-        if (!isa<Constant>(inst)) {
-
-            DBOUT(DPAGBuild, outs() << "process load value  " << inst << " \n");
-
-            NodeID dst = getValueNode(&inst);
-
-            NodeID src = getValueNode(inst.getPointerOperand());
-
-            pag->addLoadValEdge(src, dst);
-        }
     }
 }
 
@@ -431,19 +417,8 @@ void PAGBuilder::visitStoreInst(StoreInst &inst) {
         NodeID src = getValueNode(inst.getValueOperand());
 
         pag->addStoreEdge(src, dst);
-        
-    } else {
-        if (!isa<Constant>(inst.getValueOperand())) {
-            DBOUT(DPAGBuild, outs() << "process store val " << inst << " \n");
-
-            NodeID dst = getValueNode(inst.getPointerOperand());
-
-            NodeID src = getValueNode(inst.getValueOperand());
-
-            pag->addStoreValEdge(src, dst);
-        }
-     
     }
+
 }
 
 /*!
@@ -466,9 +441,8 @@ void PAGBuilder::visitGetElementPtrInst(GetElementPtrInst &inst) {
 
     LocationSet ls;
     bool constGep = computeGepOffset(&inst, ls);
-    
     pag->addGepEdge(src, dst, ls, constGep);
-    
+    //pag->addCopyEdge(src, dst);
 }
 
 /*!
@@ -478,6 +452,7 @@ void PAGBuilder::visitIntToPtrInst(llvm::IntToPtrInst &inst) {
 
     DBOUT(DPAGBuild, outs() << "process cast  " << inst << " \n");
     NodeID dst = getValueNode(&inst);
+    errs() << "Black Hole: inttoptr\n";
     pag->addBlackHoleAddrEdge(dst);
 }
 
@@ -498,11 +473,11 @@ void PAGBuilder::visitCastInst(CastInst &inst) {
         if (isa<PointerType>(opnd->getType())) {
             NodeID src = getValueNode(opnd);
             pag->addCopyEdge(src, dst);
-            
         }
         else {
             assert(isa<IntToPtrInst>(&inst) && "what else do we have??");
             // This is a int2ptr cast
+            errs() << "Black Hole: Cast inttoptr\n";
             pag->addBlackHoleAddrEdge(dst);
         }
     }
@@ -525,7 +500,6 @@ void PAGBuilder::visitSelectInst(SelectInst &inst) {
         /// Two operands have same incoming basic block, both are the current BB
         pag->addPhiNode(pag->getPAGNode(dst),pag->getPAGNode(src1),inst.getParent());
         pag->addPhiNode(pag->getPAGNode(dst),pag->getPAGNode(src2),inst.getParent());
-
     }
 }
 
@@ -542,9 +516,8 @@ void PAGBuilder::visitCallSite(CallSite cs) {
           outs() << "process callsite " << *cs.getInstruction() << "\n");
 
     /// Collect callsite arguments and returns
-    for(CallSite::arg_iterator itA = cs.arg_begin(), ieA = cs.arg_end(); itA!=ieA; ++itA) {
+    for(CallSite::arg_iterator itA = cs.arg_begin(), ieA = cs.arg_end(); itA!=ieA; ++itA)
         pag->addCallSiteArgs(cs,pag->getPAGNode(getValueNode(*itA)));
-    }
 
     if(!cs.getType()->isVoidTy())
         pag->addCallSiteRets(cs,pag->getPAGNode(getValueNode(cs.getInstruction())));
@@ -571,32 +544,21 @@ void PAGBuilder::visitReturnInst(ReturnInst &inst) {
     assert(!isa<PointerType>(inst.getType()));
 
     //ignore void and non-ptr return statements
-    if (inst.getNumOperands()) {
-        if (isa<PointerType>(inst.getOperand(0)->getType())) {
+    if (inst.getNumOperands()
+            && (isa<PointerType>(inst.getOperand(0)->getType()))) {
 
-            DBOUT(DPAGBuild, outs() << "process return  " << inst << " \n");
+        DBOUT(DPAGBuild, outs() << "process return  " << inst << " \n");
 
-            Value *src = inst.getReturnValue();
-            if (!isa<PointerType>(src->getType()))
-                return;
+        Value *src = inst.getReturnValue();
+        if (!isa<PointerType>(src->getType()))
+            return;
 
-            Function *F = inst.getParent()->getParent();
+        Function *F = inst.getParent()->getParent();
 
-            NodeID rnF = getReturnNode(F);
-            NodeID vnS = getValueNode(src);
-            //vnS may be null if src is a null ptr
-            pag->addCopyEdge(vnS, rnF);
-        } else {
-            DBOUT(DPAGBuild, outs() << "process return value " << inst << " \n");
-    
-            Value* src = inst.getReturnValue();
-
-            Function* F = inst.getParent()->getParent();
-
-            NodeID rnF = getReturnNode(F);
-            NodeID vnS = getValueNode(src);
-            pag->addRetValEdge(vnS, rnF);
-        }
+        NodeID rnF = getReturnNode(F);
+        NodeID vnS = getValueNode(src);
+        //vnS may be null if src is a null ptr
+        pag->addCopyEdge(vnS, rnF);
     }
 }
 
@@ -613,6 +575,7 @@ void PAGBuilder::visitExtractValueInst(llvm::ExtractValueInst &inst) {
 
     if (isa<PointerType>(inst.getType())) {
         NodeID dst = getValueNode(&inst);
+        errs() << "Black Hole: extract value\n";
         pag->addBlackHoleAddrEdge(dst);
     }
 }
@@ -628,6 +591,7 @@ void PAGBuilder::visitExtractValueInst(llvm::ExtractValueInst &inst) {
 void PAGBuilder::visitExtractElementInst(llvm::ExtractElementInst &inst) {
     if (isa<PointerType>(inst.getType())) {
         NodeID dst = getValueNode(&inst);
+        errs() << "Black Hole: extract element\n";
         pag->addBlackHoleAddrEdge(dst);
     }
 }
@@ -649,17 +613,14 @@ void PAGBuilder::handleDirectCall(CallSite cs, const Function *F) {
         if (isa<PointerType>(F->getReturnType())) {
             NodeID srcret = getReturnNode(F);
             pag->addRetEdge(srcret, dstrec, cs.getInstruction());
-            
         } else {
             // This is a int2ptr cast during parameter passing
+            errs() << "Black Hole: direct call return value inttoptr cast\n";
             pag->addBlackHoleAddrEdge(dstrec);
         }
 
     } else {
-        DBOUT(DPAGBuild, outs() << "not a pointer, added a retval edge\n");
-        NodeID dstrec = getValueNode(cs.getInstruction());
-        NodeID srcret = getReturnNode(F);
-        pag->addRetValEdge(srcret, dstrec);
+        DBOUT(DPAGBuild, outs() << "not a pointer, ignored\n");
     }
     //Iterators for the actual and formal parameters
     CallSite::arg_iterator itA = cs.arg_begin(), ieA = cs.arg_end();
@@ -673,23 +634,19 @@ void PAGBuilder::handleDirectCall(CallSite cs, const Function *F) {
             break;
         }
         const Value *AA = *itA, *FA = &*itF; //current actual/formal arg
-        //Non-ptr formal args need only Value constraints (not pointer)
-        if (!isa<PointerType>(FA->getType())) {
-            NodeID srcAA = getValueNode(AA);
-            NodeID dstFA = getValueNode(FA);
-            pag->addCallValEdge(srcAA, dstFA);
+        //Non-ptr formal args don't need constraints.
+        if (!isa<PointerType>(FA->getType()))
             continue;
-        }
 
         DBOUT(DPAGBuild, outs() << "process actual parm  " << *AA << " \n");
 
         NodeID dstFA = getValueNode(FA);
         if (isa<PointerType>(AA->getType())) {
             NodeID srcAA = getValueNode(AA);
-            pag->addRetEdge(srcAA, dstFA, cs.getInstruction());
-            
+            pag->addCallEdge(srcAA, dstFA, cs.getInstruction());
         } else {
             // This is a int2ptr cast during parameter passing
+            errs() << "Black Hole: direct call arguments inttoptr cast\n";
             pag->addFormalParamBlackHoleAddrEdge(dstFA, &*itF);
         }
     }
@@ -1125,80 +1082,75 @@ void PAGBuilder::sanityCheck() {
  */
 PAG* PAGBuilderFromFile::build() {
 
-    string line;
-    ifstream myfile(file.c_str());
-    if (myfile.is_open()) {
-        while (myfile.good()) {
-            getline(myfile, line);
+	string line;
+	ifstream myfile(file.c_str());
+	if (myfile.is_open()) {
+		while (myfile.good()) {
+			getline(myfile, line);
 
-            Size_t token_count = 0;
-            string tmps;
-            istringstream ss(line);
-            while (ss.good()) {
-                ss >> tmps;
-                token_count++;
-            }
+			Size_t token_count = 0;
+			string tmps;
+			istringstream ss(line);
+			while (ss.good()) {
+				ss >> tmps;
+				token_count++;
+			}
 
-            if (token_count == 0)
-                continue;
-            else if (token_count == 2) {
-                NodeID nodeId;
-                string nodetype;
-                istringstream ss(line);
-                ss >> nodeId;
-                ss >> nodetype;
-                outs() << "reading node :" << nodeId << "\n";
-                if (nodetype == "v")
-                    pag->addDummyValNode(nodeId);
-                else if (nodetype == "o") {
-                    pag->addDummyObjNode();
-                }
-                else
-                    assert(
-                        false
-                        && "format not support, pls specify node type");
-            }
+			if (token_count == 0)
+				continue;
 
-            // do not consider gep edge
-            else if (token_count == 3) {
-                NodeID nodeSrc;
-                NodeID nodeDst;
-                string edge;
-                istringstream ss(line);
-                ss >> nodeSrc;
-                ss >> edge;
-                ss >> nodeDst;
-                outs() << "reading edge :" << nodeSrc << " " << edge << " "
-                       << nodeDst << " \n";
-                addEdge(nodeSrc, nodeDst, 0, edge);
-            }
+			else if (token_count == 2) {
+				NodeID nodeId;
+				string nodetype;
+				istringstream ss(line);
+				ss >> nodeId;
+				ss >> nodetype;
+				outs() << "reading node :" << nodeId << "\n";
+				if (nodetype == "v")
+					pag->addDummyValNode(nodeId);
+				else if (nodetype == "o") {
+					const MemObj* mem = pag->addDummyMemObj(nodeId);
+					mem->getTypeInfo()->setFlag(ObjTypeInfo::HEAP_OBJ);
+					mem->getTypeInfo()->setFlag(ObjTypeInfo::HASPTR_OBJ);
+					pag->addFIObjNode(mem);
+				} else
+					assert(false && "format not support, pls specify node type");
+			}
 
-            // do consider gep edge
-            else if (token_count == 4) {
-                NodeID nodeSrc;
-                NodeID nodeDst;
-                Size_t offsetOrCSId;
-                string edge;
-                istringstream ss(line);
-                ss >> nodeSrc;
-                ss >> edge;
-                ss >> nodeDst;
-                ss >> offsetOrCSId;
-                outs() << "reading edge :" << nodeSrc << " " << edge << " "
-                       << nodeDst << " offsetOrCSId=" << offsetOrCSId << " \n";
-                addEdge(nodeSrc, nodeDst, offsetOrCSId, edge);
-            } else
-                outs() << "format not support, token count = " << token_count
-                       << "\n";
-        }
-        myfile.close();
-    }
+			// do consider gep edge
+			else if (token_count == 4) {
+				NodeID nodeSrc;
+				NodeID nodeDst;
+				Size_t offsetOrCSId;
+				string edge;
+				istringstream ss(line);
+				ss >> nodeSrc;
+				ss >> edge;
+				ss >> nodeDst;
+				ss >> offsetOrCSId;
+				outs() << "reading edge :" << nodeSrc << " " << edge << " "
+						<< nodeDst << " offsetOrCSId=" << offsetOrCSId << " \n";
+				addEdge(nodeSrc, nodeDst, offsetOrCSId, edge);
+			} else {
+				if (!line.empty()) {
+					outs() << "format not supported, token count = "
+							<< token_count << "\n";
+					assert(false && "format not supported");
+				}
+			}
+		}
+		myfile.close();
+	}
 
-    else
-        outs() << "Unable to open file\n";
+	else
+		outs() << "Unable to open file\n";
 
-    return pag;
+	/// new gep node's id from lower bound, nodeNum may not reflect the total nodes.
+	u32_t lower_bound = 1000;
+	for(u32_t i = 0; i < lower_bound; i++)
+		pag->incNodeNum();
 
+	return pag;
 }
 
 /*!
@@ -1211,15 +1163,23 @@ void PAGBuilderFromFile::addEdge(NodeID srcID, NodeID dstID,
     PAGNode* srcNode = pag->getPAGNode(srcID);
     PAGNode* dstNode = pag->getPAGNode(dstID);
 
-    if (edge == "addr")
+    /// sanity check for PAG from txt
+	assert(isa<ValPN>(dstNode) && "dst not an value node?");
+    if(edge=="addr")
+    		assert(isa<ObjPN>(srcNode) && "src not an value node?");
+    else
+		assert(!isa<ObjPN>(srcNode) && "src not an object node?");
+
+    if (edge == "addr"){
         pag->addAddrEdge(srcID, dstID);
+    }
     else if (edge == "copy")
         pag->addCopyEdge(srcID, dstID);
     else if (edge == "load")
         pag->addLoadEdge(srcID, dstID);
     else if (edge == "store")
         pag->addStoreEdge(srcID, dstID);
-    else if (edge == "normal-gep")
+    else if (edge == "gep")
         pag->addNormalGepEdge(srcID, dstID, LocationSet(offsetOrCSId));
     else if (edge == "variant-gep")
         pag->addVariantGepEdge(srcID, dstID);

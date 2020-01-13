@@ -30,8 +30,8 @@
 #ifndef CONSGEDGE_H_
 #define CONSGEDGE_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/PAG.h"
-#include "llvm/Analysis/SVF/Util/WorkList.h"
+#include "MemoryModel/PAG.h"
+#include "Util/WorkList.h"
 
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/GraphTraits.h>
@@ -52,14 +52,13 @@ public:
     /// five kinds of constraint graph edges
     /// Gep edge is used for field sensitivity
     enum ConstraintEdgeK {
-        Addr, Copy, Store, Load, NormalGep, VariantGep, StoreVal, LoadVal, CallVal, RetVal
+        Addr, Copy, Store, Load, NormalGep, VariantGep
     };
 private:
     EdgeID edgeId;
-    bool pruned;
 public:
     /// Constructor
-    ConstraintEdge(ConstraintNode* s, ConstraintNode* d, ConstraintEdgeK k, EdgeID id = 0) : GenericConsEdgeTy(s,d,k),edgeId(id),pruned(false) {
+    ConstraintEdge(ConstraintNode* s, ConstraintNode* d, ConstraintEdgeK k, EdgeID id = 0) : GenericConsEdgeTy(s,d,k),edgeId(id) {
     }
     /// Destructor
     ~ConstraintEdge() {
@@ -75,20 +74,10 @@ public:
                edge->getEdgeKind() == Store ||
                edge->getEdgeKind() == Load ||
                edge->getEdgeKind() == NormalGep ||
-               edge->getEdgeKind() == VariantGep ||
-               edge->getEdgeKind() == StoreVal ||
-               edge->getEdgeKind() == LoadVal;
+               edge->getEdgeKind() == VariantGep;
     }
     /// Constraint edge type
     typedef GenericNode<ConstraintNode,ConstraintEdge>::GEdgeSetTy ConstraintEdgeSetTy;
-
-    bool isPruned() {
-        return pruned;
-    }
-
-    void setPruned() {
-        pruned = true;
-    }
 
 };
 
@@ -205,119 +194,6 @@ public:
     }
 };
 
-class ValFlowCGEdge: public ConstraintEdge {
-    public:
-        ValFlowCGEdge(ConstraintNode* s, ConstraintNode* d, ConstraintEdgeK k, EdgeID id) : ConstraintEdge(s, d, k, id) {
-        }
-};
-
-/*!
- * Store Value edge
- */
-class StoreValCGEdge: public ValFlowCGEdge {
-private:
-    StoreValCGEdge();                      ///< place holder
-    StoreValCGEdge(const StoreValCGEdge &);  ///< place holder
-    void operator=(const StoreValCGEdge &); ///< place holder
-public:
-    /// Methods for support type inquiry through isa, cast, and dyn_cast:
-    //@{
-    static inline bool classof(const StoreValCGEdge *) {
-        return true;
-    }
-    static inline bool classof(const ConstraintEdge *edge) {
-        return edge->getEdgeKind() == StoreVal;
-    }
-    static inline bool classof(const GenericConsEdgeTy *edge) {
-        return edge->getEdgeKind() == StoreVal;
-    }
-    //@}
-    /// constructor
-    StoreValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ValFlowCGEdge(s,d,StoreVal,id) {
-    }
-};
-
-/*!
- * Load Value edge
- */
-class LoadValCGEdge: public ValFlowCGEdge {
-private:
-    LoadValCGEdge();                      ///< place holder
-    LoadValCGEdge(const LoadValCGEdge &);  ///< place holder
-    void operator=(const LoadValCGEdge &); ///< place holder
-public:
-    /// Methods for support type inquiry through isa, cast, and dyn_cast:
-    //@{
-    static inline bool classof(const LoadValCGEdge *) {
-        return true;
-    }
-    static inline bool classof(const ConstraintEdge *edge) {
-        return edge->getEdgeKind() == LoadVal;
-    }
-    static inline bool classof(const GenericConsEdgeTy *edge) {
-        return edge->getEdgeKind() == LoadVal;
-    }
-    //@}
-
-    /// constructor
-    LoadValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ValFlowCGEdge(s,d,LoadVal,id) {
-    }
-};
-
-/*!
- * Call Value edge
- */
-class CallValCGEdge: public ValFlowCGEdge {
-private:
-    CallValCGEdge();                      ///< place holder
-    CallValCGEdge(const CallValCGEdge &);  ///< place holder
-    void operator=(const CallValCGEdge &); ///< place holder
-public:
-    /// Methods for support type inquiry through isa, cast, and dyn_cast:
-    //@{
-    static inline bool classof(const CallValCGEdge *) {
-        return true;
-    }
-    static inline bool classof(const ConstraintEdge *edge) {
-        return edge->getEdgeKind() == CallVal;
-    }
-    static inline bool classof(const GenericConsEdgeTy *edge) {
-        return edge->getEdgeKind() == CallVal;
-    }
-    //@}
-
-    /// constructor
-    CallValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ValFlowCGEdge(s,d,CallVal,id) {
-    }
-};
-
-/*!
- * Return Value edge
- */
-class RetValCGEdge: public ValFlowCGEdge {
-private:
-    RetValCGEdge();                      ///< place holder
-    RetValCGEdge(const RetValCGEdge &);  ///< place holder
-    void operator=(const RetValCGEdge &); ///< place holder
-public:
-    /// Methods for support type inquiry through isa, cast, and dyn_cast:
-    //@{
-    static inline bool classof(const RetValCGEdge *) {
-        return true;
-    }
-    static inline bool classof(const ConstraintEdge *edge) {
-        return edge->getEdgeKind() == RetVal;
-    }
-    static inline bool classof(const GenericConsEdgeTy *edge) {
-        return edge->getEdgeKind() == RetVal;
-    }
-    //@}
-
-    /// constructor
-    RetValCGEdge(ConstraintNode* s, ConstraintNode* d, EdgeID id) : ValFlowCGEdge(s,d,RetVal,id) {
-    }
-};
-
 
 /*!
  * Gep edge
@@ -390,6 +266,11 @@ public:
     /// Get location set of the gep edge
     inline const LocationSet& getLocationSet() const {
         return ls;
+    }
+
+    /// Get location set of the gep edge
+    inline const u32_t getOffset() const {
+        return ls.getOffset();
     }
 };
 

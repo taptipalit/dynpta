@@ -30,10 +30,10 @@
 #ifndef PROGSLICE_H_
 #define PROGSLICE_H_
 
-#include "llvm/Analysis/SVF/Util/PathCondAllocator.h"
-#include "llvm/Analysis/SVF/Util/WorkList.h"
-#include "llvm/Analysis/SVF/MSSA/SVFG.h"
-#include "llvm/Analysis/SVF/Util/DPItem.h"
+#include "Util/PathCondAllocator.h"
+#include "Util/WorkList.h"
+#include "MSSA/SVFG.h"
+#include "Util/DPItem.h"
 
 class ProgSlice {
 

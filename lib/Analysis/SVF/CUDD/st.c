@@ -17,8 +17,8 @@
 
 ******************************************************************************/
 
-#include "llvm/Analysis/SVF/CUDD/util.h"
-#include "llvm/Analysis/SVF/CUDD/st.h"
+#include "CUDD/util.h"
+#include "CUDD/st.h"
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */

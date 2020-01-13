@@ -8,10 +8,10 @@
 #ifndef TCTNodeDetector_H_
 #define TCTNodeDetector_H_
 
-#include "llvm/Analysis/SVF/Util/SCC.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
-#include "llvm/Analysis/SVF/Util/ThreadCallGraph.h"
-#include "llvm/Analysis/SVF/Util/CxtStmt.h"
+#include "Util/SCC.h"
+#include "Util/AnalysisUtil.h"
+#include "Util/ThreadCallGraph.h"
+#include "Util/CxtStmt.h"
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/IR/InstIterator.h>
 #include <set>
@@ -115,8 +115,11 @@ public:
     typedef SCCDetection<PTACallGraph*> ThreadCallGraphSCC;
 
     /// Constructor
-    TCT(ThreadCallGraph* t, PointerAnalysis* p) :tcg(t),pta(p),TCTNodeNum(0),TCTEdgeNum(0),MaxCxtSize(0) {
-        tcgSCC = new ThreadCallGraphSCC(tcg);
+    TCT(PointerAnalysis* p) :pta(p),TCTNodeNum(0),TCTEdgeNum(0),MaxCxtSize(0) {
+        tcg = llvm::cast<ThreadCallGraph>(pta->getPTACallGraph());
+        tcg->updateCallGraph(pta);
+        //tcg->updateJoinEdge(pta);
+        tcgSCC = pta->getCallGraphSCC();
         tcgSCC->find();
         build();
     }
@@ -295,6 +298,11 @@ public:
     /// Match context
     bool matchCxt(CallStrCxt& cxt, const llvm::Instruction* call, const llvm::Function* callee);
 
+    inline void pushCxt(CallStrCxt& cxt, CallSiteID csId) {
+		cxt.push_back(csId);
+		if (cxt.size() > MaxCxtSize)
+			MaxCxtSize = cxt.size();
+    }
     /// Whether a join site is in recursion
     inline bool isJoinSiteInRecursion(const llvm::Instruction* join) const {
         assert(tcg->getThreadAPI()->isTDJoin(join) && "not a join site");
@@ -315,6 +323,7 @@ private:
     u32_t TCTNodeNum;
     u32_t TCTEdgeNum;
     u32_t MaxCxtSize;
+
     /// Add TCT node
     inline TCTNode* addTCTNode(const CxtThread& ct) {
         assert(ctpToNodeMap.find(ct)==ctpToNodeMap.end() && "Already has this node!!");
@@ -426,11 +435,6 @@ private:
     inline CxtThreadProc popFromCTPWorkList() {
         CxtThreadProc ctp = ctpList.pop();
         return ctp;
-    }
-    inline void pushCxt(CallStrCxt& cxt, CallSiteID csId) {
-        cxt.push_back(csId);
-        if(cxt.size() > MaxCxtSize)
-            MaxCxtSize = cxt.size();
     }
     inline bool isVisitedCTPs(const CxtThreadProc& ctp) const {
         return visitedCTPs.find(ctp)!=visitedCTPs.end();

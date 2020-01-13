@@ -27,7 +27,7 @@
  *      Author: yesen
  */
 
-#include "llvm/Analysis/SVF/WPA/Andersen.h"
+#include "WPA/Andersen.h"
 #include <llvm/Support/CommandLine.h> // for tool output file
 
 using namespace llvm;

@@ -30,9 +30,9 @@
 #ifndef FLOWSENSITIVEANALYSIS_H_
 #define FLOWSENSITIVEANALYSIS_H_
 
-#include "llvm/Analysis/SVF/MSSA/SVFGOPT.h"
-#include "llvm/Analysis/SVF/MSSA/SVFGBuilder.h"
-#include "llvm/Analysis/SVF/WPA/WPAFSSolver.h"
+#include "MSSA/SVFGOPT.h"
+#include "MSSA/SVFGBuilder.h"
+#include "WPA/WPAFSSolver.h"
 class AndersenWaveDiff;
 class SVFModule;
 

@@ -40,6 +40,7 @@
 #include <stack>
 #include <deque>
 
+typedef unsigned SetID;
 typedef unsigned NodeID;
 typedef unsigned EdgeID;
 typedef unsigned SymID;
@@ -77,6 +78,9 @@ typedef SmallVector16 CallStrCxt;
 /// General debug flag is for each phase of a pass, it is often in a colorful output format
 #define DGENERAL "general"
 
+#define DSTEENS "steens"
+#define DSTEENSCOARSE "steens-coarse"
+#define DSTEENSDUMP "steens-dump"
 #define DPAGBuild "pag"
 #define DMemModel "mm"
 #define DMemModelCE "mmce"
@@ -91,6 +95,7 @@ typedef SmallVector16 CallStrCxt;
 #define DAndersen "ander"
 #define DSaber "saber"
 #define DMTA "mta"
+#define DCHA "cha"
 
 /*
  * Number of clock ticks per second. A clock tick is the unit by which

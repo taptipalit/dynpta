@@ -165,6 +165,9 @@ namespace {
 
         Function* findSimpleFunArgFor(Value*);
         void preprocessSensitiveAnnotatedPointers(Module &M);
+
+        void constructPartitioningAwareSDD(Module&, std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
+
 		void collectSensitivePointsToInfo(Module&, std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
 		//void addExternInlineASMHandlers(Module&);
 
@@ -565,6 +568,7 @@ void EncryptionPass::findIndirectSinkSites(PAGNode* ptsFrom, std::set<PAGNode*>&
  * Find all the sink sites that this value directly flows to
  */
 void EncryptionPass::findDirectSinkSites(PAGNode* source, std::set<PAGNode*>& sinkSites) {
+    /*
     std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
 
     PAG* pag = getAnalysis<WPAPass>().getPAG();
@@ -594,6 +598,7 @@ void EncryptionPass::findDirectSinkSites(PAGNode* source, std::set<PAGNode*>& si
             }
         }
     }
+    */
     
 }
 
@@ -690,8 +695,8 @@ void EncryptionPass::buildRetCallMap(Module& M) {
 }
 
 void EncryptionPass::trackExternalFunctionFlows(Value* ptr, std::set<Value*>& sinkSites) {
-    std::map<Value*, std::set<Value*>> ptsToMap; // = getAnalysis<WPAPass>().getSensitivePtsToMap(); // TODO
-	std::map<Value*, std::set<Value*>> ptsFromMap; // = getAnalysis<WPAPass>().getSensitivePtsFromMap(); // TODO
+    std::map<Value*, std::set<Value*>> ptsToMap;// = getAnalysis<WPAPass>().getSensitivePtsToMap(); // TODO
+	std::map<Value*, std::set<Value*>> ptsFromMap;// = getAnalysis<WPAPass>().getSensitivePtsFromMap(); // TODO
 
     // Go through the users of of this pointer, to see if it was used as the source operand in memcpy or strcpy
     for (User* user: ptr->users()) {
@@ -1109,6 +1114,99 @@ Function* EncryptionPass::findSimpleFunArgFor(Value* ptr) {
     */
     return nullptr;
 }
+
+void EncryptionPass::constructPartitioningAwareSDD(Module& M, 
+		std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap,
+		std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
+    PAG* pag = getAnalysis<WPAPass>().getPAG();
+
+    errs() << "I'm actually running\n";
+	std::map<PAGNode*, std::set<PAGNode*>>::iterator ptsToMapIt = ptsToMap.begin();
+	bool done = false;
+
+    std::vector<PAGNode*> tempObjList;
+    // If there are any pointers in the sensitive object list, we want find their targets right away
+    for (PAGNode* senPAGNode: SensitiveObjList) {
+        for(PAGNode* ptsToNode: ptsToMap[senPAGNode]) {
+            tempObjList.push_back(ptsToNode);
+        }
+    }
+    std::copy(tempObjList.begin(), tempObjList.end(), std::back_inserter(SensitiveObjList));
+
+	// --- We need to keep merging the points-to sets of each pointer that points to sensitive allocation sites
+	// Set if off
+	std::set<PAGNode*>* allocaSetPtr = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end()); 
+	std::set<PAGNode*>* newObjSetPtr = nullptr;
+	std::vector<PAGNode*>* newObjVecPtr = nullptr;
+	std::set<PAGNode*>* allAllocSitesSetPtr = nullptr;
+    std::set<PAGNode*>* diffSetPtr = nullptr;
+    std::set<PAGNode*>* tmpPtr = nullptr;
+
+	while (!done) {
+		dbgs() << allocaSetPtr->size() << " New allocation sites found ... \n";
+    
+		if (allocaSetPtr->size() == 0) break;;
+
+		if (newObjVecPtr) {
+			delete newObjVecPtr;
+		}
+		newObjVecPtr = new std::vector<PAGNode*>();
+
+        int count = 0;
+
+		for (PAGNode* sensitiveObjSite: *allocaSetPtr) {
+			// --- Any pointer that points to the sensitiveObjSite also needs to be processed
+            for (PAGNode* ptr: ptsFromMap[sensitiveObjSite]) {
+                if (ptr->hasValue()) {
+                    if (isa<Function>(ptr->getValue()) || isa<CallInst>(ptr->getValue())) {
+                        continue;
+                    }
+                }
+                
+                // --- All allocation sites ONLY ON THE STACK this pointer can point to is also sensitive
+                std::set<PAGNode*>* s = &ptsToMap[ptr];
+                for (PAGNode* obj: *s) {
+                    const Value* v = obj->getValue();
+                    if (!isa<AllocaInst>(v)) {
+                        continue;
+                    }
+                    newObjVecPtr->push_back(obj);
+                }
+            }
+		}
+		// newObjVecPtr has all newly discovered sensitive allocation sites
+		// Convert it to set and find difference
+		// Free the old guy
+		if (newObjSetPtr) {
+			delete newObjSetPtr;
+		}
+		newObjSetPtr = new std::set<PAGNode*>(newObjVecPtr->begin(), newObjVecPtr->end());
+
+		if (allAllocSitesSetPtr) {
+			delete allAllocSitesSetPtr;
+		}
+		allAllocSitesSetPtr = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
+
+        if (diffSetPtr) {
+            delete diffSetPtr;
+        }
+		diffSetPtr = new std::set<PAGNode*>();
+		// diff is the new allocation sites that have been found
+
+		set_difference(newObjSetPtr->begin(), newObjSetPtr->end(), allAllocSitesSetPtr->begin(), allAllocSitesSetPtr->end(), inserter(*diffSetPtr, diffSetPtr->begin()));
+
+		if (diffSetPtr->size() == 0) {
+			// Nothing new found, done!
+			done = true;
+		}
+      
+		SensitiveObjList.insert(SensitiveObjList.end(), diffSetPtr->begin(), diffSetPtr->end());
+
+		allocaSetPtr = diffSetPtr;
+	}
+}
+
+
 
 void EncryptionPass::collectSensitivePointsToInfo(Module &M, 
 		std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap,
@@ -4276,12 +4374,12 @@ void EncryptionPass::fixupSizeOfOperators(Module& M) {
 
 bool EncryptionPass::runOnModule(Module &M) {
 
-    	//M.print(errs(), nullptr);
-	LLVM_DEBUG (
-	dbgs() << "Running Encryption pass\n";
-	);
+    //M.print(errs(), nullptr);
+    LLVM_DEBUG (
+            dbgs() << "Running Encryption pass\n";
+            );
 
-    	SensitiveObjSet = nullptr;
+    SensitiveObjSet = nullptr;
 
 	DoAESEncCache = true;
     	// Do Alias Analysis for pointers
@@ -4289,80 +4387,80 @@ bool EncryptionPass::runOnModule(Module &M) {
 	std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
 	std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
 
-   	dbgs() << "Performed Pointer Analysis\n";
+    dbgs() << "Performed Pointer Analysis\n";
 
-    	collectGlobalSensitiveAnnotations(M);
-    	collectLocalSensitiveAnnotations(M);
-    	LLVM_DEBUG (
-        	dbgs() << "Collected sensitive annotations\n";
-		for (PAGNode* valNode: SensitiveObjList) {
-        		assert(valNode->hasValue() && "PAG Node made it so far must have value");
-			valNode->getValue()->dump();
-		}	
-	);
+    collectGlobalSensitiveAnnotations(M);
+    collectLocalSensitiveAnnotations(M);
+    LLVM_DEBUG (
+            dbgs() << "Collected sensitive annotations\n";
+            for (PAGNode* valNode: SensitiveObjList) {
+            assert(valNode->hasValue() && "PAG Node made it so far must have value");
+            valNode->getValue()->dump();
+            }	
+            );
 
     	// Remove the annotation instruction because it causes a lot of headache later on
 	bool preprocessed = false;
 	removeAnnotateInstruction(M);
 
-	//Checks for Partitioning
-	if(Partitioning){
-		// calling preprocessSensitiveAnnotatedPointers() for pointers
-		for (PAGNode* senPAGNode: SensitiveObjList) {
-			Value* senVal = const_cast<Value*>(senPAGNode->getValue());
-			if (AllocaInst* allocaInst = dyn_cast<AllocaInst>(senVal)) {
-				if(PointerType *pointerType=dyn_cast<PointerType>(allocaInst->getAllocatedType())){
-					errs() <<"AllocaInst PointerType"<<*allocaInst<<"\n";
-					preprocessSensitiveAnnotatedPointers(M);
-					preprocessed = true;
-					break;
-				}
-			}
-		}
-	}/*
-	else if(DFSan){
-		for (PAGNode* senPAGNode: SensitiveObjList) {
-                        Value* senVal = const_cast<Value*>(senPAGNode->getValue());
-                        if (AllocaInst* allocaInst = dyn_cast<AllocaInst>(senVal)) {
-                                if(PointerType *pointerType=dyn_cast<PointerType>(allocaInst->getAllocatedType())){
-                                        errs() <<"AllocaInst PointerType"<<*allocaInst<<"\n";
-                                        preprocessSensitiveAnnotatedPointers(M);
-                                        preprocessed = true;
-                                        break;
-                                }
-                        }
+    //Checks for Partitioning
+    if(Partitioning){
+        // calling preprocessSensitiveAnnotatedPointers() for pointers
+        for (PAGNode* senPAGNode: SensitiveObjList) {
+            Value* senVal = const_cast<Value*>(senPAGNode->getValue());
+            if (AllocaInst* allocaInst = dyn_cast<AllocaInst>(senVal)) {
+                if(PointerType *pointerType=dyn_cast<PointerType>(allocaInst->getAllocatedType())){
+                    errs() <<"AllocaInst PointerType"<<*allocaInst<<"\n";
+                    preprocessSensitiveAnnotatedPointers(M);
+                    preprocessed = true;
+                    break;
                 }
-	}*/
-	else 
-    		preprocessSensitiveAnnotatedPointers(M);
+            }
+        }
+    }/*
+        else if(DFSan){
+        for (PAGNode* senPAGNode: SensitiveObjList) {
+        Value* senVal = const_cast<Value*>(senPAGNode->getValue());
+        if (AllocaInst* allocaInst = dyn_cast<AllocaInst>(senVal)) {
+        if(PointerType *pointerType=dyn_cast<PointerType>(allocaInst->getAllocatedType())){
+        errs() <<"AllocaInst PointerType"<<*allocaInst<<"\n";
+        preprocessSensitiveAnnotatedPointers(M);
+        preprocessed = true;
+        break;
+        }
+        }
+        }
+        }*/
+    else 
+        preprocessSensitiveAnnotatedPointers(M);
 
 
-    	errs() << "After nested points-to analysis:\n";
-    	for (PAGNode* senPAGNode: SensitiveObjList) {
-        	errs() << *senPAGNode << "\n";
-        	if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senPAGNode)) {
-            		errs() << "Location: " << gepNode->getLocationSet().getOffset() << "\n";
-        	}
-    	}
-	
+    errs() << "After nested points-to analysis:\n";
+    for (PAGNode* senPAGNode: SensitiveObjList) {
+        errs() << *senPAGNode << "\n";
+        if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senPAGNode)) {
+            errs() << "Location: " << gepNode->getLocationSet().getOffset() << "\n";
+        }
+    }
 
-    	/*errs() << "Begin: Perform dataflow analysis\n";
 
-    	if (!SkipVFA) {
-    		//performSourceSinkAnalysis(M);
-    	}*/
+    /*errs() << "Begin: Perform dataflow analysis\n";
 
-    	// Remove duplicates and copy back to SensitiveObjList
-    	SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
-    	SensitiveObjList.clear();
-    	std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
+      if (!SkipVFA) {
+    //performSourceSinkAnalysis(M);
+    }*/
 
-	errs() << "After preprocessSensitiveAnnotatedPointers " << SensitiveObjList.size() << " memory objects found\n";
-    	errs() << "End: Perform dataflow analysis: " << SensitiveObjList.size() << " memory objects found\n";
-	// Populate the sensitive data types now
-    	for (PAGNode* senPAGNode: SensitiveObjList) {
-        	errs() << *senPAGNode << "\n";
-    	}
+    // Remove duplicates and copy back to SensitiveObjList
+    SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
+    SensitiveObjList.clear();
+    std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
+
+    errs() << "After preprocessSensitiveAnnotatedPointers " << SensitiveObjList.size() << " memory objects found\n";
+    errs() << "End: Perform dataflow analysis: " << SensitiveObjList.size() << " memory objects found\n";
+    // Populate the sensitive data types now
+    for (PAGNode* senPAGNode: SensitiveObjList) {
+        errs() << *senPAGNode << "\n";
+    }
 
 	if (Partitioning) {
 		if (DoAESEncCache) {
@@ -4391,62 +4489,60 @@ bool EncryptionPass::runOnModule(Module &M) {
 		collectSensitivePointsToInfo(M, ptsToMap, ptsFromMap);
 	}
 	
-		
+    /*
+       dbgs() << "Collected sensitive points-to info (Phase 1) \n";
+       LLVM_DEBUG (
 
-    	/*
-	dbgs() << "Collected sensitive points-to info (Phase 1) \n";
-	LLVM_DEBUG (
+       for (PAGNode* sensitivePAGNode: SensitiveObjList) {
+       dbgs() << "Sensitive Allocation site: " << *sensitivePAGNode << "\n";
+       if (GepObjPN* senGep = dyn_cast<GepObjPN>(sensitivePAGNode)) {
+       dbgs() << "Gep offset: " << senGep->getLocationSet().getOffset() << "\n";
 
-	for (PAGNode* sensitivePAGNode: SensitiveObjList) {
-		dbgs() << "Sensitive Allocation site: " << *sensitivePAGNode << "\n";
+       }
+       }
+
+       );
+       */
+
+    if (SensitiveObjSet) {
+        delete(SensitiveObjSet);
+    }
+    SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
+    errs() << "Total sensitive allocation sites: " << SensitiveObjSet->size() << "\n";
+    SensitiveObjList.clear();
+    std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
+    errs() << "After collectSensitivePointsToInfo: " << SensitiveObjList.size() << " memory objects found\n";
+
+    for (PAGNode* sensitivePAGNode: *SensitiveObjSet) {
+        errs() <<  *sensitivePAGNode << "\n";
         if (GepObjPN* senGep = dyn_cast<GepObjPN>(sensitivePAGNode)) {
-            dbgs() << "Gep offset: " << senGep->getLocationSet().getOffset() << "\n";
-            
+            errs() << "Gep offset: " << senGep->getLocationSet().getOffset() << "\n";
+            /*
+               int Field = senGep->getLocationSet().getOffset();
+               Type* baseType = senGep->getValue()->getType();
+               if (StructType* stBaseType = dyn_cast<StructType>(baseType)) {
+               if (Field < stBaseType->getNumElements()) {
+               dbgs() << "Best guess sub type: " << stBaseType->getElementType(Field) << "\n";
+               }
+
+               }
+               */
         }
-	}
+    }
 
-	);
-    	*/
-
-    	if (SensitiveObjSet) {
-        	delete(SensitiveObjSet);
-    	}
-	SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
-    	errs() << "Total sensitive allocation sites: " << SensitiveObjSet->size() << "\n";
-	SensitiveObjList.clear();
-        std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
-	errs() << "After collectSensitivePointsToInfo: " << SensitiveObjList.size() << " memory objects found\n";
-
-    	for (PAGNode* sensitivePAGNode: *SensitiveObjSet) {
-        	errs() <<  *sensitivePAGNode << "\n";
-        	if (GepObjPN* senGep = dyn_cast<GepObjPN>(sensitivePAGNode)) {
-            		errs() << "Gep offset: " << senGep->getLocationSet().getOffset() << "\n";
-            	/*
-            	int Field = senGep->getLocationSet().getOffset();
-            	Type* baseType = senGep->getValue()->getType();
-            	if (StructType* stBaseType = dyn_cast<StructType>(baseType)) {
-                	if (Field < stBaseType->getNumElements()) {
-                    		dbgs() << "Best guess sub type: " << stBaseType->getElementType(Field) << "\n";
-                	}
-
-            	}
-            	*/
-        	}
-    	}
-	
-	if (Partitioning){
-		errs() << "Padding for Alloca Instructions \n";
-		AESCache.widenAllocaAllocations(M, SensitiveObjSet, ptsToMap, ptsFromMap);
-	}
-	/*else if(DFSan){
-		errs() << "Padding for memory allocations \n";
-		AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
-	}*/
-	else if(DFSan){
-		//Done with finding Sensitive objects. Now set labels for them and widening allocations
-		if (DoAESEncCache) {
-                        AESCache.initializeAes(M);
-                        errs() << "Set Labels for Sensitive objects\n";
+    if (Partitioning){
+        errs() << "Padding for Alloca Instructions \n";
+        AESCache.widenAllocaAllocations(M, SensitiveObjSet, ptsToMap, ptsFromMap);
+    }
+    /*else if(DFSan){
+      errs() << "Padding for memory allocations \n";
+      AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
+      }*/
+    else if(DFSan){
+        //Done with finding Sensitive objects. Now set labels for them and widening allocations
+        if (DoAESEncCache) {
+            AESCache.initializeAes(M);
+            errs() << "Set Labels for Sensitive objects\n";
                         AESCache.SetLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
 			AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
                         dbgs() << "Initialized AES, widened buffers to multiples of 128 bits\n";
@@ -4488,7 +4584,7 @@ bool EncryptionPass::runOnModule(Module &M) {
 
 	collectSensitiveLoadInstructions(M, ptsToMap);
 
-    	collectSensitiveGEPInstructionsFromLoad(M, ptsToMap);
+    collectSensitiveGEPInstructionsFromLoad(M, ptsToMap);
 	SensitiveLoadPtrSet = new std::set<Value*>(SensitiveLoadPtrList.begin(), SensitiveLoadPtrList.end()); // Any pointer that points to sensitive location
 	SensitiveLoadSet = new std::set<Value*>(SensitiveLoadList.begin(), SensitiveLoadList.end());
 
@@ -4507,29 +4603,29 @@ bool EncryptionPass::runOnModule(Module &M) {
 	// Build the sets, now that we have the lists
 	buildSets(M);
 
-    
-    	ExtLibHandler.addNullExtFuncHandler(M);
-    	ExtLibHandler.addAESCacheExtFuncHandler(M);
 
-    	//}
+    ExtLibHandler.addNullExtFuncHandler(M);
+    ExtLibHandler.addAESCacheExtFuncHandler(M);
+
+    //}
 
 	LLVM_DEBUG (
 	dbgs() << "Instrumented external function calls\n";
 	);
 
 	instrumentAndAnnotateInst(M, ptsToMap);
-	LLVM_DEBUG (
-	dbgs() << "Instrumented and annotated sensitive Load and Store instructions\n";
-	);
+    LLVM_DEBUG (
+            dbgs() << "Instrumented and annotated sensitive Load and Store instructions\n";
+            );
 
-   
-    	fixupSizeOfOperators(M);
 
-    	dbgs () << "Inserted " << decryptionCount << " calls to decryption routines.\n";
-    	dbgs () << "Inserted " << encryptionCount << " calls to encryption routines.\n";
+    fixupSizeOfOperators(M);
 
-    	collectLoadStoreStats(M);
-	return true;
+    dbgs () << "Inserted " << decryptionCount << " calls to decryption routines.\n";
+    dbgs () << "Inserted " << encryptionCount << " calls to encryption routines.\n";
+
+    collectLoadStoreStats(M);
+    return true;
 }
 
 INITIALIZE_PASS_BEGIN(EncryptionPass, "encryption", "Identify and instrument sensitive variables", false, true)

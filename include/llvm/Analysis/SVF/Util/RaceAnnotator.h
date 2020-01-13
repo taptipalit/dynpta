@@ -8,8 +8,8 @@
 #ifndef MTAANNOTATOR_H_
 #define MTAANNOTATOR_H_
 
-#include "llvm/Analysis/SVF/Util/BasicTypes.h"
-#include "llvm/Analysis/SVF/Util/Annotator.h"
+#include "Util/BasicTypes.h"
+#include "Util/Annotator.h"
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/CallSite.h>
 

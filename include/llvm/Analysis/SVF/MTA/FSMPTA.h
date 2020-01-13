@@ -9,9 +9,9 @@
 #define FSPTANALYSIS_H_
 
 
-#include "llvm/Analysis/SVF/WPA/FlowSensitive.h"
-#include "llvm/Analysis/SVF/MSSA/SVFGBuilder.h"
-#include "llvm/Analysis/SVF/MTA/LockAnalysis.h"
+#include "WPA/FlowSensitive.h"
+#include "MSSA/SVFGBuilder.h"
+#include "MTA/LockAnalysis.h"
 
 class MHP;
 class LockAnalysis;

@@ -28,8 +28,8 @@
  */
 
 
-#include "llvm/Analysis/SVF/SABER/DoubleFreeChecker.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
+#include "SABER/DoubleFreeChecker.h"
+#include "Util/AnalysisUtil.h"
 #include <llvm/Support/CommandLine.h>
 
 using namespace llvm;

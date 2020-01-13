@@ -54,8 +54,8 @@
 
 ******************************************************************************/
 
-#include "llvm/Analysis/SVF/CUDD/util.h"
-#include "llvm/Analysis/SVF/CUDD/cuddInt.h"
+#include "CUDD/util.h"
+#include "CUDD/cuddInt.h"
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */

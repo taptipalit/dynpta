@@ -30,9 +30,9 @@
 #ifndef SABERSVFGBUILDER_H_
 #define SABERSVFGBUILDER_H_
 
-#include "llvm/Analysis/SVF/MSSA/SVFGBuilder.h"
-#include "llvm/Analysis/SVF/Util/BasicTypes.h"
-#include "llvm/Analysis/SVF/Util/WorkList.h"
+#include "MSSA/SVFGBuilder.h"
+#include "Util/BasicTypes.h"
+#include "Util/WorkList.h"
 
 class SVFGNode;
 class PAGNode;

@@ -27,9 +27,9 @@
  *      Author: Yulei Sui
  */
 
-#include "llvm/Analysis/SVF/MemoryModel/PAG.h"
-#include "llvm/Analysis/SVF/Util/AnalysisUtil.h"
-#include "llvm/Analysis/SVF/Util/GraphUtil.h"
+#include "MemoryModel/PAG.h"
+#include "Util/AnalysisUtil.h"
+#include "Util/GraphUtil.h"
 
 #include <llvm/Support/DOTGraphTraits.h>	// for dot graph traits
 
@@ -39,8 +39,12 @@ using namespace analysisUtil;
 static cl::opt<bool> HANDBLACKHOLE("blk", cl::init(false),
                                    cl::desc("Hanle blackhole edge"));
 
+static cl::opt<bool> FIELD_INSENSITIVE("field-insensitive", cl::init(false),
+                                   cl::desc("Convert all GEP edges to COPY edges"));
+
 
 u64_t PAGEdge::callEdgeLabelCounter = 0;
+u64_t PAGEdge::storeEdgeLabelCounter = 0;
 PAGEdge::Inst2LabelMap PAGEdge::inst2LabelMap;
 
 PAG* PAG::pag = NULL;
@@ -83,46 +87,8 @@ bool PAG::addLoadEdge(NodeID src, NodeID dst) {
 }
 
 /*!
- * Add Return Value edge
- */
-bool PAG::addRetValEdge(NodeID src, NodeID dst) {
-    PAGNode* srcNode = getPAGNode(src);
-    PAGNode* dstNode = getPAGNode(dst);
-    if(hasIntraEdge(srcNode,dstNode, PAGEdge::RetVal))
-        return false;
-    else
-        return addEdge(srcNode,dstNode, new RetValPE(srcNode, dstNode));
-}
-
-
-
-/*!
- * Add Call Value edge
- */
-bool PAG::addCallValEdge(NodeID src, NodeID dst) {
-    PAGNode* srcNode = getPAGNode(src);
-    PAGNode* dstNode = getPAGNode(dst);
-    if(hasIntraEdge(srcNode,dstNode, PAGEdge::CallVal))
-        return false;
-    else
-        return addEdge(srcNode,dstNode, new CallValPE(srcNode, dstNode));
-}
-
-
-/*!
- * Add Load Value edge
- */
-bool PAG::addLoadValEdge(NodeID src, NodeID dst) {
-    PAGNode* srcNode = getPAGNode(src);
-    PAGNode* dstNode = getPAGNode(dst);
-    if(hasIntraEdge(srcNode,dstNode, PAGEdge::LoadVal))
-        return false;
-    else
-        return addEdge(srcNode,dstNode, new LoadValPE(srcNode, dstNode));
-}
-
-/*!
  * Add Store edge
+ * Note that two store instructions may share the same Store PAGEdge
  */
 bool PAG::addStoreEdge(NodeID src, NodeID dst) {
     PAGNode* srcNode = getPAGNode(src);
@@ -130,19 +96,7 @@ bool PAG::addStoreEdge(NodeID src, NodeID dst) {
     if(hasIntraEdge(srcNode,dstNode, PAGEdge::Store))
         return false;
     else
-        return addEdge(srcNode,dstNode, new StorePE(srcNode, dstNode));
-}
-
-/*!
- * Add Store Value edge
- */
-bool PAG::addStoreValEdge(NodeID src, NodeID dst) {
-    PAGNode* srcNode = getPAGNode(src);
-    PAGNode* dstNode = getPAGNode(dst);
-    if(hasIntraEdge(srcNode,dstNode, PAGEdge::StoreVal))
-        return false;
-    else
-        return addEdge(srcNode,dstNode, new StoreValPE(srcNode, dstNode));
+        return addEdge(srcNode,dstNode, new StorePE(srcNode, dstNode, curVal));
 }
 
 /*!
@@ -211,14 +165,19 @@ bool PAG::addThreadJoinEdge(NodeID src, NodeID dst, const llvm::Instruction* cs)
  */
 bool PAG::addGepEdge(NodeID src, NodeID dst, const LocationSet& ls, bool constGep) {
 
-    PAGNode* node = getPAGNode(src);
-    if (!constGep || node->hasIncomingVariantGepEdge()) {
-        /// Since the offset from base to src is variant,
-        /// the new gep edge being created is also a VariantGepPE edge.
-        return addVariantGepEdge(src, dst);
-    }
-    else {
-        return addNormalGepEdge(src, dst, ls);
+    if (!FIELD_INSENSITIVE) {
+
+        PAGNode* node = getPAGNode(src);
+        if (!constGep || node->hasIncomingVariantGepEdge()) {
+            /// Since the offset from base to src is variant,
+            /// the new gep edge being created is also a VariantGepPE edge.
+            return addVariantGepEdge(src, dst);
+        }
+        else {
+            return addNormalGepEdge(src, dst, ls);
+        }
+    } else {
+        addCopyEdge(src, dst);
     }
 }
 
@@ -229,18 +188,6 @@ bool PAG::addNormalGepEdge(NodeID src, NodeID dst, const LocationSet& ls) {
     const LocationSet& baseLS = getLocationSetFromBaseNode(src);
     PAGNode* baseNode = getPAGNode(getBaseValNode(src));
     PAGNode* dstNode = getPAGNode(dst);
-    /*
-    errs() << "Added normal gep edge with offset: " << ls.getOffset() << "\n";
-    if (ls.getOffset() > 100) {
-        errs() << "larger offset than 100: \n";
-        errs() << "Base value: " << *(baseNode->getValue()) << "\n";
-        errs() << "Gep value: " << *(getPAGNode(src)->getValue()) << "\n";
-        if (const Instruction* inst = dyn_cast<Instruction>(getPAGNode(src)->getValue())) {
-            errs() << "Function name: " << inst->getParent()->getParent()->getName() << "\n";
-            inst->getParent()->getParent()->dump();
-        }
-    }
-    */
     if(hasIntraEdge(baseNode, dstNode, PAGEdge::NormalGep))
         return false;
     else
@@ -308,8 +255,16 @@ NodeID PAG::getGepValNode(const llvm::Value* val, const LocationSet& ls, const T
         assert((isa<Instruction>(curVal) || isa<GlobalVariable>(curVal)) && "curVal not an instruction or a globalvariable?");
         const std::vector<FieldInfo> &fieldinfo = symInfo->getFlattenFieldInfoVec(baseType);
         const Type *type = fieldinfo[fieldidx].getFlattenElemTy();
+
+        // We assume every GepValNode and its GepEdge to the baseNode are unique across the whole program
+        // We preserve the current BB information to restore it after creating the gepNode
+        const llvm::Value* cval = pag->getCurrentValue();
+        const llvm::BasicBlock* cbb = pag->getCurrentBB();
+        pag->setCurrentLocation(curVal, NULL);
         NodeID gepNode= addGepValNode(val,ls,nodeNum,type,fieldidx);
         addGepEdge(base, gepNode, ls, true);
+	    //addCopyEdge(base, gepNode);
+        pag->setCurrentLocation(cval, cbb);
         return gepNode;
     } else
         return iter->second;
@@ -318,14 +273,14 @@ NodeID PAG::getGepValNode(const llvm::Value* val, const LocationSet& ls, const T
 /*!
  * Add a temp field value node, this method can only invoked by getGepValNode
  */
-NodeID PAG::addGepValNode(const llvm::Value* val, const LocationSet& ls, NodeID i, const llvm::Type *type, u32_t fieldidx) {
-    NodeID base = getBaseValNode(getValueNode(val));
+NodeID PAG::addGepValNode(const llvm::Value* gepVal, const LocationSet& ls, NodeID i, const llvm::Type *type, u32_t fieldidx) {
+	NodeID base = getBaseValNode(getValueNode(gepVal));
     //assert(findPAGNode(i) == false && "this node should not be created before");
-    assert(0==GepValNodeMap.count(std::make_pair(base, ls))
+	assert(0==GepValNodeMap.count(std::make_pair(base, ls))
            && "this node should not be created before");
-    GepValNodeMap[std::make_pair(base, ls)] = i;
-    GepValPN *node = new GepValPN(val, i, ls, type, fieldidx);
-    return addValNode(val, node, i);
+	GepValNodeMap[std::make_pair(base, ls)] = i;
+    GepValPN *node = new GepValPN(gepVal, i, ls, type, fieldidx);
+    return addValNode(gepVal, node, i);
 }
 
 /*!
@@ -359,38 +314,37 @@ NodeID PAG::getGepObjNode(const MemObj* obj, const LocationSet& ls) {
     LocationSet newLS = SymbolTableInfo::Symbolnfo()->getModulusOffset(obj->getTypeInfo(),ls);
 
     NodeLocationSetMap::iterator iter = GepObjNodeMap.find(std::make_pair(base, newLS));
-    if (iter == GepObjNodeMap.end()) {
-        NodeID gepNode= addGepObjNode(obj,newLS,nodeNum);
-        return gepNode;
-    } else
-        return iter->second;
+	if (iter == GepObjNodeMap.end())
+		return addGepObjNode(obj, newLS);
+	else
+		return iter->second;
 
 }
 
 /*!
  * Add a field obj node, this method can only invoked by getGepObjNode
  */
-NodeID PAG::addGepObjNode(const MemObj* obj, const LocationSet& ls, NodeID i) {
+NodeID PAG::addGepObjNode(const MemObj* obj, const LocationSet& ls) {
     //assert(findPAGNode(i) == false && "this node should not be created before");
     NodeID base = getObjectNode(obj);
     assert(0==GepObjNodeMap.count(std::make_pair(base, ls))
            && "this node should not be created before");
-    GepObjNodeMap[std::make_pair(base, ls)] = i;
-    GepObjPN *node = new GepObjPN(obj->getRefVal(), i, obj, ls);
-    memToFieldsMap[base].set(i);
-    return addObjNode(obj->getRefVal(), node, i);
+    GepObjNodeMap[std::make_pair(base, ls)] = nodeNum;
+	GepObjPN *node = new GepObjPN(obj, nodeNum, ls);
+    memToFieldsMap[base].set(nodeNum);
+    return addObjNode(obj->getRefVal(), node, nodeNum);
 }
 
 /*!
  * Add a field-insensitive node, this method can only invoked by getFIGepObjNode
  */
-NodeID PAG::addFIObjNode(const MemObj* obj, NodeID i)
+NodeID PAG::addFIObjNode(const MemObj* obj)
 {
     //assert(findPAGNode(i) == false && "this node should not be created before");
     NodeID base = getObjectNode(obj);
-    memToFieldsMap[base].set(i);
-    FIObjPN *node = new FIObjPN(obj->getRefVal(), i, obj);
-    return addObjNode(obj->getRefVal(), node, i);
+    memToFieldsMap[base].set(obj->getSymId());
+    FIObjPN *node = new FIObjPN(obj->getRefVal(), obj->getSymId(), obj);
+    return addObjNode(obj->getRefVal(), node, obj->getSymId());
 }
 
 
@@ -428,7 +382,9 @@ void PAG::setCurrentBBAndValueForPAGEdge(PAGEdge* edge) {
     edge->setBB(curBB);
     edge->setValue(curVal);
     if (const Instruction *curInst = dyn_cast<Instruction>(curVal)) {
-        assert(curBB && "instruction does not have a basic block??");
+ 	/// We assume every GepValPN and its GepPE are unique across whole program
+	//if(!(isa<GepPE>(edge) && isa<GepValPN>(edge->getDstNode())))
+		//assert(curBB && "instruction does not have a basic block??");
         inst2PAGEdgesMap[curInst].push_back(edge);
     } else if (isa<Argument>(curVal)) {
         assert(curBB && (&curBB->getParent()->getEntryBlock() == curBB));
@@ -462,9 +418,9 @@ bool PAG::addEdge(PAGNode* src, PAGNode* dst, PAGEdge* edge) {
     dst->addInEdge(edge);
     bool added = PAGEdgeKindToSetMap[edge->getEdgeKind()].insert(edge).second;
     assert(added && "duplicated edge, not added!!!");
-    setCurrentBBAndValueForPAGEdge(edge);
+	if (!SVFModule::pagReadFromTXT())
+		setCurrentBBAndValueForPAGEdge(edge);
     return true;
-
 }
 
 /*!
@@ -570,34 +526,79 @@ void PAG::destroy() {
  * Print this PAG graph including its nodes and edges
  */
 void PAG::print() {
-    for (iterator I = begin(), E = end(); I != E; ++I) {
-        PAGNode* node = I->second;
-        if (!isa<DummyValPN>(node) && !isa<DummyObjPN>(node)) {
-            outs() << "node " << node->getId() << " " << *(node->getValue())
-                   << "\n";
-            outs() << "\t InEdge: { ";
-            for (PAGNode::iterator iter = node->getInEdges().begin();
-                    iter != node->getInEdges().end(); ++iter) {
-                outs() << (*iter)->getSrcID() << " ";
-                if (NormalGepPE* edge = dyn_cast<NormalGepPE>(*iter))
-                    outs() << " offset=" << edge->getOffset() << " ";
-                else if (isa<VariantGepPE>(*iter))
-                    outs() << " offset=variant";
-            }
-            outs() << "}\t";
-            outs() << "\t OutEdge: { ";
-            for (PAGNode::iterator iter = node->getOutEdges().begin();
-                    iter != node->getOutEdges().end(); ++iter) {
-                outs() << (*iter)->getDstID() << " ";
-                if (NormalGepPE* edge = dyn_cast<NormalGepPE>(*iter))
-                    outs() << " offset=" << edge->getOffset() << " ";
-                else if (isa<VariantGepPE>(*iter))
-                    outs() << " offset=variant";
-            }
-            outs() << "}\n";
-        }
-        outs() << "\n";
-    }
+
+	outs() << "-------------------PAG------------------------------------\n";
+	PAGEdge::PAGEdgeSetTy& addrs = pag->getEdgeSet(PAGEdge::Addr);
+	for (PAGEdge::PAGEdgeSetTy::iterator iter = addrs.begin(), eiter =
+			addrs.end(); iter != eiter; ++iter) {
+		outs() << (*iter)->getSrcID() << " -- Addr --> " << (*iter)->getDstID()
+				<< "\n";
+	}
+
+	PAGEdge::PAGEdgeSetTy& copys = pag->getEdgeSet(PAGEdge::Copy);
+	for (PAGEdge::PAGEdgeSetTy::iterator iter = copys.begin(), eiter =
+			copys.end(); iter != eiter; ++iter) {
+		outs() << (*iter)->getSrcID() << " -- Copy --> " << (*iter)->getDstID()
+				<< "\n";
+	}
+
+	PAGEdge::PAGEdgeSetTy& calls = pag->getEdgeSet(PAGEdge::Call);
+	for (PAGEdge::PAGEdgeSetTy::iterator iter = calls.begin(), eiter =
+			calls.end(); iter != eiter; ++iter) {
+		outs() << (*iter)->getSrcID() << " -- Call --> " << (*iter)->getDstID()
+				<< "\n";
+	}
+
+	PAGEdge::PAGEdgeSetTy& rets = pag->getEdgeSet(PAGEdge::Ret);
+	for (PAGEdge::PAGEdgeSetTy::iterator iter = rets.begin(), eiter =
+			rets.end(); iter != eiter; ++iter) {
+		outs() << (*iter)->getSrcID() << " -- Ret --> " << (*iter)->getDstID()
+				<< "\n";
+	}
+
+	PAGEdge::PAGEdgeSetTy& tdfks = pag->getEdgeSet(PAGEdge::ThreadFork);
+	for (PAGEdge::PAGEdgeSetTy::iterator iter = tdfks.begin(), eiter =
+			tdfks.end(); iter != eiter; ++iter) {
+		outs() << (*iter)->getSrcID() << " -- ThreadFork --> "
+				<< (*iter)->getDstID() << "\n";
+	}
+
+	PAGEdge::PAGEdgeSetTy& tdjns = pag->getEdgeSet(PAGEdge::ThreadJoin);
+	for (PAGEdge::PAGEdgeSetTy::iterator iter = tdjns.begin(), eiter =
+			tdjns.end(); iter != eiter; ++iter) {
+		outs() << (*iter)->getSrcID() << " -- ThreadJoin --> "
+				<< (*iter)->getDstID() << "\n";
+	}
+
+	PAGEdge::PAGEdgeSetTy& ngeps = pag->getEdgeSet(PAGEdge::NormalGep);
+	for (PAGEdge::PAGEdgeSetTy::iterator iter = ngeps.begin(), eiter =
+			ngeps.end(); iter != eiter; ++iter) {
+		NormalGepPE* gep = cast<NormalGepPE>(*iter);
+		outs() << gep->getSrcID() << " -- NormalGep (" << gep->getOffset()
+				<< ") --> " << gep->getDstID() << "\n";
+	}
+
+	PAGEdge::PAGEdgeSetTy& vgeps = pag->getEdgeSet(PAGEdge::VariantGep);
+	for (PAGEdge::PAGEdgeSetTy::iterator iter = vgeps.begin(), eiter =
+			vgeps.end(); iter != eiter; ++iter) {
+		outs() << (*iter)->getSrcID() << " -- VariantGep --> "
+				<< (*iter)->getDstID() << "\n";
+	}
+
+	PAGEdge::PAGEdgeSetTy& loads = pag->getEdgeSet(PAGEdge::Load);
+	for (PAGEdge::PAGEdgeSetTy::iterator iter = loads.begin(), eiter =
+			loads.end(); iter != eiter; ++iter) {
+		outs() << (*iter)->getSrcID() << " -- Load --> " << (*iter)->getDstID()
+				<< "\n";
+	}
+
+	PAGEdge::PAGEdgeSetTy& stores = pag->getEdgeSet(PAGEdge::Store);
+	for (PAGEdge::PAGEdgeSetTy::iterator iter = stores.begin(), eiter =
+			stores.end(); iter != eiter; ++iter) {
+		outs() << (*iter)->getSrcID() << " -- Store --> " << (*iter)->getDstID()
+				<< "\n";
+	}
+	outs() << "----------------------------------------------------------\n";
 
 }
 
@@ -628,7 +629,6 @@ PAGNode::PAGNode(const llvm::Value* val, NodeID i, PNODEK k) :
 
     assert( ValNode <= k && k<= DummyObjNode && "new PAG node kind?");
 
-    vfaVisited = false;
     switch (k) {
     case ValNode:
     case GepValNode: {
@@ -667,10 +667,6 @@ PAGNode::PAGNode(const llvm::Value* val, NodeID i, PNODEK k) :
  * Dump this PAG
  */
 void PAG::dump(std::string name) {
-    /*
-    errs() << "Number of nodes: " << this->getTotalNodeNum() << "\n";
-    errs() << "Number of edges: " << this->getTotalEdgeNum() << "\n";
-    */
     GraphPrinter::WriteGraphToFile(llvm::outs(), name, this);
 }
 
@@ -778,14 +774,6 @@ struct DOTGraphTraits<PAG*> : public DefaultDOTGraphTraits {
             return "color=black,style=dashed";
         } else if (isa<RetPE>(edge)) {
             return "color=black,style=dotted";
-        } else if (isa<LoadValPE>(edge)) {
-            return "color=yellow";
-        } else if (isa<StoreValPE>(edge)) {
-            return "color=grey";
-        } else if (isa<CallValPE>(edge)) {
-            return "color=blue,style=dotted";
-        } else if (isa<RetValPE>(edge)) {
-            return "color=green,style=dotted";
         }
         else {
             assert(0 && "No such kind edge!!");

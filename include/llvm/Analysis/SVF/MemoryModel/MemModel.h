@@ -30,8 +30,8 @@
 #ifndef OBJECTANDSYMBOL_H_
 #define OBJECTANDSYMBOL_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/LocationSet.h"
-#include "llvm/Analysis/SVF/Util/SVFModule.h"
+#include "MemoryModel/LocationSet.h"
+#include "Util/SVFModule.h"
 
 #include <llvm/IR/CallSite.h>
 #include <llvm/IR/Module.h>
@@ -53,21 +53,26 @@ enum SYMTYPE {
     VarargSym
 };
 
-
 /*!
  * Struct information
  */
 class StInfo {
 
 private:
-    /// Offsets of all fields of a struct
+    /// flattened field indices of a struct
+    std::vector<u32_t> fldIdxVec;
+    /// flattened field offsets of of a struct
     std::vector<u32_t> foffset;
+    /// Types of all fields of a struct
+    std::map<u32_t, const llvm::Type*> fldIdx2TypeMap;
+    /// Types of all fields of a struct
+    std::map<u32_t, const llvm::Type*> offset2TypeMap;
     /// All field infos after flattening a struct
     std::vector<FieldInfo> finfo;
+
 public:
     /// Constructor
     StInfo() {
-
     }
     /// Destructor
     ~StInfo() {
@@ -75,14 +80,30 @@ public:
 
     /// Get method for fields of a struct
     //{@
-    std::vector<u32_t>& getFieldOffsetVec() {
+	inline const llvm::Type* getFieldTypeWithFldIdx(u32_t fldIdx) {
+		return fldIdx2TypeMap[fldIdx];
+	}
+	inline const llvm::Type* getFieldTypeWithByteOffset(u32_t offset) {
+		return offset2TypeMap[offset];
+	}
+	inline std::vector<u32_t>& getFieldIdxVec() {
+        return fldIdxVec;
+    }
+	inline std::vector<u32_t>& getFieldOffsetVec() {
         return foffset;
     }
-    std::vector<FieldInfo>& getFlattenFieldInfoVec() {
+	inline std::vector<FieldInfo>& getFlattenFieldInfoVec() {
         return finfo;
     }
     //@}
 
+    /// Add field (index and offset) with its corresponding type
+	inline void addFldWithType(u32_t fldIdx, u32_t offset, const llvm::Type* type) {
+		fldIdxVec.push_back(fldIdx);
+		foffset.push_back(offset);
+		fldIdx2TypeMap[fldIdx] = type;
+		offset2TypeMap[offset] = type;
+	}
 };
 
 /*!
@@ -107,7 +128,7 @@ public:
 
 private:
     /// LLVM type
-    llvm::Type* type;
+    const llvm::Type* type;
     /// Type flags
     Size_t flags;
     /// Max offset for flexible field sensitive analysis
@@ -117,7 +138,7 @@ private:
 public:
 
     /// Constructors
-    ObjTypeInfo(const llvm::Value* val, llvm::Type* t, u32_t max) :
+    ObjTypeInfo(const llvm::Value* val, const llvm::Type* t, u32_t max) :
         type(t), flags(0), maxOffsetLimit(max) {
     }
     /// Constructor
@@ -141,13 +162,8 @@ public:
     /// Analyse types of heap and static objects
     void analyzeHeapStaticObjType(const llvm::Value* val);
 
-    /// Reset LLVM type
-    inline void setLLVMType(llvm::Type* t) {
-        type = t;
-    }
-
     /// Get LLVM type
-    inline llvm::Type* getLLVMType() {
+    inline const llvm::Type* getType() const{
         return type;
     }
 
@@ -255,6 +271,9 @@ public:
     inline ObjTypeInfo* getTypeInfo() const {
         return typeInfo;
     }
+
+    /// Get obj type
+    const llvm::Type* getType() const;
 
     /// Get max field offset limit
     inline Size_t getMaxFieldOffsetLimit() const {
@@ -468,7 +487,10 @@ public:
     }
 
     /// Helper method to get the size of the type from target data layout
+    //@{
     u32_t getTypeSizeInBytes(const llvm::Type* type);
+    u32_t getTypeSizeInBytes(const llvm::StructType *sty, u32_t field_index);
+    //@}
 
     /// Start building memory model
     void buildMemModel(SVFModule svfModule);
@@ -584,13 +606,17 @@ public:
             return (objSymMap.find(val) != objSymMap.end());
     }
 
-    inline SymID getObjSym(const llvm::Value *val) const {
-        /// find the unique defined global across multiple modules
+    /// find the unique defined global across multiple modules
+    inline const llvm::Value* getGlobalRep(const llvm::Value* val) const{
         if(const llvm::GlobalVariable* gvar = llvm::dyn_cast<llvm::GlobalVariable>(val)) {
             if (symlnfo->getModule().hasGlobalRep(gvar))
                 val = symlnfo->getModule().getGlobalRep(gvar);
         }
-        ValueToIDMapTy::const_iterator iter =  objSymMap.find(val);
+        return val;
+    }
+
+    inline SymID getObjSym(const llvm::Value *val) const {
+        ValueToIDMapTy::const_iterator iter = objSymMap.find(getGlobalRep(val));
         assert(iter!=objSymMap.end() && "obj sym not found");
         return iter->second;
     }
@@ -668,12 +694,21 @@ public:
     }
 
     ///Get a reference to the components of struct_info.
-    const inline std::vector<u32_t>& getStructOffsetVec(const llvm::Type *T) {
+    const inline std::vector<u32_t>& getFattenFieldIdxVec(const llvm::Type *T) {
+        return getStructInfoIter(T)->second->getFieldIdxVec();
+    }
+    const inline std::vector<u32_t>& getFattenFieldOffsetVec(const llvm::Type *T) {
         return getStructInfoIter(T)->second->getFieldOffsetVec();
     }
     const inline std::vector<FieldInfo>& getFlattenFieldInfoVec(const llvm::Type *T) {
         return getStructInfoIter(T)->second->getFlattenFieldInfoVec();
     }
+	const inline llvm::Type* getOrigSubTypeWithFldInx(const llvm::Type* baseType, u32_t field_idx) {
+		return getStructInfoIter(baseType)->second->getFieldTypeWithFldIdx(field_idx);
+	}
+	const inline llvm::Type* getOrigSubTypeWithByteOffset(const llvm::Type* baseType, u32_t byteOffset) {
+		return getStructInfoIter(baseType)->second->getFieldTypeWithByteOffset(byteOffset);
+	}
     //@}
 
     /// Compute gep offset

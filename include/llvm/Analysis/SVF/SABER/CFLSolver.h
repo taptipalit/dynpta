@@ -30,8 +30,8 @@
 #ifndef CFLSOLVER_H_
 #define CFLSOLVER_H_
 
-#include "llvm/Analysis/SVF/Util/WorkList.h"
-#include "llvm/Analysis/SVF/Util/DPItem.h"
+#include "Util/WorkList.h"
+#include "Util/DPItem.h"
 #include <llvm/ADT/GraphTraits.h>
 
 /*

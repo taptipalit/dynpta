@@ -30,18 +30,13 @@
 #ifndef PAGNODE_H_
 #define PAGNODE_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/GenericGraph.h"
+#include "MemoryModel/GenericGraph.h"
 
 /*
  * PAG node
  */
 typedef GenericNode<PAGNode,PAGEdge> GenericPAGNodeTy;
-class GepObjPN;
 class PAGNode : public GenericPAGNodeTy {
-
-private:
-    std::vector<PAGEdge*> IncomingValFlowEdgesSet;
-    std::vector<PAGEdge*> OutgoingValFlowEdgesSet;
 
 public:
     /// Nine kinds of PAG nodes
@@ -65,8 +60,6 @@ public:
         DummyObjNode
     };
 
-    bool vfaVisited;
-
 
 protected:
     const llvm::Value* value; ///< value of this PAG node
@@ -76,6 +69,7 @@ protected:
     bool isATPointer;	/// address-taken pointer
 
 public:
+    bool vfaVisited;
     /// Constructor
     PAGNode(const llvm::Value* val, NodeID i, PNODEK k);
     /// Destructor
@@ -92,14 +86,17 @@ public:
     }
 
     inline void setValue(llvm::Value* value) {
-        /*
-        assert((this->getNodeKind() != DummyValNode && this->getNodeKind() != DummyObjNode) && "dummy node do not have value!");
-        assert((SymbolTableInfo::isBlkObjOrConstantObj(this->getId())==false) && "blackhole and constant obj do not have value");
-        assert(value && "value is null!!");
-        */
+        //assert((this->getNodeKind() != DummyValNode && this->getNodeKind() != DummyObjNode) && "dummy node do not have value!");
+        //assert((SymbolTableInfo::isBlkObjOrConstantObj(this->getId())==false) && "blackhole and constant obj do not have value");
         this->value = value;
     }
 
+    /// Return type of the value
+    inline virtual const llvm::Type* getType() const{
+        if (value)
+            return value->getType();
+        return NULL;
+    }
 
     inline bool hasValue() const {
         return (this->getNodeKind() != DummyValNode &&
@@ -119,7 +116,7 @@ public:
         return isATPointer;
     }
     /// Get name of the LLVM value
-    virtual const std::string getValueName() = 0;
+    virtual const std::string getValueName() const = 0;
 
     /// Get incoming PAG edges
     inline PAGEdge::PAGEdgeSetTy& getIncomingEdges(PAGEdge::PEDGEK kind) {
@@ -129,14 +126,6 @@ public:
     /// Get outgoing PAG edges
     inline PAGEdge::PAGEdgeSetTy& getOutgoingEdges(PAGEdge::PEDGEK kind) {
         return OutEdgeKindToSetMap[kind];
-    }
-
-    inline std::vector<PAGEdge*> getOutgoingValFlowEdges() {
-        return OutgoingValFlowEdgesSet;
-    }
-
-    inline std::vector<PAGEdge*> getIncomingValFlowEdges() {
-        return IncomingValFlowEdgesSet;
     }
 
     /// Has incoming PAG edges
@@ -200,42 +189,29 @@ public:
     inline void addInEdge(PAGEdge* inEdge) {
         GNodeK kind = inEdge->getEdgeKind();
         InEdgeKindToSetMap[kind].insert(inEdge);
-        if (kind == PAGEdge::RetVal || kind == PAGEdge::CallVal
-                || kind == PAGEdge::LoadVal || kind == PAGEdge::StoreVal) {
-            IncomingValFlowEdgesSet.push_back(inEdge);
-        }
         addIncomingEdge(inEdge);
     }
 
     inline void addOutEdge(PAGEdge* outEdge) {
         GNodeK kind = outEdge->getEdgeKind();
         OutEdgeKindToSetMap[kind].insert(outEdge);
-        if (kind == PAGEdge::RetVal || kind == PAGEdge::CallVal
-                || kind == PAGEdge::LoadVal || kind == PAGEdge::StoreVal) {
-            OutgoingValFlowEdgesSet.push_back(outEdge);
-        }
         addOutgoingEdge(outEdge);
     }
-
-    virtual void printSpecific(llvm::raw_ostream &o, const PAGNode &node) {
-    }
-
     //@}
     /// Overloading operator << for dumping PAGNode value
     //@{
     friend llvm::raw_ostream& operator<< (llvm::raw_ostream &o, const PAGNode &node) {
         o << "NodeID: " << node.getId() << "\t, Node Kind: ";
-        if (node.getNodeKind() == PAGNode::ValNode ||
-                node.getNodeKind() == PAGNode::GepValNode ||
-                node.getNodeKind() == PAGNode::DummyValNode) {
+        if (node.getNodeKind() == ValNode ||
+                node.getNodeKind() == GepValNode ||
+                node.getNodeKind() == DummyValNode) {
             o << "ValPN\n";
-        } else if (node.getNodeKind() == PAGNode::GepObjNode) {
-            o << "GepObjPN\n";
-        } else if (node.getNodeKind() == PAGNode::ObjNode ||
-                node.getNodeKind() == PAGNode::FIObjNode ||
-                node.getNodeKind() == PAGNode::DummyObjNode) {
+        } else if (node.getNodeKind() == ObjNode ||
+                   node.getNodeKind() == GepObjNode ||
+                   node.getNodeKind() == FIObjNode ||
+                   node.getNodeKind() == DummyObjNode) {
             o << "ObjPN\n";
-        } else if (node.getNodeKind() == PAGNode::RetNode) {
+        } else if (node.getNodeKind() == RetNode) {
             o << "RetPN\n";
         } else {
             o << "otherPN\n";
@@ -244,16 +220,16 @@ public:
             const llvm::Value *val = node.getValue();
             if (const llvm::Function *fun = llvm::dyn_cast<llvm::Function>(val))
                 o << "Value: function " << fun->getName().str();
-            else 
+            else
                 o << "Value: " << *val;
         } else {
             o << "Empty Value";
         }
         return o;
     }
-
-       //@}
+    //@}
 };
+
 
 
 /*
@@ -284,7 +260,7 @@ public:
         PAGNode(val, i, ty) {
     }
     /// Return name of a LLVM value
-    const std::string getValueName() {
+    inline const std::string getValueName() const {
         if (value && value->hasName())
             return value->getName();
         return "";
@@ -334,6 +310,10 @@ public:
             return value->getName();
         return "";
     }
+    /// Return type of the value
+    inline virtual const llvm::Type* getType() const{
+       return mem->getType();
+    }
 };
 
 
@@ -346,7 +326,7 @@ class GepValPN: public ValPN {
 
 private:
     LocationSet ls;	// LocationSet
-    const llvm::Type *type;
+    const llvm::Type *gepValType;
     u32_t fieldIdx;
 
 public:
@@ -368,24 +348,24 @@ public:
 
     /// Constructor
     GepValPN(const llvm::Value* val, NodeID i, const LocationSet& l, const llvm::Type *ty, u32_t idx) :
-        ValPN(val, i, GepValNode), ls(l), type(ty), fieldIdx(idx) {
+        ValPN(val, i, GepValNode), ls(l), gepValType(ty), fieldIdx(idx) {
     }
 
     /// offset of the base value node
-    inline Size_t getOffset() {
+    inline u32_t getOffset() const {
         return ls.getOffset();
     }
 
     /// Return name of a LLVM value
-    const std::string getValueName() {
+    inline const std::string getValueName() const {
         if (value && value->hasName())
             return value->getName().str() + "_" + llvm::utostr(getOffset());
         return "offset_" + llvm::utostr(getOffset());
     }
 
-    const llvm::Type *getType() const {
-        return type;
-    }
+	inline const llvm::Type* getType() const {
+		return gepValType;
+	}
 
     u32_t getFieldIdx() const {
         return fieldIdx;
@@ -419,38 +399,27 @@ public:
     //@}
 
     /// Constructor
-    GepObjPN(const llvm::Value* val, NodeID i, const MemObj* mem, const LocationSet& l) :
-        ObjPN(val, i, mem, GepObjNode), ls(l) {
+    GepObjPN(const MemObj* mem, NodeID i, const LocationSet& l) :
+        ObjPN(mem->getRefVal(), i, mem, GepObjNode), ls(l) {
     }
 
     /// offset of the mem object
-    inline const LocationSet& getLocationSet() {
+    inline const LocationSet& getLocationSet() const {
         return ls;
     }
 
+    /// Return the type of this gep object
+	inline const llvm::Type* getType() {
+		return SymbolTableInfo::Symbolnfo()->getOrigSubTypeWithByteOffset(mem->getType(), ls.getByteOffset());
+	}
+
     /// Return name of a LLVM value
-    const std::string getValueName() {
+    inline const std::string getValueName() const {
         if (value && value->hasName())
             return value->getName().str() + "_" + llvm::itostr(ls.getOffset());
         return "offset_" + llvm::itostr(ls.getOffset());
     }
-
-    virtual void printSpecific(llvm::raw_ostream &o) {
-        o << "NodeID: " << this->getId() << "\t, Node Kind: ";
-        o << "GepObjPN\n";
-        const llvm::Value *val = this->getValue();
-
-        o << "Value: " << *val;
-        o << "Offset: " << this->getLocationSet().getOffset() << "\n";
-    }
-
-    friend llvm::raw_ostream& operator<< (llvm::raw_ostream &o, const GepObjPN &gepObjNode) {
-        (const_cast<GepObjPN&>(gepObjNode)).printSpecific(o);
-        return o;
-    }
 };
-
-
 
 /*
  * Field-insensitive Gep Obj node, this is dynamic generated for field sensitive analysis
@@ -481,7 +450,7 @@ public:
     }
 
     /// Return name of a LLVM value
-    const std::string getValueName() {
+    inline const std::string getValueName() const {
         if (value && value->hasName())
             return value->getName().str() + "_field_insensitive";
         return "field_insensitive";
@@ -513,7 +482,7 @@ public:
     }
 
     /// Return name of a LLVM value
-    const std::string getValueName() {
+    const std::string getValueName() const {
         const llvm::Function* fun = llvm::cast<llvm::Function>(value);
         return fun->getName().str() + "_ret";
     }
@@ -545,7 +514,7 @@ public:
     }
 
     /// Return name of a LLVM value
-    const std::string getValueName() {
+    inline const std::string getValueName() const {
         const llvm::Function* fun = llvm::cast<llvm::Function>(value);
         return fun->getName().str() + "_vararg";
     }
@@ -579,7 +548,7 @@ public:
 
 
     /// Return name of this node
-    const std::string getValueName() {
+    inline const std::string getValueName() const {
         return "dummyVal";
     }
 };
@@ -609,7 +578,7 @@ public:
     }
 
     /// Return name of this node
-    const std::string getValueName() {
+    inline const std::string getValueName() const {
         return "dummyObj";
     }
 };

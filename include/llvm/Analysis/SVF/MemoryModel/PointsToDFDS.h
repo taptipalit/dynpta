@@ -30,7 +30,7 @@
 #ifndef POINTSTODSDF_H_
 #define POINTSTODSDF_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/PointsToDS.h"
+#include "MemoryModel/PointsToDS.h"
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Support/FileSystem.h>		// for file open flag
 
@@ -153,7 +153,7 @@ public:
     }
     /// Update points-to of top-level pointers with IN[srcLoc:srcVar]
     virtual inline bool updateTLVPts(LocID srcLoc, const Key& srcVar, const Key& dstVar) {
-        return this->unionPts(dstVar, this->getDFInPtsSet(srcLoc,srcVar));
+        return PTData<Key,Data>::unionPts(dstVar, this->getDFInPtsSet(srcLoc,srcVar));
     }
     /// Update address-taken variables OUT[dstLoc:dstVar] with points-to of top-level pointers
     virtual inline bool updateATVPts(const Key& srcVar, LocID dstLoc, const Key& dstVar) {
@@ -348,7 +348,7 @@ public:
     virtual inline bool updateTLVPts(LocID srcLoc, const Key& srcVar, const Key& dstVar) {
         if(varHasNewDFInPts(srcLoc,srcVar)) {
             removeVarFromDFInUpdatedSet(srcLoc,srcVar);
-            return this->unionPts(dstVar, this->getDFInPtsSet(srcLoc,srcVar));
+            return PTData<Key,Data>::unionPts(dstVar, this->getDFInPtsSet(srcLoc,srcVar));
         }
         return false;
     }

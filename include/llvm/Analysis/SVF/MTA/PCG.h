@@ -8,10 +8,10 @@
 #ifndef PCG_H_
 #define PCG_H_
 
-#include "llvm/Analysis/SVF/Util/ThreadAPI.h"
-#include "llvm/Analysis/SVF/Util/PTACallGraph.h"
-#include "llvm/Analysis/SVF/Util/WorkList.h"
-#include "llvm/Analysis/SVF/WPA/Andersen.h"
+#include "Util/ThreadAPI.h"
+#include "Util/PTACallGraph.h"
+#include "Util/WorkList.h"
+#include "WPA/Andersen.h"
 #include <llvm/Analysis/LoopInfo.h>
 #include <set>
 #include <vector>

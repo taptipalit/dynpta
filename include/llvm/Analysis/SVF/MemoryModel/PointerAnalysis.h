@@ -30,21 +30,16 @@
 #ifndef POINTERANALYSIS_H_
 #define POINTERANALYSIS_H_
 
-#include "llvm/Analysis/SVF/MemoryModel/PAG.h"
-#include "llvm/Analysis/SVF/MemoryModel/ConditionalPT.h"
-#include "llvm/Analysis/SVF/MemoryModel/PointsToDS.h"
-#include "llvm/Analysis/SVF/Util/PTACallGraph.h"
-#include "llvm/Analysis/SVF/Util/SCC.h"
-#include "llvm/Analysis/SVF/Util/PathCondAllocator.h"
-#include "llvm/Analysis/SVF/MemoryModel/PointsToDFDS.h"
+#include "MemoryModel/PAG.h"
+#include "MemoryModel/ConditionalPT.h"
+#include "MemoryModel/PointsToDS.h"
+#include "Util/PTACallGraph.h"
+#include "Util/SCC.h"
+#include "Util/PathCondAllocator.h"
+#include "MemoryModel/PointsToDFDS.h"
 
 #include <llvm/Analysis/AliasAnalysis.h>
 #include <llvm/Analysis/CallGraph.h>	// call graph
-
-/*
-static cl::opt<bool> CFGOnly("cfg-only", cl::init(true),
-       cl::desc("Perform points-to analysis to resolve cfg only"));
-       */
 
 class CHGraph;
 class CHNode;
@@ -63,8 +58,8 @@ public:
     enum PTATY {
         // Whole program analysis
         Andersen_WPA,		///< Andersen PTA
-        AndersenCFG_WPA,
-        AndersenDD_WPA,        ///< Andersen Demand Driven
+    	Steensgard_WPA,         ///< Steensgard 
+        SteensgaardFast_WPA,
         AndersenLCD_WPA,	///< Lazy cycle detection andersen-style WPA
         AndersenWave_WPA,	///< Wave propagation andersen-style WPA
         AndersenWaveDiff_WPA,	///< Diff wave propagation andersen-style WPA
@@ -77,14 +72,15 @@ public:
         FSCSPS_WPA,		///< Flow-, context-, path- sensitive WPA
         ADAPTFSCS_WPA,		///< Adaptive Flow-, context-, sensitive WPA
         ADAPTFSCSPS_WPA,	///< Adaptive Flow-, context-, path- sensitive WPA
+        TypeCPP_WPA, ///<  Type-based analysis for C++
+        Layered_WPA, ///< Layered analysis with unification approach, followed by inclusion approach
 
         // Demand driven analysis
-        Insensitive_DDA, ///<  Flow-, context- insensitive DDA (POPL '08)
-        Regular_DDA,	///< Flow-, context- insensitive DDA (OOPSLA '05)
         FieldS_DDA,		///< Field sensitive DDA
         FlowS_DDA,		///< Flow sensitive DDA
         PathS_DDA,		///< Guarded value-flow DDA
         Cxt_DDA,		///< context sensitive DDA
+
 
         Default_PTA		///< default pta without any analysis
     };
@@ -97,6 +93,8 @@ public:
     typedef	std::set<const llvm::Function*> FunctionSet;
     typedef std::map<llvm::CallSite, FunctionSet> CallEdgeMap;
     typedef SCCDetection<PTACallGraph*> CallGraphSCC;
+    typedef std::set<const llvm::GlobalValue*> VTableSet;
+    typedef std::set<const llvm::Function*> VFunSet;
     //@}
 
     /// Statistic numbers
@@ -120,7 +118,6 @@ protected:
 
     /// PAG
     static PAG* pag;
-    static PAG* cfgPag;
     /// Module
     SVFModule svfMod;
     /// Pointer analysis Type
@@ -137,10 +134,6 @@ protected:
     TypeSystem *typeSystem;
 
 public:
-    /// Return all indirect callsites
-    inline const CallSiteToFunPtrMap& getIndirectCallsites() const {
-        return pag->getIndirectCallsites();
-    }
     /// Return number of resolved indirect call edges
     inline Size_t getNumOfResolvedIndCallEdge() const {
         return getPTACallGraph()->getNumOfResolvedIndCallEdge();
@@ -149,6 +142,11 @@ public:
     inline PTACallGraph* getPTACallGraph() const {
         return ptaCallGraph;
     }
+
+    inline void setPTACallGraph(PTACallGraph* ptaCallGraph) {
+        this->ptaCallGraph = ptaCallGraph;
+    }
+
     /// Return call graph SCC
     inline CallGraphSCC* getCallGraphSCC() const {
         return callGraphSCC;
@@ -181,7 +179,7 @@ public:
         return svfMod;
     }
     /// Get all Valid Pointers for resolution
-    inline NodeBS& getAllValidPtrs() {
+    inline NodeSet& getAllValidPtrs() {
         return pag->getAllValidPtrs();
     }
 
@@ -211,6 +209,10 @@ public:
     /// Interface exposed to users of our pointer analysis, given PAGNodeID
     virtual llvm::AliasResult alias(NodeID node1, NodeID node2) = 0;
 
+    /// Return all indirect callsites
+    inline const CallSiteToFunPtrMap& getIndirectCallsites() const {
+        return pag->getIndirectCallsites();
+    }
 protected:
 
     /// Return function pointer PAGNode at a callsite cs
@@ -362,6 +364,10 @@ public:
 
     /// Get points-to targets of a pointer. It needs to be implemented in child class
     virtual PointsTo& getPts(NodeID ptr) = 0;
+    
+    /// Given an object, get all the nodes having whose pointsto contains the object. 
+    /// Similar to getPts, this also needs to be implemented in child classes.
+    virtual PointsTo& getRevPts(NodeID nodeId) = 0;
 
     /// Clear points-to data
     virtual void clearPts() {
@@ -385,15 +391,13 @@ public:
         return chgraph;
     }
 
-    void getVFnsFromCHA(llvm::CallSite cs,
-                        std::set<const llvm::Function*> &vfns);
-    void getVFnsFromPts(llvm::CallSite cs,
-                        const PointsTo &target,
-                        std::set<const llvm::Function*> &vfns);
-    void connectVCallToVFns(llvm::CallSite cs,
-                            const std::set<const llvm::Function*> &vfns,
-                            CallEdgeMap& newEdges,
-                            llvm::CallGraph* callgraph = NULL);
+    void setCHGraph(CHGraph* chgraph) {
+        this->chgraph = chgraph;
+    }
+
+    void getVFnsFromCHA(llvm::CallSite cs, std::set<const llvm::Function*> &vfns);
+    void getVFnsFromPts(llvm::CallSite cs, const PointsTo &target, VFunSet &vfns);
+    void connectVCallToVFns(llvm::CallSite cs, const VFunSet &vfns, CallEdgeMap& newEdges, llvm::CallGraph* callgraph = NULL);
     virtual void resolveCPPIndCalls(llvm::CallSite cs,
                                     const PointsTo& target,
                                     CallEdgeMap& newEdges,
@@ -402,6 +406,10 @@ public:
     /// get TypeSystem
     const TypeSystem *getTypeSystem() const {
         return typeSystem;
+    }
+
+    void setTypeSystem (TypeSystem* typeSystem) {
+        this->typeSystem = typeSystem;
     }
 };
 
@@ -673,6 +681,7 @@ protected:
         for(typename PTDataTy::PtsMap::const_iterator it = ptsMap.begin(), eit=ptsMap.end(); it!=eit; ++it) {
             for(typename CPtSet::const_iterator cit = it->second.begin(), ecit=it->second.end(); cit!=ecit; ++cit) {
                 ptrToBVPtsMap[(it->first).get_id()].set(cit->get_id());
+                objToBVRevPtsMap[cit->get_id()].set((it->first).get_id());
                 ptrToCPtsMap[(it->first).get_id()].set(*cit);
             }
         }
@@ -683,6 +692,8 @@ protected:
     bool normalized;
     /// Normal points-to representation (without conditions)
     PtrToBVPtsMap ptrToBVPtsMap;
+    /// Normal points-to representation (without conditions)
+    PtrToBVPtsMap objToBVRevPtsMap;
     /// Conditional points-to representation (with conditions)
     PtrToCPtsMap ptrToCPtsMap;
 public:
@@ -706,6 +717,11 @@ public:
     virtual inline const CPtSet& getCondPointsTo(NodeID ptr) {
         assert(normalized && "Pts of all context-vars have to be merged/normalized. Want to use getPts(CVar cvar)??");
         return ptrToCPtsMap[ptr];
+    }
+    /// Given an object return all pointers points to this object
+    virtual inline PointsTo& getRevPts(NodeID obj) {
+        assert(normalized && "Pts of all context-var have to be merged/normalized. Want to use getPts(CVar cvar)??");
+        return objToBVRevPtsMap[obj];
     }
 
     /// Interface expose to users of our pointer analysis, given Location infos
@@ -762,7 +778,7 @@ public:
 
     /// Dump points-to information of top-level pointers
     void dumpTopLevelPtsTo() {
-        for (NodeBS::iterator nIter = this->getAllValidPtrs().begin(); nIter != this->getAllValidPtrs().end(); ++nIter) {
+        for (NodeSet::iterator nIter = this->getAllValidPtrs().begin(); nIter != this->getAllValidPtrs().end(); ++nIter) {
             const PAGNode* node = this->getPAG()->getPAGNode(*nIter);
             if (this->getPAG()->isValidTopLevelPtr(node)) {
                 if (llvm::isa<DummyObjPN>(node)) {
@@ -778,7 +794,7 @@ public:
                 if (pts.empty()) {
                     llvm::outs() << "\t\tPointsTo: {empty}\n\n";
                 } else {
-                    llvm::outs() << "\t\tPointsTo: { ";
+                    llvm::outs() << "\t\tPointsTo: hi { ";
                     for (PointsTo::iterator it = pts.begin(), eit = pts.end(); it != eit; ++it)
                         llvm::outs() << *it << " ";
                     llvm::outs() << "}\n\n";

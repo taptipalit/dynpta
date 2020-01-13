@@ -1,6 +1,6 @@
 /* LINTLIBRARY */
 
-#include "llvm/Analysis/SVF/CUDD/util.h"
+#include "CUDD/util.h"
 
 
 #ifdef BSD

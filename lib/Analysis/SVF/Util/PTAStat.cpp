@@ -28,10 +28,10 @@
  */
 
 #include <iomanip>
-#include "llvm/Analysis/SVF/Util/PTACallGraph.h"
-#include "llvm/Analysis/SVF/Util/PTAStat.h"
-#include "llvm/Analysis/SVF/MemoryModel/PointerAnalysis.h"
-#include "llvm/Analysis/SVF/MemoryModel/PAG.h"
+#include "Util/PTACallGraph.h"
+#include "Util/PTAStat.h"
+#include "MemoryModel/PointerAnalysis.h"
+#include "MemoryModel/PAG.h"
 
 using namespace llvm;
 
@@ -194,6 +194,10 @@ void PTAStat::performStat() {
     generalNumMap["LocalVarInRecur"] = localVarInRecursion.count();
     bitcastInstStat();
     branchStat();
+
+    printStat();
+
+    generalNumMap.clear();
 }
 
 void PTAStat::callgraphStat() {

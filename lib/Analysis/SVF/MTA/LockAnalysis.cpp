@@ -153,7 +153,7 @@ bool LockAnalysis::intraForwardTraverse(const llvm::Instruction* lockSite, InstS
         const Instruction *I = worklist.back();
         worklist.pop_back();
 
-        if(&(getFunExitBB(fun)->front()) == I)
+        if(&(getFunExitBB(fun)->back()) == I)
             return false;
 
         // Skip the visited Instructions.
@@ -443,7 +443,7 @@ void LockAnalysis::pushCxt(CallStrCxt& cxt, const llvm::Instruction* call, const
 //        return;
 
     if (tct->inSameCallGraphSCC(getTCG()->getCallGraphNode(caller), getTCG()->getCallGraphNode(callee)) == false) {
-        cxt.push_back(csId);
+        tct->pushCxt(cxt,csId);
         DBOUT(DMTA, tct->dumpCxt(cxt));
     }
 }

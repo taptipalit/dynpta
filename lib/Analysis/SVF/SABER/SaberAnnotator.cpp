@@ -27,8 +27,8 @@
  *      Author: Yulei Sui
  */
 
-#include "llvm/Analysis/SVF/SABER/SaberAnnotator.h"
-#include "llvm/Analysis/SVF/SABER/ProgSlice.h"
+#include "SABER/SaberAnnotator.h"
+#include "SABER/ProgSlice.h"
 
 using namespace llvm;
 

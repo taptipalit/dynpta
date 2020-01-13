@@ -27,9 +27,9 @@
  *      Author: rockysui
  */
 
-#include "llvm/Analysis/SVF/SABER/SaberSVFGBuilder.h"
-#include "llvm/Analysis/SVF/SABER/SaberCheckerAPI.h"
-#include "llvm/Analysis/SVF/MSSA/SVFG.h"
+#include "SABER/SaberSVFGBuilder.h"
+#include "SABER/SaberCheckerAPI.h"
+#include "MSSA/SVFG.h"
 
 using namespace llvm;
 using namespace analysisUtil;
