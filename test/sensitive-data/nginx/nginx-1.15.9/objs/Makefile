@@ -955,64 +955,64 @@ objs/src/http/modules/ngx_http_ssl_module.o:	$(CORE_DEPS) $(HTTP_DEPS) \
 manpage:	objs/nginx.8
 
 objs/nginx.8:	man/nginx.8 objs/ngx_auto_config.h
-	sed -e "s|%%PREFIX%%|/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install|" \
-		-e "s|%%PID_PATH%%|/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/logs/nginx.pid|" \
-		-e "s|%%CONF_PATH%%|/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/nginx.conf|" \
-		-e "s|%%ERROR_LOG_PATH%%|/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/logs/error.log|" \
+	sed -e "s|%%PREFIX%%|/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install|" \
+		-e "s|%%PID_PATH%%|/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/logs/nginx.pid|" \
+		-e "s|%%CONF_PATH%%|/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/nginx.conf|" \
+		-e "s|%%ERROR_LOG_PATH%%|/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/logs/error.log|" \
 		< man/nginx.8 > $@
 
 install:	build 
-	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install' || mkdir -p '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install'
+	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install' || mkdir -p '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install'
 
-	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/sbin' \
-		|| mkdir -p '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/sbin'
-	test ! -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/sbin/nginx' \
-		|| mv '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/sbin/nginx' \
-			'$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/sbin/nginx.old'
-	cp objs/nginx '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/sbin/nginx'
+	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/sbin' \
+		|| mkdir -p '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/sbin'
+	test ! -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/sbin/nginx' \
+		|| mv '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/sbin/nginx' \
+			'$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/sbin/nginx.old'
+	cp objs/nginx '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/sbin/nginx'
 
-	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf' \
-		|| mkdir -p '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf'
+	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf' \
+		|| mkdir -p '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf'
 
-	cp conf/koi-win '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf'
-	cp conf/koi-utf '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf'
-	cp conf/win-utf '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf'
+	cp conf/koi-win '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf'
+	cp conf/koi-utf '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf'
+	cp conf/win-utf '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf'
 
-	test -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/mime.types' \
-		|| cp conf/mime.types '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf'
-	cp conf/mime.types '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/mime.types.default'
+	test -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/mime.types' \
+		|| cp conf/mime.types '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf'
+	cp conf/mime.types '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/mime.types.default'
 
-	test -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/fastcgi_params' \
-		|| cp conf/fastcgi_params '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf'
+	test -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/fastcgi_params' \
+		|| cp conf/fastcgi_params '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf'
 	cp conf/fastcgi_params \
-		'$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/fastcgi_params.default'
+		'$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/fastcgi_params.default'
 
-	test -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/fastcgi.conf' \
-		|| cp conf/fastcgi.conf '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf'
-	cp conf/fastcgi.conf '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/fastcgi.conf.default'
+	test -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/fastcgi.conf' \
+		|| cp conf/fastcgi.conf '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf'
+	cp conf/fastcgi.conf '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/fastcgi.conf.default'
 
-	test -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/uwsgi_params' \
-		|| cp conf/uwsgi_params '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf'
+	test -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/uwsgi_params' \
+		|| cp conf/uwsgi_params '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf'
 	cp conf/uwsgi_params \
-		'$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/uwsgi_params.default'
+		'$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/uwsgi_params.default'
 
-	test -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/scgi_params' \
-		|| cp conf/scgi_params '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf'
+	test -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/scgi_params' \
+		|| cp conf/scgi_params '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf'
 	cp conf/scgi_params \
-		'$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/scgi_params.default'
+		'$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/scgi_params.default'
 
-	test -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/nginx.conf' \
-		|| cp conf/nginx.conf '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/nginx.conf'
-	cp conf/nginx.conf '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/conf/nginx.conf.default'
+	test -f '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/nginx.conf' \
+		|| cp conf/nginx.conf '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/nginx.conf'
+	cp conf/nginx.conf '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/conf/nginx.conf.default'
 
-	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/logs' \
-		|| mkdir -p '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/logs'
+	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/logs' \
+		|| mkdir -p '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/logs'
 
-	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/logs' \
-		|| mkdir -p '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/logs'
+	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/logs' \
+		|| mkdir -p '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/logs'
 
-	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/html' \
-		|| cp -R html '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install'
+	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/html' \
+		|| cp -R html '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install'
 
-	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/logs' \
-		|| mkdir -p '$(DESTDIR)/mnt/Projects/LLVM-custom/test/Datarand/type-based/openssl_nginx/nginx-1.17.2/install/logs'
+	test -d '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/logs' \
+		|| mkdir -p '$(DESTDIR)/mnt/Projects/LLVM-custom/test/sensitive-data/nginx/nginx-1.15.9/install/logs'

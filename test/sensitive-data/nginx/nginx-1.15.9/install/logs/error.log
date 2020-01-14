@@ -1,2 +1,4 @@
-2019/03/21 13:35:03 [emerg] 30379#0: bind() to 0.0.0.0:80 failed (13: Permission denied)
-2019/03/21 13:39:32 [emerg] 30489#0: bind() to 0.0.0.0:80 failed (13: Permission denied)
+2020/01/14 16:11:54 [emerg] 8116#0: bind() to 0.0.0.0:80 failed (13: Permission denied)
+2020/01/14 16:12:43 [notice] 8138#0: signal process started
+2020/01/14 16:12:43 [alert] 8138#0: kill(8119, 3) failed (1: Operation not permitted)
+2020/01/14 16:12:46 [notice] 8140#0: signal process started
