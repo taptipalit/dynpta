@@ -59,21 +59,21 @@ OPENSSLDIR=/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build--op
 # equal 4.
 # PKCS1_CHECK - pkcs1 tests.
 
-CC= /mnt/Projects/LLVM-custom/build/bin/clang
+CC= /mnt/Projects/LLVM-custom/build-partition/bin/clang
 CFLAG= -DDSO_DLFCN -DHAVE_DLFCN_H -m64 -DL_ENDIAN -O0 -flto -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-language-extension-token  -Wno-extended-offsetof -Qunused-arguments -Wl,-O0,-flto
 DEPFLAG= -DOPENSSL_NO_BF -DOPENSSL_NO_CAST -DOPENSSL_NO_DES -DOPENSSL_NO_DSA -DOPENSSL_NO_EC_NISTP_64_GCC_128 -DOPENSSL_NO_GMP -DOPENSSL_NO_GOST -DOPENSSL_NO_JPAKE -DOPENSSL_NO_LIBUNBOUND -DOPENSSL_NO_MD2 -DOPENSSL_NO_MDC2 -DOPENSSL_NO_RC2 -DOPENSSL_NO_RC4 -DOPENSSL_NO_RC5 -DOPENSSL_NO_RFC3779 -DOPENSSL_NO_SCTP -DOPENSSL_NO_SSL_TRACE -DOPENSSL_NO_SSL2 -DOPENSSL_NO_STORE -DOPENSSL_NO_UNIT_TEST -DOPENSSL_NO_WEAK_SSL_CIPHERS
 PEX_LIBS= 
 EX_LIBS= -ldl
 EXE_EXT= 
 ARFLAGS= 
-AR= /mnt/Projects/LLVM-custom/build/bin/llvm-ar $(ARFLAGS) r
-RANLIB= /mnt/Projects/LLVM-custom/build/bin/llvm-ranlib
+AR= /mnt/Projects/LLVM-custom/build-partition/bin/llvm-ar $(ARFLAGS) r
+RANLIB= /mnt/Projects/LLVM-custom/build-partition/bin/llvm-ranlib
 RC= windres
 NM= nm
 PERL= /usr/bin/perl
 TAR= tar
 TARFLAGS= --no-recursion
-MAKEDEPPROG= /mnt/Projects/LLVM-custom/build/bin/clang
+MAKEDEPPROG= /mnt/Projects/LLVM-custom/build-partition/bin/clang
 LIBDIR=lib
 
 # We let the C compiler driver to take care of .s files. This is done in

@@ -2,7 +2,7 @@
 
 ./configure                         \
   --prefix=/mnt/Projects/LLVM-custom/test/Datarand/nginx/nginx-1.15.9/install   \
-  --with-cc=/mnt/Projects/LLVM-custom/install/bin/clang \
+  --with-cc=/mnt/Projects/LLVM-custom/build/bin/clang \
   --with-cc-opt='-O0 -flto'         \
   --with-ld-opt="-O0 -flto -L/mnt/Projects/LLVM-custom/test/Datarand/dontuse -lhelper" \
   --without-http_charset_module      \

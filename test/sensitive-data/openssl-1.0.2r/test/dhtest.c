@@ -1,1 +1,1 @@
-dummytest.c
+../crypto/dh/dhtest.c

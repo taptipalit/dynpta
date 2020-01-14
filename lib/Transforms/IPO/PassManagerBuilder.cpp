@@ -963,7 +963,7 @@ void PassManagerBuilder::populateLTOPassManager(legacy::PassManagerBase &PM) {
       Inliner = nullptr;
   }
 
-  PM.add(createEncryptionPass());
+  //PM.add(createEncryptionPass());
 
   if (VerifyOutput)
     PM.add(createVerifierPass());

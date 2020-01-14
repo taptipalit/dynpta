@@ -379,7 +379,7 @@ int CRYPTO_is_mem_check_on(void);
 # define is_MemCheck_on() CRYPTO_is_mem_check_on()
 
 # define OPENSSL_malloc(num)    malloc(num) 
-# define OPENSSL_strdup(str)    strdump(str)
+# define OPENSSL_strdup(str)    strdup(str)
 # define OPENSSL_realloc(addr,num) realloc(addr, num)
 # define OPENSSL_realloc_clean(addr,old_num,num) \
         CRYPTO_realloc_clean(addr,old_num,num,__FILE__,__LINE__)

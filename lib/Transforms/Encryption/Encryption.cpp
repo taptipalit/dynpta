@@ -918,6 +918,9 @@ void EncryptionPass::removeAnnotateInstruction(Module& M) {
 }
 
 void EncryptionPass::collectSecureMallocs(Module& M) {
+    /*
+    PAG* pag = getAnalysis<WPAPass>().getPAG();
+
     for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
         if (auto *F = dyn_cast<Function>(MIterator)) {
             for (inst_iterator I = inst_begin(*F), E = inst_end(*F); I != E; ++I) {
@@ -925,13 +928,14 @@ void EncryptionPass::collectSecureMallocs(Module& M) {
                     if (Function* calledFunc = callInst->getCalledFunction()) {
                         if (calledFunc->getName() == "secure_malloc") {
                             NodeID objID = pag->getObjectNode(callInst);
-                            SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(UseValue)));
+                            SensitiveObjList.push_back(pag->getPAGNode(objID);
                         }
                     }
                 }
             }
         }
     }
+    */
 }
 
 void EncryptionPass::collectGlobalSensitiveAnnotations(Module& M) {

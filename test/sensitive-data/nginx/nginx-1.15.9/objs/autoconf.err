@@ -5,7 +5,7 @@ checking for C compiler
 
 
 ----------------------------------------
-checking for --with-ld-opt="-O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps"
+checking for --with-ld-opt="-O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r"
 
 
 ----------------------------------------
@@ -57,7 +57,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -o objs/autotest objs/autotest.c
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -o objs/autotest objs/autotest.c
 ----------
 
 ----------------------------------------
@@ -107,7 +107,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -175,7 +175,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -197,7 +197,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -217,7 +217,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -243,7 +243,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -273,7 +273,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -299,7 +299,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -328,7 +328,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -363,7 +363,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -389,7 +389,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -411,7 +411,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -438,7 +438,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -465,7 +465,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -488,7 +488,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -616,7 +616,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -684,7 +684,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------
@@ -738,7 +738,7 @@ int main(void) {
 }
 
 ----------
-/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone -Wl,-plugin-opt=save-temps
+/mnt/Projects/LLVM-custom/build-partition/bin/clang -pipe -O0 -flto -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -o objs/autotest objs/autotest.c -O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r
 ----------
 
 ----------------------------------------

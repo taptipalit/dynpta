@@ -1,7 +1,7 @@
 
-CC =	/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang
+CC =	/mnt/Projects/LLVM-custom/build-partition/bin/clang
 CFLAGS =  -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto
-CPP =	/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -E
+CPP =	/mnt/Projects/LLVM-custom/build-partition/bin/clang -E
 LINK =	$(CC)
 
 
@@ -9,6 +9,7 @@ ALL_INCS = -I src/core \
 	-I src/event \
 	-I src/event/modules \
 	-I src/os/unix \
+	-I /mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r/include \
 	-I objs \
 	-I src/http \
 	-I src/http/modules
@@ -81,6 +82,7 @@ CORE_INCS = -I src/core \
 	-I src/event \
 	-I src/event/modules \
 	-I src/os/unix \
+	-I /mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r/include \
 	-I objs
 
 
@@ -292,10 +294,7 @@ objs/nginx:	objs/src/core/nginx.o \
 	objs/src/http/modules/ngx_http_try_files_module.o \
 	objs/src/http/modules/ngx_http_ssl_module.o \
 	objs/ngx_modules.o \
-	/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone/libssl.a \
-	/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build_optnone/libcrypto.a \
-	-O0 -flto -static \
-   	-Wl,-plugin-opt=save-temps -ldl -lpthread -ldl -lpthread \
+	-O0 -flto -static -L/mnt/Projects/LLVM-custom/test/sensitive-data/openssl-1.0.2r -ldl -lpthread -lssl -lcrypto -ldl -lpthread \
 	-Wl,-E
 	
 

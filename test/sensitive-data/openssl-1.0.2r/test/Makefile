@@ -680,11 +680,13 @@ destest.o: ../include/openssl/e_os2.h ../include/openssl/opensslconf.h
 destest.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
 destest.o: ../include/openssl/safestack.h ../include/openssl/stack.h
 destest.o: ../include/openssl/symhacks.h destest.c
-dhtest.o: ../include/openssl/buffer.h ../include/openssl/crypto.h
-dhtest.o: ../include/openssl/e_os2.h ../include/openssl/opensslconf.h
+dhtest.o: ../e_os.h ../include/openssl/bio.h ../include/openssl/bn.h
+dhtest.o: ../include/openssl/crypto.h ../include/openssl/dh.h
+dhtest.o: ../include/openssl/e_os2.h ../include/openssl/err.h
+dhtest.o: ../include/openssl/lhash.h ../include/openssl/opensslconf.h
 dhtest.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
-dhtest.o: ../include/openssl/safestack.h ../include/openssl/stack.h
-dhtest.o: ../include/openssl/symhacks.h dhtest.c
+dhtest.o: ../include/openssl/rand.h ../include/openssl/safestack.h
+dhtest.o: ../include/openssl/stack.h ../include/openssl/symhacks.h dhtest.c
 dsatest.o: ../include/openssl/buffer.h ../include/openssl/crypto.h
 dsatest.o: ../include/openssl/e_os2.h ../include/openssl/opensslconf.h
 dsatest.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
@@ -881,8 +883,11 @@ rc2test.o: ../include/openssl/e_os2.h ../include/openssl/opensslconf.h
 rc2test.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
 rc2test.o: ../include/openssl/safestack.h ../include/openssl/stack.h
 rc2test.o: ../include/openssl/symhacks.h rc2test.c
-rc4test.o: ../e_os.h ../include/openssl/e_os2.h
-rc4test.o: ../include/openssl/opensslconf.h rc4test.c
+rc4test.o: ../include/openssl/buffer.h ../include/openssl/crypto.h
+rc4test.o: ../include/openssl/e_os2.h ../include/openssl/opensslconf.h
+rc4test.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
+rc4test.o: ../include/openssl/safestack.h ../include/openssl/stack.h
+rc4test.o: ../include/openssl/symhacks.h rc4test.c
 rc5test.o: ../include/openssl/buffer.h ../include/openssl/crypto.h
 rc5test.o: ../include/openssl/e_os2.h ../include/openssl/opensslconf.h
 rc5test.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
