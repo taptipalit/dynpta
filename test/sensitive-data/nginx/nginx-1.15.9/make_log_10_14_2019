@@ -1,0 +1,926 @@
+Starting
+Mon Oct 14 12:07:56 EDT 2019
+make -f objs/Makefile
+make[1]: Entering directory '/mnt/Projects/LLVM-custom/test/Datarand/nginx/nginx-1.15.9'
+/mnt/Projects/LLVM-custom/install/bin/clang -o objs/nginx \
+objs/src/core/nginx.o \
+objs/src/core/ngx_log.o \
+objs/src/core/ngx_palloc.o \
+objs/src/core/ngx_array.o \
+objs/src/core/ngx_list.o \
+objs/src/core/ngx_hash.o \
+objs/src/core/ngx_buf.o \
+objs/src/core/ngx_queue.o \
+objs/src/core/ngx_output_chain.o \
+objs/src/core/ngx_string.o \
+objs/src/core/ngx_parse.o \
+objs/src/core/ngx_parse_time.o \
+objs/src/core/ngx_inet.o \
+objs/src/core/ngx_file.o \
+objs/src/core/ngx_crc32.o \
+objs/src/core/ngx_murmurhash.o \
+objs/src/core/ngx_md5.o \
+objs/src/core/ngx_sha1.o \
+objs/src/core/ngx_rbtree.o \
+objs/src/core/ngx_radix_tree.o \
+objs/src/core/ngx_slab.o \
+objs/src/core/ngx_times.o \
+objs/src/core/ngx_shmtx.o \
+objs/src/core/ngx_connection.o \
+objs/src/core/ngx_cycle.o \
+objs/src/core/ngx_spinlock.o \
+objs/src/core/ngx_rwlock.o \
+objs/src/core/ngx_cpuinfo.o \
+objs/src/core/ngx_conf_file.o \
+objs/src/core/ngx_module.o \
+objs/src/core/ngx_resolver.o \
+objs/src/core/ngx_open_file_cache.o \
+objs/src/core/ngx_crypt.o \
+objs/src/core/ngx_proxy_protocol.o \
+objs/src/core/ngx_syslog.o \
+objs/src/event/ngx_event.o \
+objs/src/event/ngx_event_timer.o \
+objs/src/event/ngx_event_posted.o \
+objs/src/event/ngx_event_accept.o \
+objs/src/event/ngx_event_udp.o \
+objs/src/event/ngx_event_connect.o \
+objs/src/event/ngx_event_pipe.o \
+objs/src/os/unix/ngx_time.o \
+objs/src/os/unix/ngx_errno.o \
+objs/src/os/unix/ngx_alloc.o \
+objs/src/os/unix/ngx_files.o \
+objs/src/os/unix/ngx_socket.o \
+objs/src/os/unix/ngx_recv.o \
+objs/src/os/unix/ngx_readv_chain.o \
+objs/src/os/unix/ngx_udp_recv.o \
+objs/src/os/unix/ngx_send.o \
+objs/src/os/unix/ngx_writev_chain.o \
+objs/src/os/unix/ngx_udp_send.o \
+objs/src/os/unix/ngx_udp_sendmsg_chain.o \
+objs/src/os/unix/ngx_channel.o \
+objs/src/os/unix/ngx_shmem.o \
+objs/src/os/unix/ngx_process.o \
+objs/src/os/unix/ngx_daemon.o \
+objs/src/os/unix/ngx_setaffinity.o \
+objs/src/os/unix/ngx_setproctitle.o \
+objs/src/os/unix/ngx_posix_init.o \
+objs/src/os/unix/ngx_user.o \
+objs/src/os/unix/ngx_dlopen.o \
+objs/src/os/unix/ngx_process_cycle.o \
+objs/src/os/unix/ngx_linux_init.o \
+objs/src/event/modules/ngx_epoll_module.o \
+objs/src/os/unix/ngx_linux_sendfile_chain.o \
+objs/src/event/ngx_event_openssl.o \
+objs/src/event/ngx_event_openssl_stapling.o \
+objs/src/http/ngx_http.o \
+objs/src/http/ngx_http_core_module.o \
+objs/src/http/ngx_http_special_response.o \
+objs/src/http/ngx_http_request.o \
+objs/src/http/ngx_http_parse.o \
+objs/src/http/modules/ngx_http_log_module.o \
+objs/src/http/ngx_http_request_body.o \
+objs/src/http/ngx_http_variables.o \
+objs/src/http/ngx_http_script.o \
+objs/src/http/ngx_http_upstream.o \
+objs/src/http/ngx_http_upstream_round_robin.o \
+objs/src/http/ngx_http_file_cache.o \
+objs/src/http/ngx_http_write_filter_module.o \
+objs/src/http/ngx_http_header_filter_module.o \
+objs/src/http/modules/ngx_http_chunked_filter_module.o \
+objs/src/http/modules/ngx_http_range_filter_module.o \
+objs/src/http/modules/ngx_http_headers_filter_module.o \
+objs/src/http/ngx_http_copy_filter_module.o \
+objs/src/http/modules/ngx_http_not_modified_filter_module.o \
+objs/src/http/modules/ngx_http_static_module.o \
+objs/src/http/modules/ngx_http_index_module.o \
+objs/src/http/modules/ngx_http_try_files_module.o \
+objs/src/http/modules/ngx_http_ssl_module.o \
+objs/ngx_modules.o \
+-O0 -flto -Wl,-plugin-opt=save-temps -L/mnt/Projects/LLVM-custom/test/Datarand/openssl-1.0.2.r -lhelper -ldl -lpthread -lssl -lcrypto -ldl -lpthread \
+-Wl,-E
+Num elements: 25 for struct.ngx_module_s is literal?0
+Num elements: 6 for struct.ngx_command_s is literal?0
+Num elements: 2 for struct.ngx_str_t is literal?0
+Num elements: 12 for struct.ngx_conf_s is literal?0
+Num elements: 5 for struct.ngx_array_t is literal?0
+Num elements: 32 for struct.ngx_cycle_s is literal?0
+Num elements: 10 for struct.ngx_log_s is literal?0
+Num elements: 4 for struct.ngx_open_file_s is literal?0
+Num elements: 2 for struct.ngx_queue_s is literal?0
+Num elements: 3 for struct.ngx_rbtree_s is literal?0
+Num elements: 6 for struct.ngx_rbtree_node_s is literal?0
+Num elements: 5 for struct.ngx_list_t is literal?0
+Num elements: 3 for struct.ngx_list_part_s is literal?0
+Num elements: 27 for struct.ngx_connection_s is literal?0
+Num elements: 2 for struct.ngx_chain_s is literal?0
+Num elements: 26 for struct.ngx_listening_s is literal?0
+Num elements: 13 for struct.ngx_ssl_connection_s is literal?0
+Num elements: 96 for struct.ssl_st is literal?0
+Num elements: 29 for struct.ssl_method_st is literal?0
+Num elements: 12 for struct.ssl_cipher_st is literal?0
+Num elements: 0 for struct.ssl3_enc_method is literal?0
+Num elements: 15 for struct.bio_st is literal?0
+Num elements: 10 for struct.bio_method_st is literal?0
+Num elements: 3 for struct.buf_mem_st is literal?0
+Num elements: 34 for struct.ssl2_state_st is literal?0
+Num elements: 11 for struct.anon.3 is literal?0
+Num elements: 51 for struct.ssl3_state_st is literal?0
+Num elements: 4 for struct.ssl3_buffer_st is literal?0
+Num elements: 8 for struct.ssl3_record_st is literal?0
+Num elements: 25 for struct.anon.4 is literal?0
+Num elements: 18 for struct.dh_st is literal?0
+Num elements: 6 for struct.bn_mont_ctx_st is literal?0
+Num elements: 5 for struct.bignum_st is literal?0
+Num elements: 9 for struct.dh_method is literal?0
+Num elements: 0 for struct.bignum_ctx is literal?0
+Num elements: 3 for struct.bn_gencb_st is literal?0
+Num elements: 1 for union.anon.1 is literal?0
+Num elements: 0 for struct.engine_st is literal?0
+Num elements: 0 for struct.ec_key_st is literal?0
+Num elements: 13 for struct.evp_cipher_st is literal?0
+Num elements: 2 for struct.asn1_type_st is literal?0
+Num elements: 1 for union.anon is literal?0
+Num elements: 15 for struct.env_md_st is literal?0
+Num elements: 3 for struct.ssl_comp_st is literal?0
+Num elements: 8 for struct.comp_method_st is literal?0
+Num elements: 31 for struct.dtls1_state_st is literal?0
+Num elements: 2 for struct.dtls1_bitmap_st is literal?0
+Num elements: 0 for struct._pqueue is literal?0
+Num elements: 2 for struct.record_pqueue_st is literal?0
+Num elements: 7 for struct.hm_header_st is literal?0
+Num elements: 5 for struct.dtls1_retransmit_state is literal?0
+Num elements: 3 for struct.dtls1_timeout_st is literal?0
+Num elements: 2 for struct.timespec is literal?0
+Num elements: 9 for struct.X509_VERIFY_PARAM_st is literal?0
+Num elements: 0 for struct.X509_VERIFY_PARAM_ID_st is literal?0
+Num elements: 15 for struct.evp_cipher_ctx_st is literal?0
+Num elements: 6 for struct.env_md_ctx_st is literal?0
+Num elements: 0 for struct.evp_pkey_ctx_st is literal?0
+Num elements: 6 for struct.comp_ctx_st is literal?0
+Num elements: 0 for struct.cert_st is literal?0
+Num elements: 33 for struct.x509_store_ctx_st is literal?0
+Num elements: 17 for struct.x509_store_st is literal?0
+Num elements: 5 for struct.X509_name_st is literal?0
+Num elements: 0 for struct.X509_POLICY_TREE_st is literal?0
+Num elements: 21 for struct.x509_st is literal?0
+Num elements: 11 for struct.x509_cinf_st is literal?0
+Num elements: 2 for struct.X509_val_st is literal?0
+Num elements: 3 for struct.X509_pubkey_st is literal?0
+Num elements: 8 for struct.evp_pkey_st is literal?0
+Num elements: 0 for struct.evp_pkey_asn1_method_st is literal?0
+Num elements: 3 for struct.ASN1_ENCODING_st is literal?0
+Num elements: 2 for struct.X509_algor_st is literal?0
+Num elements: 6 for struct.asn1_object_st is literal?0
+Num elements: 4 for struct.asn1_string_st is literal?0
+Num elements: 3 for struct.AUTHORITY_KEYID_st is literal?0
+Num elements: 0 for struct.X509_POLICY_CACHE_st is literal?0
+Num elements: 2 for struct.NAME_CONSTRAINTS_st is literal?0
+Num elements: 5 for struct.x509_cert_aux_st is literal?0
+Num elements: 15 for struct.X509_crl_st is literal?0
+Num elements: 8 for struct.X509_crl_info_st is literal?0
+Num elements: 6 for struct.ISSUING_DIST_POINT_st is literal?0
+Num elements: 3 for struct.DIST_POINT_NAME_st is literal?0
+Num elements: 1 for union.anon.2 is literal?0
+Num elements: 0 for struct.stack_st_GENERAL_NAMES is literal?0
+Num elements: 0 for struct.x509_crl_method_st is literal?0
+Num elements: 2 for struct.crypto_ex_data_st is literal?0
+Num elements: 2 for struct.tls_session_ticket_ext_st is literal?0
+Num elements: 1 for struct.stack_st_SSL_CIPHER is literal?0
+Num elements: 5 for struct.stack_st is literal?0
+Num elements: 2 for struct.srtp_protection_profile_st is literal?0
+Num elements: 16 for struct.srp_ctx_st is literal?0
+Num elements: 76 for struct.ssl_ctx_st is literal?0
+Num elements: 1 for struct.lhash_st_SSL_SESSION is literal?0
+Num elements: 11 for struct.anon is literal?0
+Num elements: 6 for struct.hmac_ctx_st is literal?0
+Num elements: 0 for struct.ssl3_buf_freelist_st is literal?0
+Num elements: 34 for struct.ssl_session_st is literal?0
+Num elements: 0 for struct.sess_cert_st is literal?0
+Num elements: 3 for struct.ngx_udp_connection_s is literal?0
+Num elements: 27 for struct.ngx_connection_s.2113 is literal?0
+Num elements: 7 for struct.ngx_event_s.2028 is literal?0
+Num elements: 26 for struct.ngx_listening_s.2031 is literal?0
+Num elements: 13 for struct.ngx_ssl_connection_s.2111 is literal?0
+Num elements: 2 for struct.sockaddr is literal?0
+Num elements: 11 for struct.ngx_buf_s is literal?0
+Num elements: 7 for struct.ngx_file_s is literal?0
+Num elements: 15 for struct.stat is literal?0
+Num elements: 7 for struct.ngx_event_s is literal?0
+Num elements: 7 for struct.ngx_pool_s is literal?0
+Num elements: 4 for struct.ngx_pool_data_t is literal?0
+Num elements: 2 for struct.ngx_pool_large_s is literal?0
+Num elements: 3 for struct.ngx_pool_cleanup_s is literal?0
+Num elements: 4 for struct.ngx_conf_file_t is literal?0
+Num elements: 3 for struct.ngx_core_module_t is literal?0
+Num elements: 2 for struct.ngx_conf_enum_t is literal?0
+Num elements: 1 for struct.cpu_set_t is literal?0
+Num elements: 3 for struct.ngx_time_t is literal?0
+Num elements: 8 for struct.ngx_os_io_t is literal?0
+Num elements: 27 for struct.ngx_connection_s.965 is literal?0
+Num elements: 26 for struct.ngx_listening_s.881 is literal?0
+Num elements: 13 for struct.ngx_ssl_connection_s.963 is literal?0
+Num elements: 10 for struct.ngx_event_actions_t.1554 is literal?0
+Num elements: 5 for struct.ngx_shmtx_t is literal?0
+Num elements: 2 for union.sem_t is literal?0
+Num elements: 4 for struct.ngx_event_module_t is literal?0
+Num elements: 7 for struct.ngx_process_t is literal?0
+Num elements: 4 for struct.ngx_signal_t is literal?0
+Num elements: 4 for struct.siginfo_t is literal?0
+Num elements: 2 for union.anon.3329 is literal?0
+Num elements: 5 for struct.anon.2 is literal?0
+Num elements: 8 for struct.ngx_os_io_t.3558 is literal?0
+Num elements: 27 for struct.ngx_connection_s.2590 is literal?0
+Num elements: 26 for struct.ngx_listening_s.2502 is literal?0
+Num elements: 13 for struct.ngx_ssl_connection_s.2588 is literal?0
+Num elements: 32 for struct.ngx_cycle_s.3665 is literal?0
+Num elements: 25 for struct.ngx_module_s.3669 is literal?0
+Num elements: 6 for struct.ngx_command_s.3668 is literal?0
+Num elements: 12 for struct.ngx_conf_s.3667 is literal?0
+Num elements: 3 for struct.ngx_cache_manager_ctx_t is literal?0
+Num elements: 2 for struct.epoll_event is literal?0
+Num elements: 21 for struct.rsa_st is literal?0
+Num elements: 14 for struct.rsa_meth_st is literal?0
+Num elements: 0 for struct.bn_blinding_st is literal?0
+Num elements: 71 for struct.ngx_http_request_s is literal?0
+Num elements: 31 for struct.ngx_http_cache_s is literal?0
+Num elements: 17 for struct.ngx_http_file_cache_s is literal?0
+Num elements: 8 for struct.ngx_http_file_cache_sh_t is literal?0
+Num elements: 16 for struct.ngx_slab_pool_t is literal?0
+Num elements: 3 for struct.ngx_slab_page_s is literal?0
+Num elements: 4 for struct.ngx_slab_stat_t is literal?0
+Num elements: 9 for struct.ngx_path_t is literal?0
+Num elements: 6 for struct.ngx_shm_zone_s is literal?0
+Num elements: 5 for struct.ngx_shm_t is literal?0
+Num elements: 11 for struct.ngx_http_file_cache_node_t is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s is literal?0
+Num elements: 17 for struct.ngx_peer_connection_s is literal?0
+Num elements: 3 for struct.ngx_addr_t is literal?0
+Num elements: 34 for struct.ngx_event_pipe_s is literal?0
+Num elements: 7 for struct.ngx_temp_file_t is literal?0
+Num elements: 12 for struct.ngx_output_chain_ctx_s is literal?0
+Num elements: 5 for struct.ngx_chain_writer_ctx_t is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t is literal?0
+Num elements: 2 for struct.ngx_hash_t is literal?0
+Num elements: 3 for struct.ngx_hash_elt_t is literal?0
+Num elements: 3 for struct.ngx_http_upstream_local_t is literal?0
+Num elements: 3 for struct.ngx_ssl_s is literal?0
+Num elements: 4 for struct.ngx_http_complex_value_t is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t is literal?0
+Num elements: 26 for struct.ngx_http_upstream_headers_in_t is literal?0
+Num elements: 4 for struct.ngx_table_elt_t is literal?0
+Num elements: 9 for struct.ngx_http_upstream_resolved_t is literal?0
+Num elements: 5 for struct.ngx_resolver_addr_t is literal?0
+Num elements: 21 for struct.ngx_resolver_ctx_s is literal?0
+Num elements: 28 for struct.ngx_resolver_s is literal?0
+Num elements: 21 for struct.ngx_resolver_node_t is literal?0
+Num elements: 1 for struct.in6_addr is literal?0
+Num elements: 1 for union.anon.389 is literal?0
+Num elements: 1 for union.anon.6 is literal?0
+Num elements: 2 for union.anon.7 is literal?0
+Num elements: 4 for struct.sockaddr_in is literal?0
+Num elements: 8 for struct.ngx_resolver_srv_name_t is literal?0
+Num elements: 9 for struct.ngx_http_upstream_state_t is literal?0
+Num elements: 27 for struct.ngx_http_headers_in_t is literal?0
+Num elements: 28 for struct.ngx_http_headers_out_t is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s is literal?0
+Num elements: 2 for struct.ngx_variable_value_t is literal?0
+Num elements: 7 for struct.ngx_http_connection_t is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s is literal?0
+Num elements: 6 for struct.ngx_open_file_cache_t is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t is literal?0
+Num elements: 3 for struct.ngx_hash_combined_t is literal?0
+Num elements: 2 for struct.ngx_hash_wildcard_t is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t is literal?0
+Num elements: 3 for struct.ngx_http_conf_ctx_t is literal?0
+Num elements: 0 for struct.ngx_http_v2_stream_s is literal?0
+Num elements: 3 for struct.ngx_http_cleanup_s is literal?0
+Num elements: 25 for struct.ngx_module_s.1431 is literal?0
+Num elements: 6 for struct.ngx_command_s.1430 is literal?0
+Num elements: 12 for struct.ngx_conf_s.1429 is literal?0
+Num elements: 32 for struct.ngx_cycle_s.1434 is literal?0
+Num elements: 8 for struct.ngx_http_module_t.4503 is literal?0
+Num elements: 1 for struct.ngx_conf_post_t.4571 is literal?0
+Num elements: 2 for struct.ngx_http_method_name_t is literal?0
+Num elements: 3 for struct.ngx_hash_key_t is literal?0
+Num elements: 2 for struct.ngx_path_init_t is literal?0
+Num elements: 3 for struct.ngx_http_header_t.4928 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.4927 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.4906 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.4891 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.4885 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.4884 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.4909 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.4910 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.4911 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.4912 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.4924 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.4923 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.4918 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.4917 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.4915 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.4922 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.4921 is literal?0
+Num elements: 3 for struct.ngx_http_log_var_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.5283 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.5262 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.5247 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.5241 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.5240 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.5265 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.5266 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.5267 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.5268 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.5280 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.5279 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.5274 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.5273 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.5271 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.5278 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.5277 is literal?0
+Num elements: 4 for struct.ngx_http_log_op_s is literal?0
+Num elements: 6 for struct.ngx_http_variable_s is literal?0
+Num elements: 71 for struct.ngx_http_request_s.4754 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.4733 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.4718 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.4712 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.4711 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.4736 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.4737 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.4738 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.4739 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.4751 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.4750 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.4745 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.4744 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.4742 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.4749 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.4748 is literal?0
+Num elements: 6 for struct.ngx_http_upstream_header_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.6001 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.5980 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.5965 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.5959 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.5958 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.5983 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.5984 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.5985 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.5986 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.5998 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.5997 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.5992 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.5991 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.5989 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.5996 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.5995 is literal?0
+Num elements: 6 for struct.ngx_http_variable_s.6002 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.6889 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.6868 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.6853 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.6847 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.6846 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.6871 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.6872 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.6873 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.6874 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.6886 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.6885 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.6880 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.6879 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.6877 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.6884 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.6883 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.7062 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.7041 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.7026 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.7020 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.7019 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.7044 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.7045 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.7046 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.7047 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.7059 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.7058 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.7053 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.7052 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.7050 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.7057 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.7056 is literal?0
+Num elements: 3 for struct.ngx_http_set_header_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.7235 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.7214 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.7199 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.7193 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.7192 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.7217 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.7218 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.7219 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.7220 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.7232 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.7231 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.7226 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.7225 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.7223 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.7230 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.7229 is literal?0
+Num elements: 5 for struct.ngx_http_header_val_s is literal?0
+Num elements: 71 for struct.ngx_http_request_s.7410 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.7389 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.7374 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.7368 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.7367 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.7392 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.7393 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.7394 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.7395 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.7407 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.7406 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.7401 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.7400 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.7398 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.7405 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.7404 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.7583 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.7562 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.7547 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.7541 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.7540 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.7565 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.7566 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.7567 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.7568 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.7580 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.7579 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.7574 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.7573 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.7571 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.7578 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.7577 is literal?0
+Num elements: 3 for struct.ngx_conf_deprecated_t.8299 is literal?0
+Num elements: 4 for struct.sigaction is literal?0
+Num elements: 1 for union.anon.5 is literal?0
+Num elements: 2 for struct.ngx_conf_dump_t is literal?0
+Num elements: 22 for struct.ngx_core_conf_t is literal?0
+Num elements: 7 for struct.passwd is literal?0
+Num elements: 4 for struct.group is literal?0
+Num elements: 4 for struct.ngx_exec_ctx_t is literal?0
+Num elements: 4 for struct.__va_list_tag is literal?0
+Num elements: 6 for struct.ngx_syslog_peer_t is literal?0
+Num elements: 3 for struct.ngx_pool_cleanup_file_t is literal?0
+Num elements: 7 for struct.ngx_hash_init_t is literal?0
+Num elements: 9 for struct.ngx_hash_keys_arrays_t is literal?0
+Num elements: 2 for struct.ngx_str_node_t is literal?0
+Num elements: 5 for struct.sockaddr_in6 is literal?0
+Num elements: 2 for struct.sockaddr_un is literal?0
+Num elements: 2 for struct.ngx_cidr_t is literal?0
+Num elements: 1 for union.anon.0 is literal?0
+Num elements: 2 for struct.ngx_in6_cidr_t is literal?0
+Num elements: 2 for struct.ngx_in_cidr_t is literal?0
+Num elements: 13 for struct.ngx_url_t is literal?0
+Num elements: 2 for union.ngx_sockaddr_t is literal?0
+Num elements: 8 for struct.addrinfo is literal?0
+Num elements: 12 for struct.ngx_conf_s.512 is literal?0
+Num elements: 32 for struct.ngx_cycle_s.510 is literal?0
+Num elements: 25 for struct.ngx_module_s.507 is literal?0
+Num elements: 6 for struct.ngx_command_s.506 is literal?0
+Num elements: 6 for struct.ngx_ext_rename_file_t is literal?0
+Num elements: 5 for struct.ngx_copy_file_t is literal?0
+Num elements: 12 for struct.ngx_tree_ctx_s is literal?0
+Num elements: 4 for struct.ngx_dir_t is literal?0
+Num elements: 0 for struct.__dirstream is literal?0
+Num elements: 5 for struct.dirent is literal?0
+Num elements: 6 for struct.ngx_md5_t is literal?0
+Num elements: 8 for struct.ngx_sha1_t is literal?0
+Num elements: 5 for struct.ngx_radix_tree_t is literal?0
+Num elements: 4 for struct.ngx_radix_node_s is literal?0
+Num elements: 11 for struct.tm is literal?0
+Num elements: 12 for struct.ngx_conf_s.970 is literal?0
+Num elements: 32 for struct.ngx_cycle_s.968 is literal?0
+Num elements: 25 for struct.ngx_module_s.972 is literal?0
+Num elements: 6 for struct.ngx_command_s.971 is literal?0
+Num elements: 1 for union.__SOCKADDR_ARG is literal?0
+Num elements: 10 for struct.ngx_event_actions_t is literal?0
+Num elements: 5 for struct.ngx_glob_t is literal?0
+Num elements: 9 for struct.glob_t is literal?0
+Num elements: 1 for struct.ngx_conf_post_t is literal?0
+Num elements: 2 for struct.ngx_keyval_t is literal?0
+Num elements: 3 for struct.ngx_conf_deprecated_t is literal?0
+Num elements: 3 for struct.ngx_conf_num_bounds_t is literal?0
+Num elements: 9 for struct.ngx_resolver_connection_t is literal?0
+Num elements: 4 for struct.ngx_resolver_srv_t is literal?0
+Num elements: 10 for struct.ngx_event_actions_t.1435 is literal?0
+Num elements: 8 for struct.ngx_os_io_t.1436 is literal?0
+Num elements: 7 for struct.ngx_resolver_an_t is literal?0
+Num elements: 4 for struct.ngx_resolver_qs_t is literal?0
+Num elements: 12 for struct.ngx_resolver_hdr_t is literal?0
+Num elements: 14 for struct.ngx_cached_open_file_s is literal?0
+Num elements: 13 for struct.ngx_open_file_info_t is literal?0
+Num elements: 6 for struct.ngx_open_file_cache_event_t is literal?0
+Num elements: 4 for struct.ngx_open_file_cache_cleanup_t is literal?0
+Num elements: 4 for struct.ngx_proxy_protocol_header_t is literal?0
+Num elements: 4 for struct.ngx_proxy_protocol_inet_addrs_t is literal?0
+Num elements: 4 for struct.ngx_proxy_protocol_inet6_addrs_t is literal?0
+Num elements: 12 for struct.ngx_conf_s.1766 is literal?0
+Num elements: 32 for struct.ngx_cycle_s.1771 is literal?0
+Num elements: 25 for struct.ngx_module_s.1768 is literal?0
+Num elements: 6 for struct.ngx_command_s.1767 is literal?0
+Num elements: 6 for struct.ngx_event_conf_t is literal?0
+Num elements: 2 for struct.itimerval is literal?0
+Num elements: 32 for struct.ngx_cycle_s.2121 is literal?0
+Num elements: 25 for struct.ngx_module_s.2118 is literal?0
+Num elements: 6 for struct.ngx_command_s.2117 is literal?0
+Num elements: 12 for struct.ngx_conf_s.2116 is literal?0
+Num elements: 10 for struct.ngx_event_actions_t.2125 is literal?0
+Num elements: 8 for struct.ngx_os_io_t.2124 is literal?0
+Num elements: 7 for struct.msghdr is literal?0
+Num elements: 4 for struct.cmsghdr is literal?0
+Num elements: 3 for struct.in_pktinfo is literal?0
+Num elements: 2 for struct.in6_pktinfo is literal?0
+Num elements: 4 for struct.ngx_iovec_t is literal?0
+Num elements: 5 for struct.ngx_file_mapping_t is literal?0
+Num elements: 5 for struct.flock is literal?0
+Num elements: 12 for struct.statfs is literal?0
+Num elements: 1 for struct.__fsid_t is literal?0
+Num elements: 27 for struct.ngx_connection_s.2692 is literal?0
+Num elements: 26 for struct.ngx_listening_s.2604 is literal?0
+Num elements: 13 for struct.ngx_ssl_connection_s.2690 is literal?0
+Num elements: 27 for struct.ngx_connection_s.2795 is literal?0
+Num elements: 26 for struct.ngx_listening_s.2707 is literal?0
+Num elements: 13 for struct.ngx_ssl_connection_s.2793 is literal?0
+Num elements: 27 for struct.ngx_connection_s.2897 is literal?0
+Num elements: 26 for struct.ngx_listening_s.2809 is literal?0
+Num elements: 13 for struct.ngx_ssl_connection_s.2895 is literal?0
+Num elements: 27 for struct.ngx_connection_s.2999 is literal?0
+Num elements: 26 for struct.ngx_listening_s.2911 is literal?0
+Num elements: 13 for struct.ngx_ssl_connection_s.2997 is literal?0
+Num elements: 27 for struct.ngx_connection_s.3102 is literal?0
+Num elements: 26 for struct.ngx_listening_s.3014 is literal?0
+Num elements: 13 for struct.ngx_ssl_connection_s.3100 is literal?0
+Num elements: 27 for struct.ngx_connection_s.3204 is literal?0
+Num elements: 26 for struct.ngx_listening_s.3116 is literal?0
+Num elements: 13 for struct.ngx_ssl_connection_s.3202 is literal?0
+Num elements: 4 for struct.ngx_channel_t is literal?0
+Num elements: 2 for union.anon.3323 is literal?0
+Num elements: 6 for struct.utsname is literal?0
+Num elements: 7 for struct.ngx_process_t.3670 is literal?0
+Num elements: 10 for struct.ngx_event_actions_t.3672 is literal?0
+Num elements: 0 for struct.ui_method_st is literal?0
+Num elements: 5 for struct.x509_lookup_st is literal?0
+Num elements: 10 for struct.x509_lookup_method_st is literal?0
+Num elements: 3 for struct.ngx_ssl_session_cache_t is literal?0
+Num elements: 8 for struct.ngx_ssl_sess_id_s is literal?0
+Num elements: 4 for struct.ngx_ssl_session_ticket_key_t is literal?0
+Num elements: 1 for struct.ngx_openssl_conf_t is literal?0
+Num elements: 12 for struct.ngx_conf_s.4223 is literal?0
+Num elements: 32 for struct.ngx_cycle_s.4228 is literal?0
+Num elements: 25 for struct.ngx_module_s.4225 is literal?0
+Num elements: 6 for struct.ngx_command_s.4224 is literal?0
+Num elements: 15 for struct.ngx_ssl_stapling_t is literal?0
+Num elements: 2 for struct.ocsp_response_st is literal?0
+Num elements: 2 for struct.ocsp_resp_bytes_st is literal?0
+Num elements: 27 for struct.ngx_ssl_ocsp_ctx_s is literal?0
+Num elements: 4 for struct.ocsp_cert_id_st is literal?0
+Num elements: 2 for struct.ocsp_request_st is literal?0
+Num elements: 4 for struct.ocsp_req_info_st is literal?0
+Num elements: 3 for struct.ocsp_signature_st is literal?0
+Num elements: 2 for struct.ocsp_one_request_st is literal?0
+Num elements: 4 for struct.ocsp_basic_response_st is literal?0
+Num elements: 5 for struct.ocsp_response_data_st is literal?0
+Num elements: 2 for struct.ocsp_responder_id_st is literal?0
+Num elements: 1 for union.anon.6.4239 is literal?0
+Num elements: 7 for struct.ngx_http_location_queue_t is literal?0
+Num elements: 11 for struct.ngx_http_listen_opt_t is literal?0
+Num elements: 6 for struct.ngx_http_conf_addr_t is literal?0
+Num elements: 3 for struct.ngx_http_conf_port_t is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s is literal?0
+Num elements: 1 for struct.ngx_http_phase_t is literal?0
+Num elements: 3 for struct.ngx_http_header_t is literal?0
+Num elements: 8 for struct.ngx_http_module_t is literal?0
+Num elements: 2 for struct.ngx_http_in_addr_t is literal?0
+Num elements: 2 for struct.ngx_http_in6_addr_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.4566 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.4545 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.4530 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.4524 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.4523 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.4548 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.4549 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.4550 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.4551 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.4563 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.4562 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.4557 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.4556 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.4554 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.4561 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.4560 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.4572 is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.4582 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.4579 is literal?0
+Num elements: 11 for struct.ngx_http_script_compile_t is literal?0
+Num elements: 4 for struct.ngx_http_err_page_t is literal?0
+Num elements: 4 for struct.ngx_http_compile_complex_value_t is literal?0
+Num elements: 9 for struct.ngx_http_script_engine_t is literal?0
+Num elements: 2 for struct.ngx_http_in_addr_t.4931 is literal?0
+Num elements: 3 for struct.ngx_http_log_ctx_s is literal?0
+Num elements: 2 for struct.ngx_http_in6_addr_t.4933 is literal?0
+Num elements: 30 for struct.ngx_http_ssl_srv_conf_t is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.4938 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.4935 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.4934 is literal?0
+Num elements: 1 for struct.ngx_http_ephemeral_t is literal?0
+Num elements: 5 for struct.ngx_http_status_t is literal?0
+Num elements: 2 for struct.ngx_http_log_main_conf_t is literal?0
+Num elements: 3 for struct.ngx_http_log_fmt_t is literal?0
+Num elements: 5 for struct.ngx_http_log_loc_conf_t is literal?0
+Num elements: 7 for struct.ngx_http_log_t is literal?0
+Num elements: 2 for struct.ngx_http_log_script_t is literal?0
+Num elements: 6 for struct.ngx_http_log_buf_t is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.5293 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.5290 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.5289 is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.5646 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.5644 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.5643 is literal?0
+Num elements: 1 for struct.ngx_http_map_t is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.5827 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.5824 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.5823 is literal?0
+Num elements: 31 for struct.tcp_info is literal?0
+Num elements: 2 for struct.ngx_http_script_full_name_code_t is literal?0
+Num elements: 3 for struct.ngx_http_script_return_code_t is literal?0
+Num elements: 3 for struct.ngx_http_script_if_code_t is literal?0
+Num elements: 2 for struct.ngx_http_script_complex_value_code_t is literal?0
+Num elements: 4 for struct.ngx_http_script_value_code_t is literal?0
+Num elements: 3 for struct.ngx_http_script_var_handler_code_t is literal?0
+Num elements: 2 for struct.ngx_http_upstream_main_conf_t is literal?0
+Num elements: 3 for struct.ngx_http_log_ctx_s.6013 is literal?0
+Num elements: 10 for struct.ngx_http_upstream_server_t is literal?0
+Num elements: 3 for struct.ngx_http_upstream_param_t is literal?0
+Num elements: 12 for struct.ngx_conf_s.6125 is literal?0
+Num elements: 32 for struct.ngx_cycle_s.6123 is literal?0
+Num elements: 25 for struct.ngx_module_s.6120 is literal?0
+Num elements: 6 for struct.ngx_command_s.6119 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.6187 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.6186 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.6185 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.6164 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.6149 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.6167 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.6168 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.6169 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.6170 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.6182 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.6181 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.6176 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.6175 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.6173 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.6180 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.6179 is literal?0
+Num elements: 20 for struct.ngx_http_upstream_rr_peer_s is literal?0
+Num elements: 6 for struct.ngx_http_upstream_rr_peers_s is literal?0
+Num elements: 5 for struct.ngx_http_upstream_rr_peer_data_t is literal?0
+Num elements: 15 for struct.ngx_http_file_cache_header_t is literal?0
+Num elements: 12 for struct.ngx_tree_ctx_s.6368 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.6543 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.6522 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.6507 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.6501 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.6500 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.6525 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.6526 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.6527 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.6528 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.6540 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.6539 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.6534 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.6533 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.6531 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.6538 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.6537 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.6716 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.6695 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.6680 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.6674 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.6673 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.6698 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.6699 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.6700 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.6701 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.6713 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.6712 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.6707 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.6706 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.6704 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.6711 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.6710 is literal?0
+Num elements: 2 for struct.ngx_http_chunked_filter_ctx_t is literal?0
+Num elements: 3 for struct.ngx_http_range_filter_ctx_t is literal?0
+Num elements: 3 for struct.ngx_http_range_t is literal?0
+Num elements: 5 for struct.ngx_http_headers_conf_t is literal?0
+Num elements: 1 for struct.ngx_http_copy_filter_conf_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.7756 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.7735 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.7720 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.7714 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.7713 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.7738 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.7739 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.7740 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.7741 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.7753 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.7752 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.7747 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.7746 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.7744 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.7751 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.7750 is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.7762 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.7759 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.7758 is literal?0
+Num elements: 2 for struct.ngx_http_index_loc_conf_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.7935 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.7914 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.7899 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.7893 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.7892 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.7917 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.7918 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.7919 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.7920 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.7932 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.7931 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.7926 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.7925 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.7923 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.7930 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.7929 is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.7942 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.7939 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.7938 is literal?0
+Num elements: 9 for struct.ngx_http_script_engine_t.7943 is literal?0
+Num elements: 1 for struct.ngx_http_try_files_loc_conf_t is literal?0
+Num elements: 4 for struct.ngx_http_try_file_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.8116 is literal?0
+Num elements: 37 for struct.ngx_http_upstream_s.8095 is literal?0
+Num elements: 58 for struct.ngx_http_upstream_conf_t.8080 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.8074 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.8073 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.8098 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.8099 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.8100 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.8101 is literal?0
+Num elements: 7 for struct.ngx_http_connection_t.8113 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.8112 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.8107 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.8106 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.8104 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.8111 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.8110 is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.8123 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.8120 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.8119 is literal?0
+Num elements: 9 for struct.ngx_http_script_engine_t.8124 is literal?0
+Num elements: 6 for struct.ngx_http_conf_addr_t.8306 is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.8312 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.8309 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.8308 is literal?0
+Started pointer analysis
+Started building PAG
+Inttoptr edge:   %704 = load i8*, i8** %p.i149, align 8, !dbg !102275 to   %708 = inttoptr i64 %and8.i to i8*, !dbg !102275
+Inttoptr edge:   %16 = load i8*, i8** %m.i, align 8, !dbg !100493 to   %18 = inttoptr i64 %and.i to i8*, !dbg !100493
+Inttoptr edge:   %76 = load i8*, i8** %m.i.i, align 8, !dbg !100575 to   %78 = inttoptr i64 %and.i.i to i8*, !dbg !100575
+Inttoptr edge:   %161 = load i8*, i8** %m.i.i5, align 8, !dbg !100701 to   %163 = inttoptr i64 %and.i.i26 to i8*, !dbg !100701
+Inttoptr edge:   %221 = load i8*, i8** %m.i.i.i, align 8, !dbg !100775 to   %223 = inttoptr i64 %and.i.i.i to i8*, !dbg !100775
+Inttoptr edge:   %16 = load i8*, i8** %m.i, align 8, !dbg !100493 to   %18 = inttoptr i64 %and.i to i8*, !dbg !100493
+Inttoptr edge:   %76 = load i8*, i8** %m.i.i, align 8, !dbg !100575 to   %78 = inttoptr i64 %and.i.i to i8*, !dbg !100575
+Inttoptr edge:   %161 = load i8*, i8** %m.i.i5, align 8, !dbg !100701 to   %163 = inttoptr i64 %and.i.i26 to i8*, !dbg !100701
+Inttoptr edge:   %221 = load i8*, i8** %m.i.i.i, align 8, !dbg !100775 to   %223 = inttoptr i64 %and.i.i.i to i8*, !dbg !100775
+Inttoptr edge:   %38 = load i8*, i8** %m.i, align 8, !dbg !100484 to   %40 = inttoptr i64 %and.i to i8*, !dbg !100484
+Inttoptr edge:   %98 = load i8*, i8** %m.i.i, align 8, !dbg !100563 to   %100 = inttoptr i64 %and.i.i to i8*, !dbg !100563
+Inttoptr edge:   %70 = load i8*, i8** %value, align 8, !dbg !100502 to   %72 = inttoptr i64 %and19 to %struct.ngx_hash_wildcard_t*, !dbg !100505
+Inttoptr edge:   %75 = load i8*, i8** %value, align 8, !dbg !100510 to   %77 = inttoptr i64 %and22 to %struct.ngx_hash_wildcard_t*, !dbg !100513
+Inttoptr edge:   %88 = load i8*, i8** %value, align 8, !dbg !100542 to   %90 = inttoptr i64 %and37 to i8*, !dbg !100545
+Inttoptr edge:   %64 = load i8*, i8** %value, align 8, !dbg !100483 to   %66 = inttoptr i64 %and13 to %struct.ngx_hash_wildcard_t*, !dbg !100486
+Inttoptr edge:   %219 = load i8*, i8** %elts, align 8, !dbg !100925 to   %223 = inttoptr i64 %and197 to i8*, !dbg !100925
+Inttoptr edge:   %344 = load %struct.ngx_hash_wildcard_t*, %struct.ngx_hash_wildcard_t** %wdc, align 8, !dbg !101280 to   %348 = inttoptr i64 %or to i8*, !dbg !101285
+Inttoptr edge:   %352 = load i8*, i8** %value149, align 8, !dbg !101295 to   %354 = inttoptr i64 %or150 to i8*, !dbg !101298
+Inttoptr edge:   %511 = load i8*, i8** %m.i.i.i, align 8, !dbg !101519 to   %513 = inttoptr i64 %and.i.i.i to i8*, !dbg !101519
+Inttoptr edge:   %571 = load i8*, i8** %m.i.i.i.i, align 8, !dbg !101598 to   %573 = inttoptr i64 %and.i.i.i.i to i8*, !dbg !101598
+Inttoptr edge:   %24 = load i8*, i8** %p, align 8, !dbg !100432 to   %28 = inttoptr i64 %and8 to i8*, !dbg !100432
+Inttoptr edge:   %71 = load i8*, i8** %m.i.i.i, align 8, !dbg !100702 to   %73 = inttoptr i64 %and.i.i.i to i8*, !dbg !100702
+Inttoptr edge:   %131 = load i8*, i8** %m.i.i.i.i, align 8, !dbg !100781 to   %133 = inttoptr i64 %and.i.i.i.i to i8*, !dbg !100781
+Inttoptr edge:   %85 = load i8*, i8** %m.i.i.i, align 8, !dbg !100738 to   %87 = inttoptr i64 %and.i.i.i to i8*, !dbg !100738
+Inttoptr edge:   %145 = load i8*, i8** %m.i.i.i.i, align 8, !dbg !100817 to   %147 = inttoptr i64 %and.i.i.i.i to i8*, !dbg !100817
+Inttoptr edge:   %93 = load i8*, i8** %m.i.i.i, align 8, !dbg !100757 to   %95 = inttoptr i64 %and.i.i.i to i8*, !dbg !100757
+Inttoptr edge:   %153 = load i8*, i8** %m.i.i.i.i, align 8, !dbg !100836 to   %155 = inttoptr i64 %and.i.i.i.i to i8*, !dbg !100836
+Inttoptr edge:   %147 = load i8*, i8** %start29, align 8, !dbg !100691 to   %149 = inttoptr i64 %add30 to i64*, !dbg !100693
+Inttoptr edge:   %418 = load i8*, i8** %start199, align 8, !dbg !101122 to   %420 = inttoptr i64 %add200 to i64*, !dbg !101124
+Inttoptr edge:   %48 = load i8*, i8** %p.addr, align 8, !dbg !100543 to   %51 = inttoptr i64 %and13 to i64*, !dbg !100549
+Inttoptr edge:   %15 = load %struct.ngx_connection_s*, %struct.ngx_connection_s** %c, align 8, !dbg !100398 to   %19 = inttoptr i64 %or12 to i8*, !dbg !100403
+Inttoptr edge:   %15 = load %struct.ngx_connection_s*, %struct.ngx_connection_s** %c, align 8, !dbg !100397 to   %19 = inttoptr i64 %or12 to i8*, !dbg !100402
+Inttoptr edge:   %0 = load %struct.ngx_connection_s*, %struct.ngx_connection_s** %c.addr, align 8, !dbg !100348 to   %5 = inttoptr i64 %or to i8*, !dbg !100354
+Inttoptr edge:   %36 = load %struct.ngx_connection_s*, %struct.ngx_connection_s** %c, align 8, !dbg !100445 to   %38 = inttoptr i64 %and39 to %struct.ngx_connection_s*, !dbg !100448
+Ended building PAG
+================== Full Constraint Graph =======================
+Number of nodes: 429558
+Number of edges: 231984
+Number of Variant Gep edges: 0
+Number of Normal Gep edges: 0
+
+****CallGraph SCC Stat****
+################ (program : )###############
+-------------------------------------------------------
+TotalNode           1209
+TotalCycle          7
+NodeInCycle         413
+MaxNodeInCycle      407
+TotalEdge           83013
+CalRetPairInCycle   28466
+#######################################################
+
+****Andersen Pointer Analysis Statistics****
+################ (program : )###############
+TotalPointers       404579
+TotalObjects        22132
+TotalFieldObjects   0
+MaxStructSize       168
+TotalPAGEdges       544589
+FunctionObjs        1209
+GlobalObjs          2018
+HeapObjs            170
+StackObjs           18054
+FIObjNum            0
+FSObjNum            22130
+VarStructObj        495
+VarArrayObj         1836
+ConstStructObj      65
+ConstArrayObj       54
+NonPtrObj           9983
+AddrsNum            22130
+LoadsNum            71537
+StoresNum           22635
+CopysNum            91120
+GepsNum             0
+CallsNum            778
+ReturnsNum          7112
+IndCallSites        798
+TotalCallSite       33810
+LocalVarInRecur     2839
+BitCastNumber       31178
+BBWith2Succ         18829
+BBWith3Succ         261
+-------------------------------------------------------
+CollapseTime        0
+TotalTime           3105.14
+SCCDetectTime       7.338
+SCCMergeTime        0.997
+LoadStoreTime       0
+CopyGepTime         0
+UpdateCGTime        2.037
+AvgPtsSetSize       734.565
+AvgTopLvlPtsSize    1664.61
+CGNodeNum           262546
+TotalLoadInst       107618
+TotalStoreInst      42864
+PointsToConstPtr    0
+PointsToBlkPtr      0
+TotalPointers       404579
+TotalObjects        22132
+TotalPAGEdges       44351
+AddrsNum            19704
+LoadsNum            10874
+StoresNum           11055
+CopysNum            22422
+GepsNum             0
+AddrProcessed       22130
+LoadProcessed       3921452
+StoreProcessed      679398
+CopyProcessed       433771
+GepProcessed        0
+Pointers            400912
+DYFieldPtrs         3667
+MemObjects          22132
+DYFieldObjs         0
+MaxPtsSetSize       2343
+Iterations          765948
+IndCallSites        798
+IndEdgeSolved       50001
+NumOfSCCDetect      2
+TotalCycleNum       0
+TotalPWCCycleNum    0
+NodesInCycles       0
+MaxNodesInSCC       0
+NullPointer         331
+#######################################################
+Ended pointer analysis
+Staring to build result maps
+Started for only the rep nodes

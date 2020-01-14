@@ -1,0 +1,13 @@
+/mnt/Projects/LLVM-custom/install/bin/clang -O0 -flto -lhelper main.o -o main -L../ -lssl -lcrypto
+Started running AndersenCFG
+Started building PAG
+Ended building PAG
+AndersenCFG
+Running one iteration:
+Calling solve ... 
+Useless iteration
+ld: /mnt/Projects/LLVM-custom/include/llvm/Analysis/SVF/MemoryModel/PAGNode.h:88: const llvm::Value* PAGNode::getValue() const: Assertion `(this->getNodeKind() != DummyValNode && this->getNodeKind() != DummyObjNode) && "dummy node do not have value!"' failed.
+clang-7: error: unable to execute command: Aborted (core dumped)
+clang-7: error: linker command failed due to signal (use -v to see invocation)
+Makefile:6: recipe for target 'main' failed
+make: *** [main] Error 254

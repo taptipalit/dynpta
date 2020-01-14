@@ -1,0 +1,2 @@
+2019/03/21 13:35:03 [emerg] 30379#0: bind() to 0.0.0.0:80 failed (13: Permission denied)
+2019/03/21 13:39:32 [emerg] 30489#0: bind() to 0.0.0.0:80 failed (13: Permission denied)

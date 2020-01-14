@@ -1,0 +1,974 @@
+make -f objs/Makefile
+make[1]: Entering directory '/mnt/Projects/LLVM-custom/test/Datarand/nginx/nginx-1.15.9'
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/nginx.o \
+	src/core/nginx.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_log.o \
+	src/core/ngx_log.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_palloc.o \
+	src/core/ngx_palloc.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_array.o \
+	src/core/ngx_array.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_list.o \
+	src/core/ngx_list.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_hash.o \
+	src/core/ngx_hash.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_buf.o \
+	src/core/ngx_buf.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_queue.o \
+	src/core/ngx_queue.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_output_chain.o \
+	src/core/ngx_output_chain.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_string.o \
+	src/core/ngx_string.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_parse.o \
+	src/core/ngx_parse.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_parse_time.o \
+	src/core/ngx_parse_time.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_inet.o \
+	src/core/ngx_inet.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_file.o \
+	src/core/ngx_file.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_crc32.o \
+	src/core/ngx_crc32.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_murmurhash.o \
+	src/core/ngx_murmurhash.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_md5.o \
+	src/core/ngx_md5.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_sha1.o \
+	src/core/ngx_sha1.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_rbtree.o \
+	src/core/ngx_rbtree.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_radix_tree.o \
+	src/core/ngx_radix_tree.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_slab.o \
+	src/core/ngx_slab.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_times.o \
+	src/core/ngx_times.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_shmtx.o \
+	src/core/ngx_shmtx.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_connection.o \
+	src/core/ngx_connection.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_cycle.o \
+	src/core/ngx_cycle.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_spinlock.o \
+	src/core/ngx_spinlock.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_rwlock.o \
+	src/core/ngx_rwlock.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_cpuinfo.o \
+	src/core/ngx_cpuinfo.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_conf_file.o \
+	src/core/ngx_conf_file.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_module.o \
+	src/core/ngx_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_resolver.o \
+	src/core/ngx_resolver.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_open_file_cache.o \
+	src/core/ngx_open_file_cache.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_crypt.o \
+	src/core/ngx_crypt.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_proxy_protocol.o \
+	src/core/ngx_proxy_protocol.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/core/ngx_syslog.o \
+	src/core/ngx_syslog.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/event/ngx_event.o \
+	src/event/ngx_event.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/event/ngx_event_timer.o \
+	src/event/ngx_event_timer.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/event/ngx_event_posted.o \
+	src/event/ngx_event_posted.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/event/ngx_event_accept.o \
+	src/event/ngx_event_accept.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/event/ngx_event_udp.o \
+	src/event/ngx_event_udp.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/event/ngx_event_connect.o \
+	src/event/ngx_event_connect.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/event/ngx_event_pipe.o \
+	src/event/ngx_event_pipe.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_time.o \
+	src/os/unix/ngx_time.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_errno.o \
+	src/os/unix/ngx_errno.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_alloc.o \
+	src/os/unix/ngx_alloc.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_files.o \
+	src/os/unix/ngx_files.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_socket.o \
+	src/os/unix/ngx_socket.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_recv.o \
+	src/os/unix/ngx_recv.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_readv_chain.o \
+	src/os/unix/ngx_readv_chain.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_udp_recv.o \
+	src/os/unix/ngx_udp_recv.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_send.o \
+	src/os/unix/ngx_send.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_writev_chain.o \
+	src/os/unix/ngx_writev_chain.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_udp_send.o \
+	src/os/unix/ngx_udp_send.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_udp_sendmsg_chain.o \
+	src/os/unix/ngx_udp_sendmsg_chain.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_channel.o \
+	src/os/unix/ngx_channel.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_shmem.o \
+	src/os/unix/ngx_shmem.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_process.o \
+	src/os/unix/ngx_process.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_daemon.o \
+	src/os/unix/ngx_daemon.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_setaffinity.o \
+	src/os/unix/ngx_setaffinity.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_setproctitle.o \
+	src/os/unix/ngx_setproctitle.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_posix_init.o \
+	src/os/unix/ngx_posix_init.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_user.o \
+	src/os/unix/ngx_user.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_dlopen.o \
+	src/os/unix/ngx_dlopen.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_process_cycle.o \
+	src/os/unix/ngx_process_cycle.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_linux_init.o \
+	src/os/unix/ngx_linux_init.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/event/modules/ngx_epoll_module.o \
+	src/event/modules/ngx_epoll_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/src/os/unix/ngx_linux_sendfile_chain.o \
+	src/os/unix/ngx_linux_sendfile_chain.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http.o \
+	src/http/ngx_http.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_core_module.o \
+	src/http/ngx_http_core_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_special_response.o \
+	src/http/ngx_http_special_response.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_request.o \
+	src/http/ngx_http_request.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_parse.o \
+	src/http/ngx_http_parse.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/modules/ngx_http_log_module.o \
+	src/http/modules/ngx_http_log_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_request_body.o \
+	src/http/ngx_http_request_body.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_variables.o \
+	src/http/ngx_http_variables.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_script.o \
+	src/http/ngx_http_script.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_upstream.o \
+	src/http/ngx_http_upstream.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_upstream_round_robin.o \
+	src/http/ngx_http_upstream_round_robin.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_file_cache.o \
+	src/http/ngx_http_file_cache.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_write_filter_module.o \
+	src/http/ngx_http_write_filter_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_header_filter_module.o \
+	src/http/ngx_http_header_filter_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/modules/ngx_http_chunked_filter_module.o \
+	src/http/modules/ngx_http_chunked_filter_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/modules/ngx_http_range_filter_module.o \
+	src/http/modules/ngx_http_range_filter_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/modules/ngx_http_headers_filter_module.o \
+	src/http/modules/ngx_http_headers_filter_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/ngx_http_copy_filter_module.o \
+	src/http/ngx_http_copy_filter_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/modules/ngx_http_not_modified_filter_module.o \
+	src/http/modules/ngx_http_not_modified_filter_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/modules/ngx_http_static_module.o \
+	src/http/modules/ngx_http_static_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/modules/ngx_http_index_module.o \
+	src/http/modules/ngx_http_index_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs -I src/http -I src/http/modules \
+	-o objs/src/http/modules/ngx_http_try_files_module.o \
+	src/http/modules/ngx_http_try_files_module.c
+/mnt/Projects/LLVM-custom/install/bin/clang -c -pipe  -O -Wall -Wextra -Wpointer-arith -Wconditional-uninitialized -Wno-unused-parameter -Werror -g -O0 -flto -I src/core -I src/event -I src/event/modules -I src/os/unix -I objs \
+	-o objs/ngx_modules.o \
+	objs/ngx_modules.c
+/mnt/Projects/LLVM-custom/install/bin/clang -o objs/nginx \
+objs/src/core/nginx.o \
+objs/src/core/ngx_log.o \
+objs/src/core/ngx_palloc.o \
+objs/src/core/ngx_array.o \
+objs/src/core/ngx_list.o \
+objs/src/core/ngx_hash.o \
+objs/src/core/ngx_buf.o \
+objs/src/core/ngx_queue.o \
+objs/src/core/ngx_output_chain.o \
+objs/src/core/ngx_string.o \
+objs/src/core/ngx_parse.o \
+objs/src/core/ngx_parse_time.o \
+objs/src/core/ngx_inet.o \
+objs/src/core/ngx_file.o \
+objs/src/core/ngx_crc32.o \
+objs/src/core/ngx_murmurhash.o \
+objs/src/core/ngx_md5.o \
+objs/src/core/ngx_sha1.o \
+objs/src/core/ngx_rbtree.o \
+objs/src/core/ngx_radix_tree.o \
+objs/src/core/ngx_slab.o \
+objs/src/core/ngx_times.o \
+objs/src/core/ngx_shmtx.o \
+objs/src/core/ngx_connection.o \
+objs/src/core/ngx_cycle.o \
+objs/src/core/ngx_spinlock.o \
+objs/src/core/ngx_rwlock.o \
+objs/src/core/ngx_cpuinfo.o \
+objs/src/core/ngx_conf_file.o \
+objs/src/core/ngx_module.o \
+objs/src/core/ngx_resolver.o \
+objs/src/core/ngx_open_file_cache.o \
+objs/src/core/ngx_crypt.o \
+objs/src/core/ngx_proxy_protocol.o \
+objs/src/core/ngx_syslog.o \
+objs/src/event/ngx_event.o \
+objs/src/event/ngx_event_timer.o \
+objs/src/event/ngx_event_posted.o \
+objs/src/event/ngx_event_accept.o \
+objs/src/event/ngx_event_udp.o \
+objs/src/event/ngx_event_connect.o \
+objs/src/event/ngx_event_pipe.o \
+objs/src/os/unix/ngx_time.o \
+objs/src/os/unix/ngx_errno.o \
+objs/src/os/unix/ngx_alloc.o \
+objs/src/os/unix/ngx_files.o \
+objs/src/os/unix/ngx_socket.o \
+objs/src/os/unix/ngx_recv.o \
+objs/src/os/unix/ngx_readv_chain.o \
+objs/src/os/unix/ngx_udp_recv.o \
+objs/src/os/unix/ngx_send.o \
+objs/src/os/unix/ngx_writev_chain.o \
+objs/src/os/unix/ngx_udp_send.o \
+objs/src/os/unix/ngx_udp_sendmsg_chain.o \
+objs/src/os/unix/ngx_channel.o \
+objs/src/os/unix/ngx_shmem.o \
+objs/src/os/unix/ngx_process.o \
+objs/src/os/unix/ngx_daemon.o \
+objs/src/os/unix/ngx_setaffinity.o \
+objs/src/os/unix/ngx_setproctitle.o \
+objs/src/os/unix/ngx_posix_init.o \
+objs/src/os/unix/ngx_user.o \
+objs/src/os/unix/ngx_dlopen.o \
+objs/src/os/unix/ngx_process_cycle.o \
+objs/src/os/unix/ngx_linux_init.o \
+objs/src/event/modules/ngx_epoll_module.o \
+objs/src/os/unix/ngx_linux_sendfile_chain.o \
+objs/src/http/ngx_http.o \
+objs/src/http/ngx_http_core_module.o \
+objs/src/http/ngx_http_special_response.o \
+objs/src/http/ngx_http_request.o \
+objs/src/http/ngx_http_parse.o \
+objs/src/http/modules/ngx_http_log_module.o \
+objs/src/http/ngx_http_request_body.o \
+objs/src/http/ngx_http_variables.o \
+objs/src/http/ngx_http_script.o \
+objs/src/http/ngx_http_upstream.o \
+objs/src/http/ngx_http_upstream_round_robin.o \
+objs/src/http/ngx_http_file_cache.o \
+objs/src/http/ngx_http_write_filter_module.o \
+objs/src/http/ngx_http_header_filter_module.o \
+objs/src/http/modules/ngx_http_chunked_filter_module.o \
+objs/src/http/modules/ngx_http_range_filter_module.o \
+objs/src/http/modules/ngx_http_headers_filter_module.o \
+objs/src/http/ngx_http_copy_filter_module.o \
+objs/src/http/modules/ngx_http_not_modified_filter_module.o \
+objs/src/http/modules/ngx_http_static_module.o \
+objs/src/http/modules/ngx_http_index_module.o \
+objs/src/http/modules/ngx_http_try_files_module.o \
+objs/ngx_modules.o \
+-O0 -flto -Wl,-plugin-opt=save-temps -lhelper -ldl -lpthread \
+-Wl,-E
+Num elements: 25 for struct.ngx_module_s is literal?0
+Num elements: 6 for struct.ngx_command_s is literal?0
+Num elements: 2 for struct.ngx_str_t is literal?0
+Num elements: 12 for struct.ngx_conf_s is literal?0
+Num elements: 5 for struct.ngx_array_t is literal?0
+Num elements: 32 for struct.ngx_cycle_s is literal?0
+Num elements: 10 for struct.ngx_log_s is literal?0
+Num elements: 4 for struct.ngx_open_file_s is literal?0
+Num elements: 2 for struct.ngx_queue_s is literal?0
+Num elements: 3 for struct.ngx_rbtree_s is literal?0
+Num elements: 6 for struct.ngx_rbtree_node_s is literal?0
+Num elements: 5 for struct.ngx_list_t is literal?0
+Num elements: 3 for struct.ngx_list_part_s is literal?0
+Num elements: 26 for struct.ngx_connection_s is literal?0
+Num elements: 2 for struct.ngx_chain_s is literal?0
+Num elements: 26 for struct.ngx_listening_s is literal?0
+Num elements: 3 for struct.ngx_udp_connection_s is literal?0
+Num elements: 26 for struct.ngx_connection_s.650 is literal?0
+Num elements: 7 for struct.ngx_event_s.645 is literal?0
+Num elements: 26 for struct.ngx_listening_s.648 is literal?0
+Num elements: 2 for struct.sockaddr is literal?0
+Num elements: 11 for struct.ngx_buf_s is literal?0
+Num elements: 7 for struct.ngx_file_s is literal?0
+Num elements: 15 for struct.stat is literal?0
+Num elements: 2 for struct.timespec is literal?0
+Num elements: 7 for struct.ngx_event_s is literal?0
+Num elements: 7 for struct.ngx_pool_s is literal?0
+Num elements: 4 for struct.ngx_pool_data_t is literal?0
+Num elements: 2 for struct.ngx_pool_large_s is literal?0
+Num elements: 3 for struct.ngx_pool_cleanup_s is literal?0
+Num elements: 4 for struct.ngx_conf_file_t is literal?0
+Num elements: 3 for struct.ngx_core_module_t is literal?0
+Num elements: 2 for struct.ngx_conf_enum_t is literal?0
+Num elements: 1 for struct.cpu_set_t is literal?0
+Num elements: 3 for struct.ngx_time_t is literal?0
+Num elements: 8 for struct.ngx_os_io_t is literal?0
+Num elements: 10 for struct.ngx_event_actions_t.495 is literal?0
+Num elements: 5 for struct.ngx_shmtx_t is literal?0
+Num elements: 2 for union.sem_t is literal?0
+Num elements: 4 for struct.ngx_event_module_t is literal?0
+Num elements: 7 for struct.ngx_process_t is literal?0
+Num elements: 4 for struct.ngx_signal_t is literal?0
+Num elements: 4 for struct.siginfo_t is literal?0
+Num elements: 2 for union.anon.977 is literal?0
+Num elements: 5 for struct.anon.2 is literal?0
+Num elements: 8 for struct.ngx_os_io_t.1047 is literal?0
+Num elements: 26 for struct.ngx_connection_s.803 is literal?0
+Num elements: 26 for struct.ngx_listening_s.797 is literal?0
+Num elements: 32 for struct.ngx_cycle_s.1072 is literal?0
+Num elements: 25 for struct.ngx_module_s.1076 is literal?0
+Num elements: 6 for struct.ngx_command_s.1075 is literal?0
+Num elements: 12 for struct.ngx_conf_s.1074 is literal?0
+Num elements: 3 for struct.ngx_cache_manager_ctx_t is literal?0
+Num elements: 2 for struct.epoll_event is literal?0
+Num elements: 1 for union.epoll_data is literal?0
+Num elements: 71 for struct.ngx_http_request_s is literal?0
+Num elements: 31 for struct.ngx_http_cache_s is literal?0
+Num elements: 17 for struct.ngx_http_file_cache_s is literal?0
+Num elements: 8 for struct.ngx_http_file_cache_sh_t is literal?0
+Num elements: 16 for struct.ngx_slab_pool_t is literal?0
+Num elements: 3 for struct.ngx_slab_page_s is literal?0
+Num elements: 4 for struct.ngx_slab_stat_t is literal?0
+Num elements: 9 for struct.ngx_path_t is literal?0
+Num elements: 6 for struct.ngx_shm_zone_s is literal?0
+Num elements: 5 for struct.ngx_shm_t is literal?0
+Num elements: 11 for struct.ngx_http_file_cache_node_t is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s is literal?0
+Num elements: 15 for struct.ngx_peer_connection_s is literal?0
+Num elements: 3 for struct.ngx_addr_t is literal?0
+Num elements: 34 for struct.ngx_event_pipe_s is literal?0
+Num elements: 7 for struct.ngx_temp_file_t is literal?0
+Num elements: 12 for struct.ngx_output_chain_ctx_s is literal?0
+Num elements: 5 for struct.ngx_chain_writer_ctx_t is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t is literal?0
+Num elements: 2 for struct.ngx_hash_t is literal?0
+Num elements: 3 for struct.ngx_hash_elt_t is literal?0
+Num elements: 3 for struct.ngx_http_upstream_local_t is literal?0
+Num elements: 4 for struct.ngx_http_complex_value_t is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t is literal?0
+Num elements: 26 for struct.ngx_http_upstream_headers_in_t is literal?0
+Num elements: 4 for struct.ngx_table_elt_t is literal?0
+Num elements: 9 for struct.ngx_http_upstream_resolved_t is literal?0
+Num elements: 5 for struct.ngx_resolver_addr_t is literal?0
+Num elements: 21 for struct.ngx_resolver_ctx_s is literal?0
+Num elements: 28 for struct.ngx_resolver_s is literal?0
+Num elements: 21 for struct.ngx_resolver_node_t is literal?0
+Num elements: 1 for struct.in6_addr is literal?0
+Num elements: 1 for union.anon is literal?0
+Num elements: 1 for union.anon.0.463 is literal?0
+Num elements: 2 for union.anon.1 is literal?0
+Num elements: 4 for struct.sockaddr_in is literal?0
+Num elements: 1 for struct.in_addr is literal?0
+Num elements: 8 for struct.ngx_resolver_srv_name_t is literal?0
+Num elements: 9 for struct.ngx_http_upstream_state_t is literal?0
+Num elements: 27 for struct.ngx_http_headers_in_t is literal?0
+Num elements: 28 for struct.ngx_http_headers_out_t is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s is literal?0
+Num elements: 2 for struct.ngx_variable_value_t is literal?0
+Num elements: 6 for struct.ngx_http_connection_t is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s is literal?0
+Num elements: 6 for struct.ngx_open_file_cache_t is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t is literal?0
+Num elements: 3 for struct.ngx_hash_combined_t is literal?0
+Num elements: 2 for struct.ngx_hash_wildcard_t is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t is literal?0
+Num elements: 3 for struct.ngx_http_conf_ctx_t is literal?0
+Num elements: 0 for struct.ngx_http_v2_stream_s is literal?0
+Num elements: 3 for struct.ngx_http_cleanup_s is literal?0
+Num elements: 25 for struct.ngx_module_s.318 is literal?0
+Num elements: 6 for struct.ngx_command_s.317 is literal?0
+Num elements: 12 for struct.ngx_conf_s.316 is literal?0
+Num elements: 32 for struct.ngx_cycle_s.314 is literal?0
+Num elements: 8 for struct.ngx_http_module_t.1252 is literal?0
+Num elements: 1 for struct.ngx_conf_post_t.1320 is literal?0
+Num elements: 2 for struct.ngx_http_method_name_t is literal?0
+Num elements: 3 for struct.ngx_hash_key_t is literal?0
+Num elements: 2 for struct.ngx_path_init_t is literal?0
+Num elements: 3 for struct.ngx_http_header_t.1513 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.1512 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.1491 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.1475 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.1470 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.1469 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.1494 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.1495 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.1496 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.1497 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.1509 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.1508 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.1503 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.1502 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.1500 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.1507 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.1506 is literal?0
+Num elements: 3 for struct.ngx_http_log_var_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.1704 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.1683 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.1667 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.1662 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.1661 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.1686 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.1687 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.1688 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.1689 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.1701 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.1700 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.1695 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.1694 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.1692 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.1699 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.1698 is literal?0
+Num elements: 4 for struct.ngx_http_log_op_s is literal?0
+Num elements: 6 for struct.ngx_http_variable_s is literal?0
+Num elements: 71 for struct.ngx_http_request_s.1421 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.1400 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.1384 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.1379 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.1378 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.1403 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.1404 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.1405 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.1406 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.1418 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.1417 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.1412 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.1411 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.1409 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.1416 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.1415 is literal?0
+Num elements: 6 for struct.ngx_http_upstream_header_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.2094 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.2073 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.2057 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.2052 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.2051 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.2076 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.2077 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.2078 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.2079 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.2091 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.2090 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.2085 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.2084 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.2082 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.2089 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.2088 is literal?0
+Num elements: 6 for struct.ngx_http_variable_s.2095 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.2572 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.2551 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.2535 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.2530 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.2529 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.2554 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.2555 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.2556 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.2557 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.2569 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.2568 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.2563 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.2562 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.2560 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.2567 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.2566 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.2663 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.2642 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.2626 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.2621 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.2620 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.2645 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.2646 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.2647 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.2648 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.2660 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.2659 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.2654 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.2653 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.2651 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.2658 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.2657 is literal?0
+Num elements: 3 for struct.ngx_http_set_header_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.2754 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.2733 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.2717 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.2712 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.2711 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.2736 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.2737 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.2738 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.2739 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.2751 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.2750 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.2745 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.2744 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.2742 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.2749 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.2748 is literal?0
+Num elements: 5 for struct.ngx_http_header_val_s is literal?0
+Num elements: 71 for struct.ngx_http_request_s.2847 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.2826 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.2810 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.2805 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.2804 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.2829 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.2830 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.2831 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.2832 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.2844 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.2843 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.2838 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.2837 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.2835 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.2842 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.2841 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.2938 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.2917 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.2901 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.2896 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.2895 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.2920 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.2921 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.2922 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.2923 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.2935 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.2934 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.2929 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.2928 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.2926 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.2933 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.2932 is literal?0
+Num elements: 4 for struct.sigaction is literal?0
+Num elements: 1 for union.anon.593 is literal?0
+Num elements: 2 for struct.ngx_conf_dump_t is literal?0
+Num elements: 22 for struct.ngx_core_conf_t is literal?0
+Num elements: 7 for struct.passwd is literal?0
+Num elements: 4 for struct.group is literal?0
+Num elements: 4 for struct.ngx_exec_ctx_t is literal?0
+Num elements: 4 for struct.__va_list_tag is literal?0
+Num elements: 6 for struct.ngx_syslog_peer_t is literal?0
+Num elements: 3 for struct.ngx_pool_cleanup_file_t is literal?0
+Num elements: 7 for struct.ngx_hash_init_t is literal?0
+Num elements: 9 for struct.ngx_hash_keys_arrays_t is literal?0
+Num elements: 2 for struct.ngx_str_node_t is literal?0
+Num elements: 5 for struct.sockaddr_in6 is literal?0
+Num elements: 2 for struct.sockaddr_un is literal?0
+Num elements: 2 for struct.ngx_cidr_t is literal?0
+Num elements: 1 for union.anon.0 is literal?0
+Num elements: 2 for struct.ngx_in6_cidr_t is literal?0
+Num elements: 2 for struct.ngx_in_cidr_t is literal?0
+Num elements: 13 for struct.ngx_url_t is literal?0
+Num elements: 2 for union.ngx_sockaddr_t is literal?0
+Num elements: 8 for struct.addrinfo is literal?0
+Num elements: 12 for struct.ngx_conf_s.186 is literal?0
+Num elements: 32 for struct.ngx_cycle_s.184 is literal?0
+Num elements: 25 for struct.ngx_module_s.181 is literal?0
+Num elements: 6 for struct.ngx_command_s.180 is literal?0
+Num elements: 6 for struct.ngx_ext_rename_file_t is literal?0
+Num elements: 5 for struct.ngx_copy_file_t is literal?0
+Num elements: 12 for struct.ngx_tree_ctx_s is literal?0
+Num elements: 4 for struct.ngx_dir_t is literal?0
+Num elements: 0 for struct.__dirstream is literal?0
+Num elements: 5 for struct.dirent is literal?0
+Num elements: 6 for struct.ngx_md5_t is literal?0
+Num elements: 8 for struct.ngx_sha1_t is literal?0
+Num elements: 5 for struct.ngx_radix_tree_t is literal?0
+Num elements: 4 for struct.ngx_radix_node_s is literal?0
+Num elements: 11 for struct.tm is literal?0
+Num elements: 1 for union.__SOCKADDR_ARG is literal?0
+Num elements: 10 for struct.ngx_event_actions_t is literal?0
+Num elements: 5 for struct.ngx_glob_t is literal?0
+Num elements: 9 for struct.glob_t is literal?0
+Num elements: 1 for struct.ngx_conf_post_t is literal?0
+Num elements: 2 for struct.ngx_keyval_t is literal?0
+Num elements: 3 for struct.ngx_conf_deprecated_t is literal?0
+Num elements: 3 for struct.ngx_conf_num_bounds_t is literal?0
+Num elements: 9 for struct.ngx_resolver_connection_t is literal?0
+Num elements: 4 for struct.ngx_resolver_srv_t is literal?0
+Num elements: 7 for struct.ngx_resolver_an_t is literal?0
+Num elements: 4 for struct.ngx_resolver_qs_t is literal?0
+Num elements: 12 for struct.ngx_resolver_hdr_t is literal?0
+Num elements: 14 for struct.ngx_cached_open_file_s is literal?0
+Num elements: 13 for struct.ngx_open_file_info_t is literal?0
+Num elements: 6 for struct.ngx_open_file_cache_event_t is literal?0
+Num elements: 4 for struct.ngx_open_file_cache_cleanup_t is literal?0
+Num elements: 4 for struct.ngx_proxy_protocol_header_t is literal?0
+Num elements: 4 for struct.ngx_proxy_protocol_inet_addrs_t is literal?0
+Num elements: 4 for struct.ngx_proxy_protocol_inet6_addrs_t is literal?0
+Num elements: 12 for struct.ngx_conf_s.545 is literal?0
+Num elements: 32 for struct.ngx_cycle_s.550 is literal?0
+Num elements: 25 for struct.ngx_module_s.547 is literal?0
+Num elements: 6 for struct.ngx_command_s.546 is literal?0
+Num elements: 6 for struct.ngx_event_conf_t is literal?0
+Num elements: 2 for struct.itimerval is literal?0
+Num elements: 32 for struct.ngx_cycle_s.658 is literal?0
+Num elements: 25 for struct.ngx_module_s.655 is literal?0
+Num elements: 6 for struct.ngx_command_s.654 is literal?0
+Num elements: 12 for struct.ngx_conf_s.653 is literal?0
+Num elements: 10 for struct.ngx_event_actions_t.662 is literal?0
+Num elements: 8 for struct.ngx_os_io_t.661 is literal?0
+Num elements: 2 for struct.iovec is literal?0
+Num elements: 7 for struct.msghdr is literal?0
+Num elements: 4 for struct.cmsghdr is literal?0
+Num elements: 3 for struct.in_pktinfo is literal?0
+Num elements: 2 for struct.in6_pktinfo is literal?0
+Num elements: 4 for struct.ngx_iovec_t is literal?0
+Num elements: 5 for struct.ngx_file_mapping_t is literal?0
+Num elements: 5 for struct.flock is literal?0
+Num elements: 12 for struct.statfs is literal?0
+Num elements: 1 for struct.__fsid_t is literal?0
+Num elements: 26 for struct.ngx_connection_s.823 is literal?0
+Num elements: 26 for struct.ngx_listening_s.817 is literal?0
+Num elements: 26 for struct.ngx_connection_s.845 is literal?0
+Num elements: 26 for struct.ngx_listening_s.839 is literal?0
+Num elements: 26 for struct.ngx_connection_s.865 is literal?0
+Num elements: 26 for struct.ngx_listening_s.859 is literal?0
+Num elements: 26 for struct.ngx_connection_s.885 is literal?0
+Num elements: 26 for struct.ngx_listening_s.879 is literal?0
+Num elements: 26 for struct.ngx_connection_s.907 is literal?0
+Num elements: 26 for struct.ngx_listening_s.901 is literal?0
+Num elements: 26 for struct.ngx_connection_s.927 is literal?0
+Num elements: 26 for struct.ngx_listening_s.921 is literal?0
+Num elements: 4 for struct.ngx_channel_t is literal?0
+Num elements: 2 for union.anon.971 is literal?0
+Num elements: 6 for struct.utsname is literal?0
+Num elements: 7 for struct.ngx_process_t.1077 is literal?0
+Num elements: 3 for struct.__user_cap_data_struct is literal?0
+Num elements: 10 for struct.ngx_event_actions_t.1079 is literal?0
+Num elements: 7 for struct.ngx_http_location_queue_t is literal?0
+Num elements: 11 for struct.ngx_http_listen_opt_t is literal?0
+Num elements: 6 for struct.ngx_http_conf_addr_t is literal?0
+Num elements: 3 for struct.ngx_http_conf_port_t is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s is literal?0
+Num elements: 1 for struct.ngx_http_phase_t is literal?0
+Num elements: 3 for struct.ngx_http_header_t is literal?0
+Num elements: 8 for struct.ngx_http_module_t is literal?0
+Num elements: 2 for struct.ngx_http_in_addr_t is literal?0
+Num elements: 2 for struct.ngx_http_in6_addr_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.1315 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.1294 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.1278 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.1273 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.1272 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.1297 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.1298 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.1299 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.1300 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.1312 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.1311 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.1306 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.1305 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.1303 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.1310 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.1309 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.1321 is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.1331 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.1328 is literal?0
+Num elements: 11 for struct.ngx_http_script_compile_t is literal?0
+Num elements: 4 for struct.ngx_http_err_page_t is literal?0
+Num elements: 4 for struct.ngx_http_compile_complex_value_t is literal?0
+Num elements: 9 for struct.ngx_http_script_engine_t is literal?0
+Num elements: 2 for struct.ngx_http_in_addr_t.1516 is literal?0
+Num elements: 3 for struct.ngx_http_log_ctx_s is literal?0
+Num elements: 2 for struct.ngx_http_in6_addr_t.1518 is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.1523 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.1520 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.1519 is literal?0
+Num elements: 1 for struct.ngx_http_ephemeral_t is literal?0
+Num elements: 5 for struct.ngx_http_status_t is literal?0
+Num elements: 2 for struct.ngx_http_log_main_conf_t is literal?0
+Num elements: 3 for struct.ngx_http_log_fmt_t is literal?0
+Num elements: 5 for struct.ngx_http_log_loc_conf_t is literal?0
+Num elements: 7 for struct.ngx_http_log_t is literal?0
+Num elements: 2 for struct.ngx_http_log_script_t is literal?0
+Num elements: 6 for struct.ngx_http_log_buf_t is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.1714 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.1711 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.1710 is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.1903 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.1901 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.1900 is literal?0
+Num elements: 1 for struct.ngx_http_map_t is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.2002 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.1999 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.1998 is literal?0
+Num elements: 31 for struct.tcp_info is literal?0
+Num elements: 2 for struct.ngx_http_script_full_name_code_t is literal?0
+Num elements: 3 for struct.ngx_http_script_return_code_t is literal?0
+Num elements: 3 for struct.ngx_http_script_if_code_t is literal?0
+Num elements: 2 for struct.ngx_http_script_complex_value_code_t is literal?0
+Num elements: 4 for struct.ngx_http_script_value_code_t is literal?0
+Num elements: 3 for struct.ngx_http_script_var_handler_code_t is literal?0
+Num elements: 2 for struct.ngx_http_upstream_main_conf_t is literal?0
+Num elements: 3 for struct.ngx_http_log_ctx_s.2106 is literal?0
+Num elements: 10 for struct.ngx_http_upstream_server_t is literal?0
+Num elements: 3 for struct.ngx_http_upstream_param_t is literal?0
+Num elements: 12 for struct.ngx_conf_s.2136 is literal?0
+Num elements: 32 for struct.ngx_cycle_s.2134 is literal?0
+Num elements: 25 for struct.ngx_module_s.2131 is literal?0
+Num elements: 6 for struct.ngx_command_s.2130 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.2198 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.2197 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.2196 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.2175 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.2159 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.2178 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.2179 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.2180 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.2181 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.2193 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.2192 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.2187 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.2186 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.2184 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.2191 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.2190 is literal?0
+Num elements: 18 for struct.ngx_http_upstream_rr_peer_s is literal?0
+Num elements: 6 for struct.ngx_http_upstream_rr_peers_s is literal?0
+Num elements: 5 for struct.ngx_http_upstream_rr_peer_data_t is literal?0
+Num elements: 15 for struct.ngx_http_file_cache_header_t is literal?0
+Num elements: 12 for struct.ngx_tree_ctx_s.2297 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.2390 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.2369 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.2353 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.2348 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.2347 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.2372 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.2373 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.2374 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.2375 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.2387 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.2386 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.2381 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.2380 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.2378 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.2385 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.2384 is literal?0
+Num elements: 71 for struct.ngx_http_request_s.2481 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.2460 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.2444 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.2439 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.2438 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.2463 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.2464 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.2465 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.2466 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.2478 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.2477 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.2472 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.2471 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.2469 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.2476 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.2475 is literal?0
+Num elements: 2 for struct.ngx_http_chunked_filter_ctx_t is literal?0
+Num elements: 3 for struct.ngx_http_range_filter_ctx_t is literal?0
+Num elements: 3 for struct.ngx_http_range_t is literal?0
+Num elements: 5 for struct.ngx_http_headers_conf_t is literal?0
+Num elements: 1 for struct.ngx_http_copy_filter_conf_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.3029 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.3008 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.2992 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.2987 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.2986 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.3011 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.3012 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.3013 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.3014 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.3026 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.3025 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.3020 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.3019 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.3017 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.3024 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.3023 is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.3035 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.3032 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.3031 is literal?0
+Num elements: 2 for struct.ngx_http_index_loc_conf_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.3126 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.3105 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.3089 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.3084 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.3083 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.3108 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.3109 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.3110 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.3111 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.3123 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.3122 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.3117 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.3116 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.3114 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.3121 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.3120 is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.3133 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.3130 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.3129 is literal?0
+Num elements: 9 for struct.ngx_http_script_engine_t.3134 is literal?0
+Num elements: 1 for struct.ngx_http_try_files_loc_conf_t is literal?0
+Num elements: 4 for struct.ngx_http_try_file_t is literal?0
+Num elements: 71 for struct.ngx_http_request_s.3225 is literal?0
+Num elements: 36 for struct.ngx_http_upstream_s.3204 is literal?0
+Num elements: 53 for struct.ngx_http_upstream_conf_t.3188 is literal?0
+Num elements: 9 for struct.ngx_http_upstream_srv_conf_s.3183 is literal?0
+Num elements: 3 for struct.ngx_http_upstream_peer_t.3182 is literal?0
+Num elements: 9 for struct.ngx_http_request_body_t.3207 is literal?0
+Num elements: 3 for struct.ngx_http_postponed_request_s.3208 is literal?0
+Num elements: 2 for struct.ngx_http_post_subrequest_t.3209 is literal?0
+Num elements: 2 for struct.ngx_http_posted_request_s.3210 is literal?0
+Num elements: 6 for struct.ngx_http_connection_t.3222 is literal?0
+Num elements: 3 for struct.ngx_http_addr_conf_s.3221 is literal?0
+Num elements: 15 for struct.ngx_http_core_srv_conf_t.3216 is literal?0
+Num elements: 73 for struct.ngx_http_core_loc_conf_s.3215 is literal?0
+Num elements: 8 for struct.ngx_http_location_tree_node_s.3213 is literal?0
+Num elements: 3 for struct.ngx_http_virtual_names_t.3220 is literal?0
+Num elements: 2 for struct.ngx_http_server_name_t.3219 is literal?0
+Num elements: 14 for struct.ngx_http_core_main_conf_t.3232 is literal?0
+Num elements: 3 for struct.ngx_http_phase_engine_t.3229 is literal?0
+Num elements: 3 for struct.ngx_http_phase_handler_s.3228 is literal?0
+Num elements: 9 for struct.ngx_http_script_engine_t.3233 is literal?0
+Started pointer analysis
+Started building PAG
+Inttoptr edge:   %603 = load i8*, i8** %p.i124, align 8, !dbg !39464 to   %607 = inttoptr i64 %and8.i to i8*, !dbg !39464
+Inttoptr edge:   %16 = load i8*, i8** %m.i, align 8, !dbg !37849 to   %18 = inttoptr i64 %and.i to i8*, !dbg !37849
+Inttoptr edge:   %76 = load i8*, i8** %m.i.i, align 8, !dbg !37931 to   %78 = inttoptr i64 %and.i.i to i8*, !dbg !37931
+Inttoptr edge:   %161 = load i8*, i8** %m.i.i5, align 8, !dbg !38057 to   %163 = inttoptr i64 %and.i.i26 to i8*, !dbg !38057
+Inttoptr edge:   %221 = load i8*, i8** %m.i.i.i, align 8, !dbg !38131 to   %223 = inttoptr i64 %and.i.i.i to i8*, !dbg !38131
+Inttoptr edge:   %16 = load i8*, i8** %m.i, align 8, !dbg !37849 to   %18 = inttoptr i64 %and.i to i8*, !dbg !37849
+Inttoptr edge:   %76 = load i8*, i8** %m.i.i, align 8, !dbg !37931 to   %78 = inttoptr i64 %and.i.i to i8*, !dbg !37931
+Inttoptr edge:   %161 = load i8*, i8** %m.i.i5, align 8, !dbg !38057 to   %163 = inttoptr i64 %and.i.i26 to i8*, !dbg !38057
+Inttoptr edge:   %221 = load i8*, i8** %m.i.i.i, align 8, !dbg !38131 to   %223 = inttoptr i64 %and.i.i.i to i8*, !dbg !38131
+Inttoptr edge:   %38 = load i8*, i8** %m.i, align 8, !dbg !37840 to   %40 = inttoptr i64 %and.i to i8*, !dbg !37840
+Inttoptr edge:   %98 = load i8*, i8** %m.i.i, align 8, !dbg !37919 to   %100 = inttoptr i64 %and.i.i to i8*, !dbg !37919
+Inttoptr edge:   %70 = load i8*, i8** %value, align 8, !dbg !37858 to   %72 = inttoptr i64 %and19 to %struct.ngx_hash_wildcard_t*, !dbg !37861
+Inttoptr edge:   %75 = load i8*, i8** %value, align 8, !dbg !37866 to   %77 = inttoptr i64 %and22 to %struct.ngx_hash_wildcard_t*, !dbg !37869
+Inttoptr edge:   %88 = load i8*, i8** %value, align 8, !dbg !37898 to   %90 = inttoptr i64 %and37 to i8*, !dbg !37901
+Inttoptr edge:   %64 = load i8*, i8** %value, align 8, !dbg !37839 to   %66 = inttoptr i64 %and13 to %struct.ngx_hash_wildcard_t*, !dbg !37842
+Inttoptr edge:   %219 = load i8*, i8** %elts, align 8, !dbg !38281 to   %223 = inttoptr i64 %and197 to i8*, !dbg !38281
+Inttoptr edge:   %344 = load %struct.ngx_hash_wildcard_t*, %struct.ngx_hash_wildcard_t** %wdc, align 8, !dbg !38636 to   %348 = inttoptr i64 %or to i8*, !dbg !38641
+Inttoptr edge:   %352 = load i8*, i8** %value149, align 8, !dbg !38651 to   %354 = inttoptr i64 %or150 to i8*, !dbg !38654
+Inttoptr edge:   %511 = load i8*, i8** %m.i.i.i, align 8, !dbg !38877 to   %513 = inttoptr i64 %and.i.i.i to i8*, !dbg !38877
+Inttoptr edge:   %571 = load i8*, i8** %m.i.i.i.i, align 8, !dbg !38956 to   %573 = inttoptr i64 %and.i.i.i.i to i8*, !dbg !38956
+Inttoptr edge:   %24 = load i8*, i8** %p, align 8, !dbg !37788 to   %28 = inttoptr i64 %and8 to i8*, !dbg !37788
+Inttoptr edge:   %71 = load i8*, i8** %m.i.i.i, align 8, !dbg !38058 to   %73 = inttoptr i64 %and.i.i.i to i8*, !dbg !38058
+Inttoptr edge:   %131 = load i8*, i8** %m.i.i.i.i, align 8, !dbg !38137 to   %133 = inttoptr i64 %and.i.i.i.i to i8*, !dbg !38137
+Inttoptr edge:   %85 = load i8*, i8** %m.i.i.i, align 8, !dbg !38094 to   %87 = inttoptr i64 %and.i.i.i to i8*, !dbg !38094
+Inttoptr edge:   %145 = load i8*, i8** %m.i.i.i.i, align 8, !dbg !38173 to   %147 = inttoptr i64 %and.i.i.i.i to i8*, !dbg !38173
+Inttoptr edge:   %93 = load i8*, i8** %m.i.i.i, align 8, !dbg !38113 to   %95 = inttoptr i64 %and.i.i.i to i8*, !dbg !38113
+Inttoptr edge:   %153 = load i8*, i8** %m.i.i.i.i, align 8, !dbg !38192 to   %155 = inttoptr i64 %and.i.i.i.i to i8*, !dbg !38192
+Inttoptr edge:   %147 = load i8*, i8** %start29, align 8, !dbg !38049 to   %149 = inttoptr i64 %add30 to i64*, !dbg !38051
+Inttoptr edge:   %418 = load i8*, i8** %start199, align 8, !dbg !38480 to   %420 = inttoptr i64 %add200 to i64*, !dbg !38482
+Inttoptr edge:   %48 = load i8*, i8** %p.addr, align 8, !dbg !37899 to   %51 = inttoptr i64 %and13 to i64*, !dbg !37905
+Inttoptr edge:   %15 = load %struct.ngx_connection_s*, %struct.ngx_connection_s** %c, align 8, !dbg !37754 to   %19 = inttoptr i64 %or12 to i8*, !dbg !37759
+Inttoptr edge:   %15 = load %struct.ngx_connection_s*, %struct.ngx_connection_s** %c, align 8, !dbg !37753 to   %19 = inttoptr i64 %or12 to i8*, !dbg !37758
+Inttoptr edge:   %0 = load %struct.ngx_connection_s*, %struct.ngx_connection_s** %c.addr, align 8, !dbg !37704 to   %5 = inttoptr i64 %or to i8*, !dbg !37710
+Inttoptr edge:   %36 = load %struct.ngx_connection_s*, %struct.ngx_connection_s** %c, align 8, !dbg !37801 to   %38 = inttoptr i64 %and39 to %struct.ngx_connection_s*, !dbg !37804
+Ended building PAG
+================== Full Constraint Graph =======================
+Number of nodes: 386727
+Number of edges: 208107
+Number of Variant Gep edges: 0
+Number of Normal Gep edges: 0

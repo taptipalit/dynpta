@@ -1,0 +1,137 @@
+make -f objs/Makefile
+make[1]: Entering directory '/mnt/Projects/LLVM-custom/test/Datarand/nginx/nginx-1.15.9'
+/mnt/Projects/LLVM-7-vanilla/llvm-7.0.1.obj/bin/clang -o objs/nginx \
+objs/src/core/nginx.o \
+objs/src/core/ngx_log.o \
+objs/src/core/ngx_palloc.o \
+objs/src/core/ngx_array.o \
+objs/src/core/ngx_list.o \
+objs/src/core/ngx_hash.o \
+objs/src/core/ngx_buf.o \
+objs/src/core/ngx_queue.o \
+objs/src/core/ngx_output_chain.o \
+objs/src/core/ngx_string.o \
+objs/src/core/ngx_parse.o \
+objs/src/core/ngx_parse_time.o \
+objs/src/core/ngx_inet.o \
+objs/src/core/ngx_file.o \
+objs/src/core/ngx_crc32.o \
+objs/src/core/ngx_murmurhash.o \
+objs/src/core/ngx_md5.o \
+objs/src/core/ngx_sha1.o \
+objs/src/core/ngx_rbtree.o \
+objs/src/core/ngx_radix_tree.o \
+objs/src/core/ngx_slab.o \
+objs/src/core/ngx_times.o \
+objs/src/core/ngx_shmtx.o \
+objs/src/core/ngx_connection.o \
+objs/src/core/ngx_cycle.o \
+objs/src/core/ngx_spinlock.o \
+objs/src/core/ngx_rwlock.o \
+objs/src/core/ngx_cpuinfo.o \
+objs/src/core/ngx_conf_file.o \
+objs/src/core/ngx_module.o \
+objs/src/core/ngx_resolver.o \
+objs/src/core/ngx_open_file_cache.o \
+objs/src/core/ngx_crypt.o \
+objs/src/core/ngx_proxy_protocol.o \
+objs/src/core/ngx_syslog.o \
+objs/src/event/ngx_event.o \
+objs/src/event/ngx_event_timer.o \
+objs/src/event/ngx_event_posted.o \
+objs/src/event/ngx_event_accept.o \
+objs/src/event/ngx_event_udp.o \
+objs/src/event/ngx_event_connect.o \
+objs/src/event/ngx_event_pipe.o \
+objs/src/os/unix/ngx_time.o \
+objs/src/os/unix/ngx_errno.o \
+objs/src/os/unix/ngx_alloc.o \
+objs/src/os/unix/ngx_files.o \
+objs/src/os/unix/ngx_socket.o \
+objs/src/os/unix/ngx_recv.o \
+objs/src/os/unix/ngx_readv_chain.o \
+objs/src/os/unix/ngx_udp_recv.o \
+objs/src/os/unix/ngx_send.o \
+objs/src/os/unix/ngx_writev_chain.o \
+objs/src/os/unix/ngx_udp_send.o \
+objs/src/os/unix/ngx_udp_sendmsg_chain.o \
+objs/src/os/unix/ngx_channel.o \
+objs/src/os/unix/ngx_shmem.o \
+objs/src/os/unix/ngx_process.o \
+objs/src/os/unix/ngx_daemon.o \
+objs/src/os/unix/ngx_setaffinity.o \
+objs/src/os/unix/ngx_setproctitle.o \
+objs/src/os/unix/ngx_posix_init.o \
+objs/src/os/unix/ngx_user.o \
+objs/src/os/unix/ngx_dlopen.o \
+objs/src/os/unix/ngx_process_cycle.o \
+objs/src/os/unix/ngx_linux_init.o \
+objs/src/event/modules/ngx_epoll_module.o \
+objs/src/os/unix/ngx_linux_sendfile_chain.o \
+objs/src/event/ngx_event_openssl.o \
+objs/src/event/ngx_event_openssl_stapling.o \
+objs/src/http/ngx_http.o \
+objs/src/http/ngx_http_core_module.o \
+objs/src/http/ngx_http_special_response.o \
+objs/src/http/ngx_http_request.o \
+objs/src/http/ngx_http_parse.o \
+objs/src/http/modules/ngx_http_log_module.o \
+objs/src/http/ngx_http_request_body.o \
+objs/src/http/ngx_http_variables.o \
+objs/src/http/ngx_http_script.o \
+objs/src/http/ngx_http_upstream.o \
+objs/src/http/ngx_http_upstream_round_robin.o \
+objs/src/http/ngx_http_file_cache.o \
+objs/src/http/ngx_http_write_filter_module.o \
+objs/src/http/ngx_http_header_filter_module.o \
+objs/src/http/modules/ngx_http_chunked_filter_module.o \
+objs/src/http/modules/ngx_http_range_filter_module.o \
+objs/src/http/modules/ngx_http_headers_filter_module.o \
+objs/src/http/ngx_http_copy_filter_module.o \
+objs/src/http/modules/ngx_http_not_modified_filter_module.o \
+objs/src/http/modules/ngx_http_static_module.o \
+objs/src/http/modules/ngx_http_index_module.o \
+objs/src/http/modules/ngx_http_try_files_module.o \
+objs/src/http/modules/ngx_http_ssl_module.o \
+objs/ngx_modules.o \
+-O0 -flto -Wl,-plugin-opt=save-temps -L/mnt/Projects/LLVM-custom/test/Datarand/apps/openssl-1.1.1a/build -lhelper -ldl -lpthread -lssl -lcrypto -ldl -lpthread \
+-Wl,-E
+objs/nginx.o:ld-temp.o:function ngx_show_version_info: error: undefined reference to 'SSLeay_version'
+objs/nginx.o:ld-temp.o:function ngx_show_version_info: error: undefined reference to 'SSLeay_version'
+objs/nginx.o:ld-temp.o:function ngx_ssl_init: error: undefined reference to 'SSL_library_init'
+objs/nginx.o:ld-temp.o:function ngx_ssl_init: error: undefined reference to 'SSL_load_error_strings'
+objs/nginx.o:ld-temp.o:function ngx_ssl_init: error: undefined reference to 'OPENSSL_add_all_algorithms_noconf'
+objs/nginx.o:ld-temp.o:function ngx_ssl_init: error: undefined reference to 'SSL_get_ex_new_index'
+objs/nginx.o:ld-temp.o:function ngx_ssl_init: error: undefined reference to 'SSL_CTX_get_ex_new_index'
+objs/nginx.o:ld-temp.o:function ngx_ssl_init: error: undefined reference to 'SSL_CTX_get_ex_new_index'
+objs/nginx.o:ld-temp.o:function ngx_ssl_init: error: undefined reference to 'SSL_CTX_get_ex_new_index'
+objs/nginx.o:ld-temp.o:function ngx_ssl_init: error: undefined reference to 'SSL_CTX_get_ex_new_index'
+objs/nginx.o:ld-temp.o:function ngx_ssl_init: error: undefined reference to 'X509_get_ex_new_index'
+objs/nginx.o:ld-temp.o:function ngx_ssl_init: error: undefined reference to 'X509_get_ex_new_index'
+objs/nginx.o:ld-temp.o:function ngx_ssl_init: error: undefined reference to 'X509_get_ex_new_index'
+objs/nginx.o:ld-temp.o:function ngx_ssl_create: error: undefined reference to 'SSLv23_method'
+objs/nginx.o:ld-temp.o:function ngx_ssl_certificate: error: undefined reference to 'sk_pop_free'
+objs/nginx.o:ld-temp.o:function ngx_ssl_certificate: error: undefined reference to 'sk_pop_free'
+objs/nginx.o:ld-temp.o:function ngx_ssl_certificate: error: undefined reference to 'sk_pop_free'
+objs/nginx.o:ld-temp.o:function ngx_ssl_certificate: error: undefined reference to 'sk_pop_free'
+objs/nginx.o:ld-temp.o:function ngx_ssl_load_certificate: error: undefined reference to 'sk_new_null'
+objs/nginx.o:ld-temp.o:function ngx_ssl_load_certificate: error: undefined reference to 'sk_push'
+objs/nginx.o:ld-temp.o:function ngx_ssl_ciphers: error: undefined reference to 'SSL_CTX_set_tmp_rsa_callback'
+objs/nginx.o:ld-temp.o:function ngx_ssl_shutdown: error: undefined reference to 'SSL_state'
+objs/nginx.o:ld-temp.o:function ngx_ssl_session_id_context: error: undefined reference to 'EVP_MD_CTX_create'
+objs/nginx.o:ld-temp.o:function ngx_ssl_session_id_context: error: undefined reference to 'sk_num'
+objs/nginx.o:ld-temp.o:function ngx_ssl_session_id_context: error: undefined reference to 'sk_value'
+objs/nginx.o:ld-temp.o:function ngx_ssl_session_id_context: error: undefined reference to 'EVP_MD_CTX_destroy'
+objs/nginx.o:ld-temp.o:function ngx_ssl_session_id_context: error: undefined reference to 'EVP_MD_CTX_destroy'
+objs/nginx.o:ld-temp.o:function ngx_openssl_exit: error: undefined reference to 'EVP_cleanup'
+objs/nginx.o:ld-temp.o:function ngx_openssl_exit: error: undefined reference to 'ENGINE_cleanup'
+objs/nginx.o:ld-temp.o:function ngx_ssl_stapling_issuer: error: undefined reference to 'sk_num'
+objs/nginx.o:ld-temp.o:function ngx_ssl_stapling_issuer: error: undefined reference to 'sk_value'
+objs/nginx.o:ld-temp.o:function ngx_ssl_stapling_issuer: error: undefined reference to 'CRYPTO_add_lock'
+objs/nginx.o:ld-temp.o:function ngx_ssl_stapling_responder: error: undefined reference to 'sk_value'
+clang-7: error: linker command failed with exit code 1 (use -v to see invocation)
+objs/Makefile:201: recipe for target 'objs/nginx' failed
+make[1]: *** [objs/nginx] Error 1
+make[1]: Leaving directory '/mnt/Projects/LLVM-custom/test/Datarand/nginx/nginx-1.15.9'
+Makefile:8: recipe for target 'build' failed
+make: *** [build] Error 2

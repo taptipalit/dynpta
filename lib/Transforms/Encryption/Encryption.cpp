@@ -26,23 +26,23 @@ namespace {
 		//bool partitioning = false;
 		static char ID;
 
-        	static const int SPECIALIZE_THRESHOLD = 50;
+        static const int SPECIALIZE_THRESHOLD = 50;
 
-		EncryptionPass() : ModulePass(ID) {
-            		decryptionCount = 0;
-            		encryptionCount = 0;
-			initializeEncryptionPassPass(*PassRegistry::getPassRegistry());
-		}
+        EncryptionPass() : ModulePass(ID) {
+            decryptionCount = 0;
+            encryptionCount = 0;
+            initializeEncryptionPassPass(*PassRegistry::getPassRegistry());
+        }
 
-        	std::set<Value*> ExtraSensitivePtrs;
+        std::set<Value*> ExtraSensitivePtrs;
 
-        	// Statistics
-        	long decryptionCount;
-        	long encryptionCount;
+        // Statistics
+        long decryptionCount;
+        long encryptionCount;
 
-        	void collectLoadStoreStats(Module&);
+        void collectLoadStoreStats(Module&);
 
-		bool runOnModule(Module &M) override;
+        bool runOnModule(Module &M) override;
 
 		private:
 		
@@ -145,6 +145,7 @@ namespace {
 
 		void collectGlobalSensitiveAnnotations(Module&);
 		void collectLocalSensitiveAnnotations(Module&);
+        void collectSecureMallocs(Module&);
 
         std::vector<Type*> sensitiveTypes;
 
@@ -228,6 +229,7 @@ char EncryptionPass::ID = 0;
 cl::opt<bool> AesEncCache("aes-enc-cache", cl::desc("AES Encryption - Cache"), cl::init(false), cl::Hidden);
 cl::opt<bool> Partitioning("partitioning", cl::desc("Partitioning"), cl::init(false), cl::Hidden);
 cl::opt<bool> DFSan("DFSAN", cl::desc("DFSan"), cl::init(false), cl::Hidden);
+cl::opt<bool> SecureMalloc("secure-malloc", cl::desc("Secure Malloc-based implementation. Only sensitive annotated variables and secure-mallocs are treated as sensitive"), cl::init(false));
 //cl::opt<bool> SkipVFA("skip-vfa-enc", cl::desc("Skip VFA"), cl::init(false), cl::Hidden);
 
 
@@ -915,6 +917,23 @@ void EncryptionPass::removeAnnotateInstruction(Module& M) {
 
 }
 
+void EncryptionPass::collectSecureMallocs(Module& M) {
+    for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+        if (auto *F = dyn_cast<Function>(MIterator)) {
+            for (inst_iterator I = inst_begin(*F), E = inst_end(*F); I != E; ++I) {
+                if (CallInst* callInst = dyn_cast<CallInst>(&*I)) {
+                    if (Function* calledFunc = callInst->getCalledFunction()) {
+                        if (calledFunc->getName() == "secure_malloc") {
+                            NodeID objID = pag->getObjectNode(callInst);
+                            SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(UseValue)));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 void EncryptionPass::collectGlobalSensitiveAnnotations(Module& M) {
 	std::vector<StringRef> GlobalSensitiveNameList;
     PAG* pag = getAnalysis<WPAPass>().getPAG();
@@ -985,28 +1004,28 @@ void EncryptionPass::collectLocalSensitiveAnnotations(Module &M) {
 								// CallInst->getCalledValue() gives us a pointer to the Function
 								if (CInst->getCalledValue()->getName().equals("llvm.var.annotation") || CInst->getCalledValue()->getName().startswith("llvm.ptr.annotation")) {
 									Value* SV = CInst->getArgOperand(0);
-									for (Value::use_iterator useItr = SV->use_begin(), useEnd = SV->use_end(); useItr != useEnd; useItr++) {
-										Value* UseValue = dyn_cast<Value>(*useItr);
-										errs() << "useValue: " << *UseValue << "\n"; 
-                     					                        if (pag->hasObjectNode(UseValue)) {
-                                            						NodeID objID = pag->getObjectNode(UseValue);
-											errs() << "nodeIDObj: " << objID << "\n";
-                                            						PAGNode* objNode = pag->getPAGNode(objID);
-                                            						SensitiveObjList.push_back(objNode);
-                                            						// Find all Field-edges and corresponding field nodes
-                                            						NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
-                                            						for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
-                                                						PAGNode* fldNode = pag->getPAGNode(*fIt);
-                                                						SensitiveObjList.push_back(fldNode);
-                                            						}
-                                            						SensitiveObjList.push_back(objNode);
-                                        					} 
-                                        					if (pag->hasValueNode(UseValue)) {
-										    NodeID objID = pag->getValueNode(UseValue);
-										    errs() << "nodeIDValue: " << objID << "\n";
-										    SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(UseValue)));
-                                        					}
-									}
+                                    for (Value::use_iterator useItr = SV->use_begin(), useEnd = SV->use_end(); useItr != useEnd; useItr++) {
+                                        Value* UseValue = dyn_cast<Value>(*useItr);
+                                        errs() << "useValue: " << *UseValue << "\n"; 
+                                        if (pag->hasObjectNode(UseValue)) {
+                                            NodeID objID = pag->getObjectNode(UseValue);
+                                            errs() << "nodeIDObj: " << objID << "\n";
+                                            PAGNode* objNode = pag->getPAGNode(objID);
+                                            SensitiveObjList.push_back(objNode);
+                                            // Find all Field-edges and corresponding field nodes
+                                            NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
+                                            for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
+                                                PAGNode* fldNode = pag->getPAGNode(*fIt);
+                                                SensitiveObjList.push_back(fldNode);
+                                            }
+                                            SensitiveObjList.push_back(objNode);
+                                        } 
+                                        if (pag->hasValueNode(UseValue)) {
+                                            NodeID objID = pag->getValueNode(UseValue);
+                                            errs() << "nodeIDValue: " << objID << "\n";
+                                            SensitiveObjList.push_back(pag->getPAGNode(pag->getValueNode(UseValue)));
+                                        }
+                                    }
 								}
 							}	
 						}
@@ -1024,9 +1043,9 @@ void EncryptionPass::collectLocalSensitiveAnnotations(Module &M) {
 								Value* RetVal = llvm::cast<Value>(Inst);
 								if (isSensitiveObj(getPAGValNodeFromValue(RetVal))) { // A CastInst is a Value not Obj
 									// The bitcasted version of this variable was used in the annotation call,
-									// So add this variable too to the encrypted list
+                                    // So add this variable too to the encrypted list
                                     Value* val = BCInst->getOperand(0);
-				    errs() << "useValuebitcast: " << *val << "\n";
+                                    errs() << "useValuebitcast: " << *val << "\n";
                                     if (pag->hasObjectNode(val)) {
                                         NodeID objID = pag->getObjectNode(val);
                                         PAGNode* objNode = pag->getPAGNode(objID);
@@ -4382,8 +4401,8 @@ bool EncryptionPass::runOnModule(Module &M) {
     SensitiveObjSet = nullptr;
 
 	DoAESEncCache = true;
-    	// Do Alias Analysis for pointers
-    	getAnalysis<WPAPass>().buildResultMaps();
+    // Do Alias Analysis for pointers
+    getAnalysis<WPAPass>().buildResultMaps();
 	std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
 	std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
 
@@ -4391,6 +4410,11 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     collectGlobalSensitiveAnnotations(M);
     collectLocalSensitiveAnnotations(M);
+    
+    if (SecureMalloc) {
+        collectSecureMallocs(M);
+    }
+
     LLVM_DEBUG (
             dbgs() << "Collected sensitive annotations\n";
             for (PAGNode* valNode: SensitiveObjList) {
@@ -4411,6 +4435,7 @@ bool EncryptionPass::runOnModule(Module &M) {
             if (AllocaInst* allocaInst = dyn_cast<AllocaInst>(senVal)) {
                 if(PointerType *pointerType=dyn_cast<PointerType>(allocaInst->getAllocatedType())){
                     errs() <<"AllocaInst PointerType"<<*allocaInst<<"\n";
+
                     preprocessSensitiveAnnotatedPointers(M);
                     preprocessed = true;
                     break;
