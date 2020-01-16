@@ -378,19 +378,20 @@ int CRYPTO_is_mem_check_on(void);
 # define MemCheck_off()  CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_DISABLE)
 # define is_MemCheck_on() CRYPTO_is_mem_check_on()
 
-# define OPENSSL_malloc(num)    malloc(num) 
-# define OPENSSL_strdup(str)    strdup(str)
-# define OPENSSL_realloc(addr,num) realloc(addr, num)
+# define OPENSSL_malloc(num)     CRYPTO_malloc((int)num,__FILE__,__LINE__)
+# define OPENSSL_strdup(str)     CRYPTO_strdup((str),__FILE__,__LINE__)
+# define OPENSSL_realloc(addr,num) \
+        CRYPTO_realloc((char *)addr,(int)num,__FILE__,__LINE__)
 # define OPENSSL_realloc_clean(addr,old_num,num) \
         CRYPTO_realloc_clean(addr,old_num,num,__FILE__,__LINE__)
 # define OPENSSL_remalloc(addr,num) \
         CRYPTO_remalloc((char **)addr,(int)num,__FILE__,__LINE__)
-# define OPENSSL_freeFunc        free 
-# define OPENSSL_free(addr)      free(addr)
+# define OPENSSL_freeFunc        CRYPTO_free
+# define OPENSSL_free(addr)      CRYPTO_free(addr)
 
 # define OPENSSL_malloc_locked(num) \
-       malloc(num) 
-# define OPENSSL_free_locked(addr) free(addr)
+        CRYPTO_malloc_locked((int)num,__FILE__,__LINE__)
+# define OPENSSL_free_locked(addr) CRYPTO_free_locked(addr)
 
 const char *SSLeay_version(int type);
 unsigned long SSLeay(void);
