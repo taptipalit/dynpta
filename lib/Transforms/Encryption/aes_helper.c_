@@ -489,7 +489,7 @@ uint32_t getDecryptedValueDWord(void* ptr) {
 			asm("pextrd $7, %%xmm15, %0\n\t": "=r"(dword_result) : );
 			break;
 	}
-	//printf ("After decrypted : %d ",dword_result);
+    //printf ("After decrypted : %d ",dword_result);
 	//printf("and %" PRIu32 "\n", dword_result);
 	return dword_result;
 }
