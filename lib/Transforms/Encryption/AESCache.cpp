@@ -316,7 +316,7 @@ void AESCache::SetLabelsForSensitiveObjects(Module &M, std::set<PAGNode*>* Sensi
 		errs() << "Value " << *senVal<<"\n";
 		//Creating insert position
 		if(Instruction *I = dyn_cast<Instruction>(senVal)){
-		    IRBuilder<> Builder(I);
+            IRBuilder<> Builder(I);
 		    Builder.SetInsertPoint(I->getNextNode());
 
 		    /*For now, we are adding constant single label for all sensitive objects and setting in only 
@@ -350,9 +350,8 @@ void AESCache::SetLabelsForSensitiveObjects(Module &M, std::set<PAGNode*>* Sensi
 			    Value* PtrOperand = nullptr;
 			    PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
 			    CallInst* setLabel = nullptr;
-
-
-			    setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
+                
+                setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
 			    setLabel->addParamAttr(0, Attribute::ZExt);
 			    errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
 	
@@ -378,10 +377,9 @@ void AESCache::SetLabelsForSensitiveObjects(Module &M, std::set<PAGNode*>* Sensi
                 setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
                 setLabel->addParamAttr(0, Attribute::ZExt);
                 errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
-
             }
         }
-	}
+    }
 }
 
 
