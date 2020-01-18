@@ -306,64 +306,63 @@ void AESCache::allocateSeparateMemoryForHeapObjects(Module &M, std::set<PAGNode*
 
 void AESCache::SetLabelsForSensitiveObjects(Module &M, std::set<PAGNode*>* SensitiveAllocaList,
             std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
-	LLVMContext *Ctx;
-	Ctx = &M.getContext();
-	const DataLayout &DL = M.getDataLayout();
-	errs() << "Setting Label for Sensitive Objects: \n";
-        for (PAGNode* senNode: *SensitiveAllocaList) {
-		assert(senNode->hasValue());
-		Value* senVal = const_cast<Value*>(senNode->getValue());
-		errs() << "Value " << *senVal<<"\n";
-		//Creating insert position
-		if(Instruction *I = dyn_cast<Instruction>(senVal)){
+    LLVMContext *Ctx;
+    Ctx = &M.getContext();
+    const DataLayout &DL = M.getDataLayout();
+    errs() << "Setting Label for Sensitive Objects: \n";
+    for (PAGNode* senNode: *SensitiveAllocaList) {
+        assert(senNode->hasValue());
+        Value* senVal = const_cast<Value*>(senNode->getValue());
+        errs() << "Value " << *senVal<<"\n";
+        //Creating insert position
+        if(Instruction *I = dyn_cast<Instruction>(senVal)){
             IRBuilder<> Builder(I);
-		    Builder.SetInsertPoint(I->getNextNode());
-
-		    /*For now, we are adding constant single label for all sensitive objects and setting in only 
-		    first byte. It something break, will look into it later on. 
-		    */
-		    ConstantInt* label = Builder.getInt16(1);
-		    ConstantInt* noOfByte = Builder.getInt64(1);
-		    /*if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
+            Builder.SetInsertPoint(I->getNextNode());
+            
+            /*For now, we are adding constant single label for all sensitive objects and setting in only 
+             * first byte. It something break, will look into it later on. 
+             * */
+            ConstantInt* label = Builder.getInt16(1);
+            ConstantInt* noOfByte = Builder.getInt64(1);
+            /*if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
                 errs() <<"This is GEPNode "<<*gepNode<<"\n";
-			    IntegerType *IntptrTy;
-			    IntptrTy = Type::getInt32Ty(M.getContext());
-			    //Getting offset for GEP instruction 
-			    Size_t offset = gepNode->getLocationSet().getOffset();
-			    //Value* indexList[2] = {Builder.getInt32(0),Builder.getInt32(offset)};
-			    //Value* gepInst = Builder.CreateGEP(senVal, ArrayRef<Value*>(indexList, 2));
-			    Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, offset)};
-			    //Creating getelementptr instruction to get address of struct field
-			    Value* gepInst = Builder.CreateInBoundsGEP(senVal, ArrayRef<Value*>(indexList, 2));
-			    Value* PtrOperand = nullptr;
-			    PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
-			    CallInst* setLabel = nullptr;
-			    setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte}); 
-			    setLabel->addParamAttr(0, Attribute::ZExt);
-			    errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
-		    }*/
-		    if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
-                // Is an alloca instruction
-			    //Type* byteType = Type::getInt8Ty(M.getContext());
-			    //PointerType* bytePtrType = PointerType::get(byteType, 0);
-                errs() <<"This is Alloca "<<*allocInst<<"\n";
-			    Value* PtrOperand = nullptr;
-			    PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
-			    CallInst* setLabel = nullptr;
-                
-                setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
-			    setLabel->addParamAttr(0, Attribute::ZExt);
-			    errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
-	
-        	}
-		    else if (CallInst* callInst = dyn_cast<CallInst>(senVal)){
-			    // Call Instruction, no need to add bitcast
-                errs() <<"This is callInst "<<*callInst<<"\n";
-			    CallInst* setLabel = nullptr;
-			    setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, callInst, noOfByte});
+                IntegerType *IntptrTy;
+                IntptrTy = Type::getInt32Ty(M.getContext());
+                //Getting offset for GEP instruction 
+                Size_t offset = gepNode->getLocationSet().getOffset();
+                //Value* indexList[2] = {Builder.getInt32(0),Builder.getInt32(offset)};
+                //Value* gepInst = Builder.CreateGEP(senVal, ArrayRef<Value*>(indexList, 2));
+                Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, offset)};
+                //Creating getelementptr instruction to get address of struct field
+                Value* gepInst = Builder.CreateInBoundsGEP(senVal, ArrayRef<Value*>(indexList, 2));
+                Value* PtrOperand = nullptr;
+                PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
+                CallInst* setLabel = nullptr;
+                setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte}); 
                 setLabel->addParamAttr(0, Attribute::ZExt);
                 errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
-		    }
+            }*/
+            if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
+                // Is an alloca instruction
+                //Type* byteType = Type::getInt8Ty(M.getContext());
+                //PointerType* bytePtrType = PointerType::get(byteType, 0);
+                errs() <<"This is Alloca "<<*allocInst<<"\n";
+                Value* PtrOperand = nullptr;
+                PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
+                CallInst* setLabel = nullptr;
+                
+                setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
+                setLabel->addParamAttr(0, Attribute::ZExt);
+                errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
+            }
+            else if (CallInst* callInst = dyn_cast<CallInst>(senVal)){
+                // Call Instruction, no need to add bitcast
+                errs() <<"This is callInst "<<*callInst<<"\n";
+                CallInst* setLabel = nullptr;
+                setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, callInst, noOfByte});
+                setLabel->addParamAttr(0, Attribute::ZExt);
+                errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
+            }
             else if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
                 errs() <<"This is GEPNode "<<*gepNode<<"\n";
                 IntegerType *IntptrTy;
