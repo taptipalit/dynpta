@@ -2049,7 +2049,7 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
 			LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
 
 			// Check get the decrypted value
-            		decryptionCount++;
+            decryptionCount++;
 			Value* decryptedValue = nullptr;
 			if (Partitioning) {
             			decryptedValue = AESCache.getDecryptedValueCachedPartitioning(LdInst);
@@ -2061,7 +2061,7 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
 			}*/
 			else 
 				decryptedValue = AESCache.getDecryptedValueCached(LdInst);
-            		updateSensitiveState(LdInst, decryptedValue, ptsToMap);
+            updateSensitiveState(LdInst, decryptedValue, ptsToMap);
 			// Can't blindly replace all uses of the old loaded value, because it includes the InlineASM
 			std::vector<User*> LoadInstUsers;
 			for (User *U : LdInst->users()) {
@@ -2089,7 +2089,7 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
 				StInst->dump();
 			);
 
-            		encryptionCount++;
+            encryptionCount++;
 			if (Partitioning)
 				AESCache.setEncryptedValueCachedPartitioning(StInst);
 			/*else if(DFSan)
@@ -2110,8 +2110,8 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
                         	// Check get the decrypted value
                         	decryptionCount++;
                         	Value* decryptedValue = nullptr;
-                                decryptedValue = AESCache.getDecryptedValueCachedDfsan(LdInst);
-                                errs() <<" Decrypted value " << *decryptedValue<<"\n";
+                            decryptedValue = AESCache.getDecryptedValueCachedDfsan(LdInst);
+                            errs() <<" Decrypted value " << *decryptedValue<<"\n";
 
                         	updateSensitiveState(LdInst, decryptedValue, ptsToMap);
 
@@ -2143,7 +2143,7 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
                         	);
 
                         	encryptionCount++;
-                                AESCache.setEncryptedValueCachedDfsan(StInst);
+                            AESCache.setEncryptedValueCachedDfsan(StInst);
 
                         	// Remove the Store instruction
                         	StInst->eraseFromParent();

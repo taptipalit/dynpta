@@ -231,7 +231,6 @@ bool AESCache::widenSensitiveComplexType(GepObjPN* gepObjPN, std::map<PAGNode*, 
                     sizeOfType = structNameTypeMap["struct."+sizeOfTypeNameStr->getString().str()];
                     if (!sizeOfType) {
                         assert(false && "Cannot find sizeof type");
-			false;
                     }
                 }
             }
