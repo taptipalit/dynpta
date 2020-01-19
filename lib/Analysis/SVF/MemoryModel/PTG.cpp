@@ -781,19 +781,19 @@ void PTG::solve(std::vector<ConstraintEdge*>& newlyInsertedEdges) {
 }
 
 void PTG::solve() {
-    outs() << "Number of copy edges: " << consG->getDirectCGEdges().size() << "\n";
-    outs() << "Number of deref edges: " << consG->getLoadCGEdges().size() << "\n";
-    outs() << "Number of assign edges: " << consG->getStoreCGEdges().size() << "\n";
+    errs() << "Number of copy edges: " << consG->getDirectCGEdges().size() << "\n";
+    errs() << "Number of deref edges: " << consG->getLoadCGEdges().size() << "\n";
+    errs() << "Number of assign edges: " << consG->getStoreCGEdges().size() << "\n";
     // Solve 
     // Copy edges
     solveCopyConstraints();
-    outs() << "Handled copy edges\n";
+    errs() << "Handled copy edges\n";
     // Load edges
     solveDerefConstraints();
-    outs() << "Handled deref edges\n";
+    errs() << "Handled deref edges\n";
     // Store edges
     solveAssignConstraints();
-    outs() << "Handled assign edges\n";
+    errs() << "Handled assign edges\n";
 }
 
 void PTG::destroy() {

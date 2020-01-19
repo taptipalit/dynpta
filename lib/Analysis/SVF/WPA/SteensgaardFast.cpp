@@ -65,11 +65,11 @@ void SteensgaardFast::analyze(SVFModule svfModule) {
     // We solve only for the new copy edges
     // We repeat till we find new edges
     std::vector<ConstraintEdge*> newCopyEdges;
-    outs() << "Total number of indirect call sites: " << getIndirectCallsites().size() << "\n";
+    errs() << "Total number of indirect call sites: " << getIndirectCallsites().size() << "\n";
     updateCallGraph(getIndirectCallsites(), newCopyEdges);
     while (!newCopyEdges.empty()) {
         DBOUT(DSTEENS, outs() << "Solving for new " << newCopyEdges.size() << " edges\n";);
-        outs() << "Solving for new " << newCopyEdges.size() << " edges\n";
+        errs() << "Solving for new " << newCopyEdges.size() << " edges\n";
         ptgraph->solve(newCopyEdges);
         newCopyEdges.clear();
         updateCallGraph(getIndirectCallsites(), newCopyEdges);
@@ -79,7 +79,7 @@ void SteensgaardFast::analyze(SVFModule svfModule) {
 	timeEnd = CLOCK_IN_MS();
 	steensAnalysisTime = (timeEnd - timeStart) / TIMEINTERVAL;
 
-    outs() << "Steensgaard Analysis took: " << (long)steensAnalysisTime << " seconds.\n";
+    errs() << "Steensgaard Analysis took: " << (long)steensAnalysisTime << " seconds.\n";
 
 
     //ptgraph->dumpMaps();

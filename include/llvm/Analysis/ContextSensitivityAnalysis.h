@@ -1,0 +1,60 @@
+#ifndef CSA_H_
+#define CSA_H_
+
+#include <llvm/Pass.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/InstIterator.h>
+#include <llvm/Support/raw_ostream.h>
+#include <vector>
+#include <set>
+#include <map>
+
+
+class ContextSensitivityAnalysisPass: public llvm::ModulePass {
+
+public:
+    /// Pass ID
+    static char ID;
+
+    /// Constructor needs TargetLibraryInfo to be passed to the AliasAnalysis
+    ContextSensitivityAnalysisPass() : llvm::ModulePass(ID) {
+
+    }
+
+    /// Destructor
+    ~ContextSensitivityAnalysisPass() { }
+
+    /// LLVM analysis usage
+    virtual inline void getAnalysisUsage(llvm::AnalysisUsage &au) const {
+        // declare your dependencies here.
+        /// do not intend to change the IR in this pass,
+        au.setPreservesAll();
+    }
+
+    virtual bool runOnModule(llvm::Module& module);
+
+private:
+    /*
+    llvm::Function* mallocFunction;
+    llvm::Function* callocFunction;
+    llvm::Function* reallocFunction;
+    */
+    std::set<llvm::Function*> mallocWrappers;
+
+    std::vector<llvm::GlobalVariable*> globalMallocWrapperPtrs; // these are simple global function pointers
+
+    void handleGlobalFunctionPointers(llvm::Module&);
+    bool returnsAllocedMemory(llvm::Function*);
+    bool isReturningMallockedPtr(llvm::ReturnInst*, std::vector<llvm::Value*>&);
+    llvm::Value* findSink(llvm::Value*);
+};
+
+namespace llvm {
+    class ModulePass;
+    class Module;
+
+    ModulePass *createContextSensitivityAnalysisPass();
+}
+
+#endif /* CSA_H_ */

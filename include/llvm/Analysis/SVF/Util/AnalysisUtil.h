@@ -105,6 +105,10 @@ inline bool isExtCall(const llvm::Function* fun) {
     return fun && ExtAPI::getExtAPI()->is_ext(fun);
 }
 
+inline bool isTreatAsExtCall(const llvm::Function* fun) {
+    return fun && ExtAPI::getExtAPI()->is_treat_as_ext(fun);
+}
+
 inline bool isExtCall(const llvm::CallSite cs) {
     return isExtCall(getCallee(cs));
 }
@@ -112,6 +116,11 @@ inline bool isExtCall(const llvm::CallSite cs) {
 inline bool isExtCall(const llvm::Instruction *inst) {
     return isExtCall(getCallee(inst));
 }
+
+inline bool isTreatAsExtCall(const llvm::CallSite cs) {
+    return isTreatAsExtCall(getCallee(cs));
+}
+
 //@}
 
 /// Return true if the call is a heap allocator/reallocator
