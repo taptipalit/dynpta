@@ -3,6 +3,7 @@
 
 #include <llvm/Pass.h>
 #include <llvm/IR/Instructions.h>
+#include "llvm/Support/CommandLine.h"
 #include <llvm/IR/Module.h>
 #include <llvm/IR/InstIterator.h>
 #include <llvm/Support/raw_ostream.h>
@@ -42,7 +43,7 @@ private:
     */
     std::set<llvm::Function*> mallocWrappers;
 
-    std::vector<llvm::GlobalVariable*> globalMallocWrapperPtrs; // these are simple global function pointers
+    std::set<llvm::GlobalVariable*> globalMallocWrapperPtrs; // these are simple global function pointers
 
     void handleGlobalFunctionPointers(llvm::Module&);
     bool returnsAllocedMemory(llvm::Function*);
