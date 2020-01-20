@@ -1,6 +1,7 @@
 #ifndef CSA_H_
 #define CSA_H_
 
+#include <utility>      // std::pair, std::make_pair
 #include <llvm/Pass.h>
 #include <llvm/IR/Instructions.h>
 #include "llvm/Support/CommandLine.h"
@@ -36,15 +37,14 @@ public:
     virtual bool runOnModule(llvm::Module& module);
 
 private:
-    /*
-    llvm::Function* mallocFunction;
-    llvm::Function* callocFunction;
-    llvm::Function* reallocFunction;
-    */
+    std::map<llvm::Function*, int> funcCallNumMap; // A map between a function and how many times they're called
+    std::vector<std::pair<llvm::Function*, int>> mallocWrapperCallNumMap;
+
     std::set<llvm::Function*> mallocWrappers;
 
     std::set<llvm::GlobalVariable*> globalMallocWrapperPtrs; // these are simple global function pointers
 
+    void profileFuncCalls(llvm::Module&);
     void handleGlobalFunctionPointers(llvm::Module&);
     bool returnsAllocedMemory(llvm::Function*);
     bool isReturningMallockedPtr(llvm::ReturnInst*, std::vector<llvm::Value*>&);

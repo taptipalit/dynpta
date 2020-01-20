@@ -175,6 +175,39 @@ void ContextSensitivityAnalysisPass::handleGlobalFunctionPointers(llvm::Module& 
     }
 }
 
+void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
+    for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+        if (auto *F = dyn_cast<Function>(MIterator)) {
+            for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
+                if (CallInst* callInst = dyn_cast<CallInst>(&*I)) {
+                    if (Function* calledFunc = callInst->getCalledFunction()) {
+                        funcCallNumMap[calledFunc]++;
+                    }
+                }
+            }
+        }
+    }
+    for (Function* mallocWrapper: mallocWrappers) {
+        mallocWrapperCallNumMap.push_back(std::make_pair(mallocWrapper, funcCallNumMap[mallocWrapper]));
+    }
+
+    // Sort the elements in the map in the right way and then filter it
+    struct {
+        bool operator()(std::pair<Function*, int>& pair1, std::pair<Function*, int>& pair2) const
+        {
+            return pair1.second < pair2.second;
+        }
+    } sorter;
+
+    std::sort(mallocWrapperCallNumMap.begin(), mallocWrapperCallNumMap.end(), sorter);
+
+    errs() << "Sorted malloc callers\n";
+
+    for (auto pair: mallocWrapperCallNumMap) {
+        errs() << pair.first->getName() << " : " << pair.second << "\n";
+    }
+}
+
 /*!
  * We start from here
  */
@@ -204,9 +237,17 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
         }
     }
 
+    errs() << "All functions that qualify:\n";
+    // Now, filter out the functions that aren't called from too many places
     for (Function* mallocWrapper: mallocWrappers) {
         errs() << mallocWrapper->getName() << "\n";
     }
+
+    // Profile the module
+    profileFuncCalls(M);
+
+    
+   
     return false;
 }
 

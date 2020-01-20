@@ -1,0 +1,596 @@
+Yes!
+Yes!
+Yes!
+Yes!
+Yes!
+Yes!
+Yes!
+Yes!
+Yes!
+Yes!
+Yes!
+Yes!
+All functions that qualify:
+compute_wNAF
+ec_pre_comp_new
+EC_GROUP_new_by_curve_name
+ec_group_new_from_data
+EC_KEY_new
+EC_KEY_new_by_curve_name
+EC_KEY_dup
+RSA_new
+RSA_new_method
+RSA_generate_key
+RSA_setup_blinding
+rsa_get_public_exp
+DH_new
+DH_new_method
+DHparams_dup
+d2i_dhp
+ENGINE_new
+int_cleanup_item
+BUF_MEM_new
+BUF_strdup
+BUF_strndup
+BUF_memdup
+BIO_new
+BIO_new_mem_buf
+BIO_new_file
+BIO_new_fp
+BIO_new_socket
+sk_dup
+sk_new
+sk_deep_copy
+sk_new_null
+lh_new
+int_err_get
+int_thread_get
+ERR_get_state
+EVP_MD_CTX_create
+EVP_CIPHER_CTX_new
+EVP_PKEY_new
+EVP_PKEY_meth_new
+EVP_PKEY_CTX_new
+int_ctx_new
+EVP_PKEY_CTX_new_id
+EVP_PKEY_CTX_dup
+ngx_set_environment
+malloc
+ngx_palloc
+ngx_palloc_large
+ngx_pnalloc
+ngx_pcalloc
+ngx_pool_cleanup_add
+ngx_array_create
+ngx_list_create
+ngx_create_temp_buf
+ngx_alloc_chain_link
+ngx_chain_get_free_buf
+ngx_pstrdup
+ngx_radix_tree_create
+ngx_init_cycle
+ngx_resolver_create
+ngx_resolver_dup
+ngx_resolver_alloc
+ngx_resolver_calloc
+ngx_resolver_export
+ngx_resolve_start
+ngx_open_file_cache_init
+ngx_http_alloc_request
+ngx_alloc
+ngx_calloc
+ngx_ssl_rsa512_key_callback
+ngx_ssl_read_password_file
+ngx_ssl_preserve_passwords
+ngx_ssl_get_cached_session
+ngx_ssl_ocsp_start
+ngx_http_create_locations_tree
+ngx_http_cleanup_add
+ngx_http_create_request
+ssl_create_cipher_list
+SSL_CIPHER_description
+d2i_SSL_SESSION
+ngx_http_add_variable
+ngx_http_get_variable
+ngx_http_upstream_add
+OBJ_dup
+ngx_http_chunked_create_trailers
+SSL_new
+ssl_bytes_to_cipher_list
+SSL_CTX_new
+SSL_dup
+ssl_cert_new
+ssl_cert_dup
+ssl_sess_cert_new
+SSL_dup_CA_list
+SSL_load_client_CA_file
+SSL_SESSION_new
+ssl_session_dup
+d2i_ASN1_OBJECT
+c2i_ASN1_OBJECT
+ASN1_OBJECT_new
+ASN1_OBJECT_create
+c2i_ASN1_INTEGER
+d2i_ASN1_UINTEGER
+BN_to_ASN1_INTEGER
+X509_PUBKEY_get
+d2i_PUBKEY
+d2i_PrivateKey
+d2i_AutoPrivateKey
+srp_password_from_info_cb
+freelist_extract
+dtls1_hm_fragment_new
+default_malloc_ex
+default_realloc_ex
+default_malloc_locked_ex
+realloc
+CRYPTO_malloc_locked
+CRYPTO_malloc
+CRYPTO_strdup
+CRYPTO_realloc
+CRYPTO_realloc_clean
+CRYPTO_remalloc
+i2v_AUTHORITY_INFO_ACCESS
+v2i_AUTHORITY_INFO_ACCESS
+policy_data_new
+d2i_SCT_LIST
+module_load_dso
+BN_new
+bn_dup_expand
+BN_dup
+BN_CTX_new
+BN_bn2hex
+BN_bn2dec
+EC_GROUP_new
+EC_POINT_new
+EC_GROUP_dup
+EC_POINT_dup
+EVP_PKEY_asn1_new
+ASN1_STRING_dup
+ASN1_STRING_new
+ASN1_STRING_type_new
+PEM_read_bio_PrivateKey
+PEM_read_bio_Parameters
+PEM_read_PrivateKey
+PEM_read_bio_DHparams
+PEM_read_DHparams
+X509_chain_up_ref
+X509_time_adj
+X509_time_adj_ex
+X509_gmtime_adj
+X509_STORE_CTX_get1_chain
+X509_STORE_CTX_new
+X509v3_add_ext
+X509_LOOKUP_new
+X509_STORE_new
+X509_STORE_add_lookup
+X509_STORE_get1_certs
+X509_STORE_get1_crls
+X509_VERIFY_PARAM_new
+str_copy
+i2s_ASN1_ENUMERATED
+i2s_ASN1_INTEGER
+s2i_ASN1_INTEGER
+hex_to_string
+string_to_hex
+i2v_GENERAL_NAMES
+v2i_GENERAL_NAMES
+v2i_subject_alt
+v2i_issuer_alt
+i2s_ASN1_OCTET_STRING
+s2i_ASN1_OCTET_STRING
+s2i_skey_id
+i2v_AUTHORITY_KEYID
+i2s_ASN1_ENUMERATED_TABLE
+r2i_certpol
+gnames_from_sectname
+module_add
+CONF_get1_default_config_file
+OPENSSL_asc2uni
+OPENSSL_uni2asc
+COMP_CTX_new
+OCSP_REQ_CTX_new
+OCSP_sendreq_new
+cms_EnvelopedData_init_bio
+cms_EncryptedContent_init_bio
+cms_EncryptedData_init_bio
+pitem_new
+pqueue_new
+SRP_Calc_server_key
+SRP_Calc_B
+SRP_Calc_A
+SRP_Calc_client_key
+SRP_VBASE_new
+SRP_user_pwd_new
+SRP_gN_new_init
+SRP_VBASE_get1_by_user
+CRYPTO_gcm128_new
+BN_BLINDING_new
+BN_BLINDING_create_param
+BN_mod_inverse
+BN_mod_inverse_no_branch
+BN_RECP_CTX_new
+BN_MONT_CTX_new
+BN_MONT_CTX_set_locked
+EC_GROUP_new_curve_GFp
+EC_GROUP_new_curve_GF2m
+eckey_type2param
+ecdsa_check
+ecdsa_data_dup
+ecdsa_data_new
+ECDSA_DATA_new_method
+ECDSA_METHOD_new
+d2i_DHxparams
+DH_get_1024_160
+DH_get_2048_224
+DH_get_2048_256
+ecdh_check
+ecdh_data_dup
+ecdh_data_new
+ECDH_DATA_new_method
+DSO_new
+DSO_new_method
+DSO_load
+DSO_convert_filename
+engine_dynamic
+EVP_PKCS82PKEY
+c2i_ASN1_BIT_STRING
+ASN1_UTCTIME_set
+ASN1_UTCTIME_adj
+ASN1_GENERALIZEDTIME_set
+ASN1_GENERALIZEDTIME_adj
+ASN1_TIME_set
+ASN1_TIME_adj
+ASN1_OCTET_STRING_dup
+BN_to_ASN1_ENUMERATED
+X509_CRL_METHOD_new
+X509_INFO_new
+ASN1_PCTX_new
+d2i_X509_PKEY
+X509_PKEY_new
+d2i_ASN1_type_bytes
+d2i_ASN1_bytes
+int_d2i_ASN1_bytes
+ASN1_seq_unpack
+ASN1_seq_pack
+ASN1_pack_string
+ASN1_item_pack
+PEM_X509_INFO_read
+PEM_X509_INFO_read_bio
+d2i_PKCS8PrivateKey_bio
+d2i_PKCS8PrivateKey_fp
+X509at_add1_attr
+X509at_add1_attr_by_OBJ
+X509at_add1_attr_by_NID
+X509at_add1_attr_by_txt
+v2i_ASN1_BIT_STRING
+i2s_ASN1_IA5STRING
+s2i_ASN1_IA5STRING
+policy_node_cmp_new
+level_add_node
+_CONF_new_section
+def_create
+TXT_DB_read
+PKCS12_pbe_crypt
+UI_new
+UI_new_method
+general_allocate_prompt
+UI_construct_prompt
+UI_create_method
+cms_content_bio
+CMS_dataInit
+cms_DigestAlgorithm_init_bio
+CMS_get1_certs
+CMS_get1_crls
+CMS_get0_signers
+cms_DigestedData_init_bio
+CMAC_CTX_new
+engine_4758_cca
+engine_aep
+engine_atalla
+engine_cswift
+engine_chil
+engine_nuron
+engine_sureware
+engine_ubsec
+BN_mod_sqrt
+EC_POINT_bn2point
+EC_POINT_point2hex
+EC_POINT_hex2point
+dlfcn_name_converter
+dlfcn_merger
+d2i_ASN1_SET
+mime_parse_hdr
+mime_hdr_new
+Sorted malloc callers
+ecdh_data_dup : 0
+ngx_ssl_rsa512_key_callback : 0
+BN_RECP_CTX_new : 0
+d2i_AutoPrivateKey : 0
+srp_password_from_info_cb : 0
+ecdsa_data_dup : 0
+v2i_issuer_alt : 0
+ECDSA_METHOD_new : 0
+v2i_subject_alt : 0
+default_malloc_ex : 0
+default_realloc_ex : 0
+ngx_ssl_read_password_file : 0
+default_malloc_locked_ex : 0
+ngx_radix_tree_create : 0
+realloc : 0
+ASN1_UTCTIME_set : 0
+ngx_list_create : 0
+ASN1_GENERALIZEDTIME_set : 0
+ASN1_TIME_set : 0
+X509_CRL_METHOD_new : 0
+ASN1_PCTX_new : 0
+d2i_X509_PKEY : 0
+SRP_VBASE_new : 0
+OPENSSL_uni2asc : 0
+SSL_dup_CA_list : 0
+ssl_cert_dup : 0
+r2i_certpol : 0
+SSL_dup : 0
+SSL_CTX_new : 0
+ssl_bytes_to_cipher_list : 0
+i2s_ASN1_ENUMERATED_TABLE : 0
+d2i_ASN1_UINTEGER : 0
+i2v_AUTHORITY_KEYID : 0
+BN_to_ASN1_ENUMERATED : 0
+ngx_http_get_variable : 0
+s2i_skey_id : 0
+SRP_VBASE_get1_by_user : 0
+SSL_CIPHER_description : 0
+ssl_create_cipher_list : 0
+CRYPTO_gcm128_new : 0
+ngx_http_cleanup_add : 0
+i2s_ASN1_OCTET_STRING : 0
+ngx_ssl_get_cached_session : 0
+ngx_ssl_preserve_passwords : 0
+bn_dup_expand : 0
+CRYPTO_remalloc : 0
+i2v_AUTHORITY_INFO_ACCESS : 0
+UI_create_method : 0
+v2i_AUTHORITY_INFO_ACCESS : 0
+X509_STORE_get1_crls : 0
+CMS_get1_certs : 0
+CMS_get1_crls : 0
+CMS_get0_signers : 0
+d2i_SCT_LIST : 0
+X509_STORE_get1_certs : 0
+EVP_PKEY_CTX_dup : 0
+X509_STORE_CTX_new : 0
+X509_STORE_CTX_get1_chain : 0
+BN_bn2hex : 0
+PEM_read_DHparams : 0
+PEM_read_PrivateKey : 0
+PEM_read_bio_Parameters : 0
+EC_POINT_point2hex : 0
+EC_POINT_hex2point : 0
+dlfcn_name_converter : 0
+dlfcn_merger : 0
+BIO_new_socket : 0
+d2i_ASN1_bytes : 0
+ASN1_seq_unpack : 0
+EVP_PKEY_meth_new : 0
+EVP_PKEY_CTX_new_id : 0
+ASN1_seq_pack : 0
+d2i_ASN1_type_bytes : 0
+ASN1_pack_string : 0
+PEM_X509_INFO_read : 0
+i2s_ASN1_ENUMERATED : 0
+int_thread_get : 0
+int_err_get : 0
+str_copy : 0
+d2i_PKCS8PrivateKey_fp : 0
+v2i_ASN1_BIT_STRING : 0
+i2s_ASN1_IA5STRING : 0
+s2i_ASN1_IA5STRING : 0
+def_create : 0
+OPENSSL_asc2uni : 1
+CONF_get1_default_config_file : 1
+ec_pre_comp_new : 1
+PEM_read_bio_PrivateKey : 1
+i2s_ASN1_INTEGER : 1
+X509_time_adj_ex : 1
+i2v_GENERAL_NAMES : 1
+v2i_GENERAL_NAMES : 1
+X509_LOOKUP_new : 1
+s2i_ASN1_OCTET_STRING : 1
+engine_aep : 1
+ASN1_OCTET_STRING_dup : 1
+d2i_PKCS8PrivateKey_bio : 1
+TXT_DB_read : 1
+UI_new : 1
+UI_construct_prompt : 1
+cms_content_bio : 1
+CMS_dataInit : 1
+cms_DigestedData_init_bio : 1
+engine_4758_cca : 1
+c2i_ASN1_BIT_STRING : 1
+engine_atalla : 1
+engine_cswift : 1
+engine_chil : 1
+engine_nuron : 1
+engine_sureware : 1
+engine_ubsec : 1
+BN_mod_sqrt : 1
+EC_POINT_bn2point : 1
+d2i_ASN1_SET : 1
+BN_mod_inverse_no_branch : 1
+OCSP_sendreq_new : 1
+cms_EnvelopedData_init_bio : 1
+cms_EncryptedData_init_bio : 1
+SRP_Calc_server_key : 1
+SRP_Calc_B : 1
+SRP_Calc_A : 1
+SRP_Calc_client_key : 1
+SRP_gN_new_init : 1
+BN_BLINDING_new : 1
+OCSP_REQ_CTX_new : 1
+EC_GROUP_new_curve_GFp : 1
+EC_GROUP_new_curve_GF2m : 1
+ECDSA_DATA_new_method : 1
+DH_get_1024_160 : 1
+DH_get_2048_224 : 1
+DH_get_2048_256 : 1
+ECDH_DATA_new_method : 1
+DSO_new : 1
+engine_dynamic : 1
+EVP_CIPHER_CTX_new : 1
+sk_deep_copy : 1
+ssl_cert_new : 1
+SSL_new : 1
+ngx_http_chunked_create_trailers : 1
+CRYPTO_malloc_locked : 1
+ngx_http_upstream_add : 1
+ngx_set_environment : 1
+module_load_dso : 1
+SSL_load_client_CA_file : 1
+X509_PUBKEY_get : 1
+ngx_init_cycle : 1
+ngx_ssl_ocsp_start : 1
+DH_new_method : 1
+c2i_ASN1_INTEGER : 1
+rsa_get_public_exp : 1
+ASN1_OBJECT_create : 1
+EVP_PKEY_asn1_new : 1
+RSA_generate_key : 1
+EC_KEY_new_by_curve_name : 1
+ec_group_new_from_data : 1
+EC_POINT_dup : 1
+ssl_session_dup : 1
+ngx_http_add_variable : 2
+cms_EncryptedContent_init_bio : 2
+int_ctx_new : 2
+SSL_SESSION_new : 2
+int_d2i_ASN1_bytes : 2
+d2i_ASN1_OBJECT : 2
+ngx_palloc_large : 2
+ASN1_TIME_adj : 2
+ecdsa_data_new : 2
+DSO_convert_filename : 2
+DSO_new_method : 2
+BN_BLINDING_create_param : 2
+ngx_calloc : 2
+ecdh_data_new : 2
+ngx_resolver_create : 2
+ngx_http_alloc_request : 2
+d2i_DHxparams : 2
+ngx_resolver_export : 2
+ngx_open_file_cache_init : 2
+ASN1_OBJECT_new : 2
+mime_hdr_new : 2
+compute_wNAF : 2
+PEM_read_bio_DHparams : 2
+X509_time_adj : 2
+X509_gmtime_adj : 2
+CMAC_CTX_new : 2
+int_cleanup_item : 2
+X509_STORE_new : 2
+cms_DigestAlgorithm_init_bio : 2
+general_allocate_prompt : 2
+PKCS12_pbe_crypt : 2
+s2i_ASN1_INTEGER : 2
+c2i_ASN1_OBJECT : 2
+module_add : 2
+gnames_from_sectname : 2
+d2i_PUBKEY : 2
+d2i_PrivateKey : 2
+freelist_extract : 2
+PEM_X509_INFO_read_bio : 2
+policy_node_cmp_new : 2
+CRYPTO_strdup : 2
+X509_PKEY_new : 3
+d2i_dhp : 3
+BIO_new_mem_buf : 3
+ASN1_UTCTIME_adj : 3
+RSA_setup_blinding : 3
+_CONF_new_section : 3
+UI_new_method : 3
+mime_parse_hdr : 3
+ngx_resolver_dup : 3
+ngx_resolve_start : 3
+dtls1_hm_fragment_new : 3
+hex_to_string : 3
+CRYPTO_realloc_clean : 3
+SRP_user_pwd_new : 3
+d2i_SSL_SESSION : 3
+ngx_http_create_request : 3
+BN_bn2dec : 3
+X509_chain_up_ref : 3
+EC_GROUP_dup : 3
+eckey_type2param : 3
+X509at_add1_attr_by_OBJ : 4
+ngx_http_create_locations_tree : 4
+X509at_add1_attr_by_NID : 4
+ecdh_check : 4
+X509at_add1_attr_by_txt : 4
+COMP_CTX_new : 4
+X509v3_add_ext : 4
+ssl_sess_cert_new : 4
+pitem_new : 4
+ASN1_GENERALIZEDTIME_adj : 4
+X509_VERIFY_PARAM_new : 4
+EC_GROUP_new_by_curve_name : 4
+RSA_new_method : 5
+pqueue_new : 5
+policy_data_new : 5
+EC_KEY_dup : 5
+X509_STORE_add_lookup : 5
+EVP_PKCS82PKEY : 5
+RSA_new : 5
+level_add_node : 6
+X509_INFO_new : 6
+malloc : 6
+DHparams_dup : 6
+EC_GROUP_new : 6
+EVP_MD_CTX_create : 6
+string_to_hex : 7
+X509at_add1_attr : 7
+ecdsa_check : 7
+BN_to_ASN1_INTEGER : 7
+ngx_pstrdup : 7
+ERR_get_state : 7
+BIO_new_file : 8
+EVP_PKEY_CTX_new : 8
+EC_KEY_new : 9
+DH_new : 9
+BIO_new_fp : 9
+BN_MONT_CTX_new : 9
+BN_MONT_CTX_set_locked : 9
+ENGINE_new : 10
+ngx_chain_get_free_buf : 10
+ngx_resolver_calloc : 10
+EVP_PKEY_new : 10
+ASN1_item_pack : 10
+BUF_strndup : 10
+BN_mod_inverse : 11
+DSO_load : 11
+lh_new : 11
+sk_dup : 12
+ASN1_STRING_dup : 13
+ngx_create_temp_buf : 13
+OBJ_dup : 13
+BUF_memdup : 15
+EC_POINT_new : 15
+ngx_resolver_alloc : 15
+ASN1_STRING_new : 15
+ngx_pool_cleanup_add : 16
+CRYPTO_realloc : 18
+BUF_MEM_new : 19
+ngx_alloc_chain_link : 21
+sk_new : 23
+ngx_alloc : 29
+ngx_array_create : 32
+ASN1_STRING_type_new : 37
+BN_dup : 39
+BIO_new : 65
+BN_CTX_new : 66
+BUF_strdup : 69
+BN_new : 77
+ngx_palloc : 89
+sk_new_null : 92
+ngx_pnalloc : 109
+ngx_pcalloc : 118
+CRYPTO_malloc : 382
