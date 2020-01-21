@@ -23,7 +23,11 @@ using namespace llvm;
 
 char ContextSensitivityAnalysisPass::ID = 0;
 
-static cl::opt<int> iterations("csa-iter", cl::desc("How many iterations of csa should be done"), cl::value_desc("csa-iter"));
+static cl::opt<int> iterations("csa-iter", cl::desc("How many iterations of csa should be done"), cl::value_desc("csa-iter"), cl::init(3));
+
+static cl::opt<int> callsiteThreshold("callsite-threshold", cl::desc("How many callsites should the malloc wrappers be called from to be treated as context-sensitive"), cl::value_desc("callsite-threshold"), cl::init(50));
+
+static cl::opt<int> calldepthThreshold("calldepth-threshold", cl::desc("How many other functions can a malloc wrapper call, and still be treated as context-sensitive"), cl::value_desc("calldepth-threshold"), cl::init(4));
 
 /**
  * A function is a memory allocation wrapper if it allocates memory using
@@ -102,6 +106,21 @@ bool ContextSensitivityAnalysisPass::returnsAllocedMemory(Function* F) {
         }
     }
     return true;
+}
+
+bool ContextSensitivityAnalysisPass::findNumFuncRooted(llvm::Function* F, int& num) {
+    // TODO: Doesn't really do rooted, but whatever
+    bool retVal = false;
+    num = 0;
+    for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
+        if (CallInst* callInst = dyn_cast<CallInst>(&*I)) {
+            if (!callInst->getCalledFunction()) {
+                retVal = true;
+            }
+            num++;
+        }
+    }
+    return retVal;
 }
 
 bool ContextSensitivityAnalysisPass::isReturningMallockedPtr(ReturnInst* retInst, std::vector<Value*>& mallockedPtrs) {
@@ -206,6 +225,27 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
     for (auto pair: mallocWrapperCallNumMap) {
         errs() << pair.first->getName() << " : " << pair.second << "\n";
     }
+
+    for (auto pair: mallocWrapperCallNumMap) {
+        int numCallees = 0;
+        findNumFuncRooted(pair.first, numCallees);
+        if (numCallees <= calldepthThreshold && (pair.second >=callsiteThreshold || pair.second == 0)) {
+            criticalFunctions.push_back(pair.first);
+        }
+    }
+
+    for (int i = criticalFunctions.size() - 1; i >= 0; i--) {
+        top10CriticalFunctions.push_back(criticalFunctions[i]);
+        if (top10CriticalFunctions.size() == 10) {
+            // top 10!
+            break;
+        }
+    }
+
+    for(Function* critFunction: top10CriticalFunctions) {
+        errs() << "Critical Function: " << critFunction->getName() << "\n";
+    }
+
 }
 
 /*!
