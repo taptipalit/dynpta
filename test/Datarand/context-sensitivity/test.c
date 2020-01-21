@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 void* (*mwrap)(long) = malloc;
 
@@ -18,19 +19,23 @@ void* CRYPTO_malloc(int size) {
 }
 
 struct A {
-    int a1;
-    int a2;
+    int* a1;
+    int* a2;
 };
 
 struct B {
-    int b1;
-    int b2;
+    int* b1;
+    int* b2;
 };
 
 int main(void) {
     struct A* aptr = CRYPTO_malloc(sizeof(struct A));    
     struct B* bptr = CRYPTO_malloc(sizeof(struct B));
-    aptr->a1 = 10;
-    bptr->b2 = 30;
+    int ten = 10;
+    int twenty = 20;
+    aptr->a1 = &ten;
+    bptr->b2 = &twenty;
+    printf("%d\n", *(aptr->a1));
+    printf("%d\n", *(bptr->b2));
     return 0;
 }
