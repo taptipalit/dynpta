@@ -558,7 +558,6 @@ static const ei_pair ei_pairs[]= {
     {"memalign", ExtAPI::EFT_ALLOC},
     {"valloc", ExtAPI::EFT_ALLOC},
     {"SRE_LockCreate", ExtAPI::EFT_ALLOC},
-    {"BN_new", ExtAPI::EFT_POOL_ALLOC},
     {"\01mmap64", ExtAPI::EFT_NOSTRUCT_ALLOC},
     //FIXME: this is like realloc but with arg1.
     {"X509_NAME_oneline", ExtAPI::EFT_NOSTRUCT_ALLOC},
@@ -860,3 +859,8 @@ void ExtAPI::init() {
     }
 }
 
+void ExtAPI::update(std::vector<llvm::Function*> criticalFunctions) {
+    for (llvm::Function* criticalFunction: criticalFunctions) {
+        info[criticalFunction->getName()] = EFT_CUSTOM_ALLOC;
+    }
+}

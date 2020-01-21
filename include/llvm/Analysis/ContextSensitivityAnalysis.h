@@ -36,6 +36,14 @@ public:
 
     virtual bool runOnModule(llvm::Module& module);
 
+    std::vector<llvm::Function*>& getCriticalFunctions() {
+        return criticalFunctions;
+    }
+
+    std::vector<llvm::Function*>& getTop10CriticalFunctions() {
+        return top10CriticalFunctions;
+    }
+
 private:
     std::map<llvm::Function*, int> funcCallNumMap; // A map between a function and how many times they're called
     std::vector<std::pair<llvm::Function*, int>> mallocWrapperCallNumMap;
@@ -44,11 +52,16 @@ private:
 
     std::set<llvm::GlobalVariable*> globalMallocWrapperPtrs; // these are simple global function pointers
 
+    std::vector<llvm::Function*> criticalFunctions;
+    std::vector<llvm::Function*> top10CriticalFunctions;
+
     void profileFuncCalls(llvm::Module&);
     void handleGlobalFunctionPointers(llvm::Module&);
     bool returnsAllocedMemory(llvm::Function*);
     bool isReturningMallockedPtr(llvm::ReturnInst*, std::vector<llvm::Value*>&);
     llvm::Value* findSink(llvm::Value*);
+
+    bool findNumFuncRooted(llvm::Function*, int&);
 };
 
 namespace llvm {

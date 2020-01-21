@@ -35,6 +35,7 @@
 
 #include <llvm/ADT/StringMap.h>
 #include <llvm/IR/Function.h>
+#include <vector>
 #include <map>
 #include <set>
 #include <string>
@@ -47,7 +48,7 @@ public:
     enum extf_t {
         EFT_NOOP= 0,      //no effect on pointers
         EFT_ALLOC,        //returns a ptr to a newly allocated object
-        EFT_POOL_ALLOC,
+        EFT_CUSTOM_ALLOC,
         EFT_REALLOC,      //like L_A0 if arg0 is a non-null ptr, else ALLOC
         EFT_FREE,      	//free memory arg0 and all pointers passing into free function
         EFT_NOSTRUCT_ALLOC, //like ALLOC but only allocates non-struct data
@@ -93,6 +94,7 @@ private:
 
     void init();                          //fill in the map (see ExtAPI.cpp)
 
+
     ExtAPI() {
         init();
         isext_cache.clear();
@@ -111,6 +113,8 @@ public:
         return extAPI;
     }
 
+    void update(std::vector<llvm::Function*>);
+
     //Return the extf_t of (F).
     extf_t get_type(const llvm::Function *F) const {
         assert(F);
@@ -119,7 +123,7 @@ public:
             funName = "llvm." + F->getName().split('.').second.split('.').first.str();
         }
         llvm::StringMap<extf_t>::const_iterator it= info.find(funName);
-        if(it == info.end() || (!F->isDeclaration() && it->second != EFT_POOL_ALLOC))
+        if(it == info.end() || (!F->isDeclaration() && it->second != EFT_CUSTOM_ALLOC))
             return EFT_OTHER;
         else
             return it->second;
@@ -137,7 +141,7 @@ public:
     //Does (F) allocate a new object and return it?
     bool is_alloc(const llvm::Function *F) const {
         extf_t t= get_type(F);
-        return t==EFT_ALLOC || t==EFT_NOSTRUCT_ALLOC || t == EFT_POOL_ALLOC;
+        return t==EFT_ALLOC || t==EFT_NOSTRUCT_ALLOC || t == EFT_CUSTOM_ALLOC;
     }
     //Does (F) allocate a new object and assign it to one of its arguments?
     bool is_arg_alloc(const llvm::Function *F) const {
@@ -170,7 +174,7 @@ public:
             return false;
         else {
             extf_t t = it->second;
-            if (t == EFT_POOL_ALLOC)
+            if (t == EFT_CUSTOM_ALLOC)
                 return true;
             else
                 return false;
@@ -211,7 +215,7 @@ public:
             res= 1;
         } else {
             extf_t t= get_type(F);
-            res= t==EFT_ALLOC || t==EFT_REALLOC || t==EFT_NOSTRUCT_ALLOC || t == EFT_POOL_ALLOC
+            res= t==EFT_ALLOC || t==EFT_REALLOC || t==EFT_NOSTRUCT_ALLOC || t == EFT_CUSTOM_ALLOC
                  || t==EFT_NOOP || t==EFT_FREE;
         }
         isext_cache[F]= res;

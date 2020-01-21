@@ -92,6 +92,7 @@ WPAPass::~WPAPass() {
 
 void WPAPass::performLayeredPointerAnalysis(SVFModule svfModule, Module* M) {
 	outs() << "Started running Steensgaard analysis:\n";
+    outs() << "TODO: layered analysis still needs to be context sensitive\n";
 	SteensgaardFast* steens = new SteensgaardFast();
     _pta = steens;
     steens->analyze(svfModule);
@@ -599,6 +600,7 @@ void WPAPass::runPointerAnalysis(SVFModule svfModule, u32_t kind)
         return;
     }
 
+    _pta->setContextCriticalFunctions(contextSensitivityPass->getTop10CriticalFunctions());
     ptaVector.push_back(_pta);
     _pta->analyze(svfModule);
     if (anderSVFG) {
@@ -649,7 +651,6 @@ llvm::AliasResult WPAPass::alias(const Value* V1, const Value* V2) {
             }
         }
     }
-
     return result;
 }
 
@@ -694,5 +695,5 @@ ModulePass* llvm::createWPAPass() {
 }
 
 INITIALIZE_PASS_BEGIN(WPAPass, "wpa", "Whole Program Analysis", true, true);
+INITIALIZE_PASS_DEPENDENCY(ContextSensitivityAnalysisPass);
 INITIALIZE_PASS_END(WPAPass, "wpa", "Whole Program Analysis", true, true);
-

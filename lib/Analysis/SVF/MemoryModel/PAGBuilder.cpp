@@ -87,6 +87,8 @@ PAG* PAGBuilder::build(SVFModule svfModule) {
         }
         for (llvm::Function::iterator bit = fun.begin(), ebit = fun.end();
                 bit != ebit; ++bit) {
+            if (analysisUtil::isTreatAsExtCall(&fun))
+                continue;
             llvm::BasicBlock& bb = *bit;
             for (llvm::BasicBlock::iterator it = bb.begin(), eit = bb.end();
                     it != eit; ++it) {
@@ -863,7 +865,7 @@ void PAGBuilder::handleExtCall(CallSite cs, const Function *callee) {
                 break;
             }
             case ExtAPI::EFT_ALLOC:
-            case ExtAPI::EFT_POOL_ALLOC:
+            case ExtAPI::EFT_CUSTOM_ALLOC:
             case ExtAPI::EFT_NOSTRUCT_ALLOC:
             case ExtAPI::EFT_STAT:
             case ExtAPI::EFT_STAT2:
