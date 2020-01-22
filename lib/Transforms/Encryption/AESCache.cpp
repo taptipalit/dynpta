@@ -67,9 +67,6 @@ namespace external {
         FunctionType* FTypeDecLoopWord = FunctionType::get(wordType, loopDecTypeArray, false);
         FunctionType* FTypeDecLoopDWord = FunctionType::get(dwordType, loopDecTypeArray, false);
         FunctionType* FTypeDecLoopQWord = FunctionType::get(qwordType, loopDecTypeArray, false);
-        FunctionType* FTypeSafeMalloc = FunctionType::get(int8PtrTy, {int64Ty}, false);
-        FunctionType* FTypeCheckBounds = FunctionType::get(int32Ty, {voidPtrType}, false);
-        FunctionType* FTypeCustomMalloc = FunctionType::get(voidTy,  false);
         FunctionType* FTypeSetLabel = FunctionType::get(Type::getVoidTy(*Ctx), DFSanSetLabelArgs, false);
         FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
 
@@ -79,10 +76,6 @@ namespace external {
         this->decryptLoopDWordFunction = Function::Create(FTypeDecLoopDWord, Function::ExternalLinkage, "getDecryptedValueDWord", &M);
         this->decryptLoopQWordFunction = Function::Create(FTypeDecLoopQWord, Function::ExternalLinkage, "getDecryptedValueQWord", &M);
 
-        //myfunctions
-        this->safeMalloc = Function::Create(FTypeSafeMalloc, Function::ExternalLinkage, "getSafeMalloc", &M);
-        this->checkBounds = Function::Create(FTypeCheckBounds, Function::ExternalLinkage, "checkBounds", &M);
-        this->initializeCustomMalloc = Function::Create(FTypeCustomMalloc, Function::ExternalLinkage, "initializeCustomMalloc", &M);
         this->DFSanSetLabelFn = Function::Create(FTypeSetLabel, Function::ExternalLinkage, "dfsan_set_label", &M);
         //adding zeroext for function parameter
         if (Function *F = dyn_cast<Function>(DFSanSetLabelFn)) {
@@ -267,52 +260,17 @@ namespace external {
         return allFieldsSen;
     }
 
-                           
                                   
-/*
- * Widen the buffer to a multiple of 128 bits
- */
-    void AESCache::allocateSeparateMemoryForHeapObjects(Module &M, std::set<PAGNode*>* SensitiveAllocaList,
-            std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
-        for (PAGNode* senNode: *SensitiveAllocaList) {
-            bool widenedStructType = false;
-            // If it is a GepObjPN we need to be careful about what to widen in it
-            if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
-                errs() << "This is what I tried to widen: " << *gepNode << " " << gepNode->getLocationSet().getOffset() << "\n";
-                widenedStructType = widenSensitiveComplexType(gepNode, ptsFromMap);
-            }
-            assert(senNode->hasValue());
-            // Add padding regardless if we've padded individual fields
-            // Easy stuff
-            Value* senVal = const_cast<Value*>(senNode->getValue());
-            if (CallInst* callInst = dyn_cast<CallInst>(senVal)){
-
-                Function* function = callInst->getCalledFunction();
-                if (function) {
-                    StringRef mallocStr("malloc");
-                    StringRef callocStr("calloc");
-                    if (mallocStr.equals(function->getName())) {
-                        callInst->setCalledFunction(safeMalloc);
-                    }
-                    else if (callocStr.equals(function->getName())) {
-                        callInst->setCalledFunction(safeMalloc);
-                    }
-                }
-
-            }
-        }
-    }
-
     void AESCache::SetLabelsForSensitiveObjects(Module &M, std::set<PAGNode*>* SensitiveAllocaList,
             std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
         LLVMContext *Ctx;
         Ctx = &M.getContext();
         const DataLayout &DL = M.getDataLayout();
-        errs() << "Setting Label for Sensitive Objects: \n";
+        //Setting Label for Sensitive Objects:
         for (PAGNode* senNode: *SensitiveAllocaList) {
             assert(senNode->hasValue());
             Value* senVal = const_cast<Value*>(senNode->getValue());
-            errs() << "Value " << *senVal<<"\n";
+            //errs() << "Value " << *senVal<<"\n";
             //Creating insert position
             if(Instruction *I = dyn_cast<Instruction>(senVal)){
                 IRBuilder<> Builder(I);
@@ -345,25 +303,25 @@ namespace external {
                     // Is an alloca instruction
                     //Type* byteType = Type::getInt8Ty(M.getContext());
                     //PointerType* bytePtrType = PointerType::get(byteType, 0);
-                    errs() <<"This is Alloca "<<*allocInst<<"\n";
+                    //errs() <<"This is Alloca "<<*allocInst<<"\n";
                     Value* PtrOperand = nullptr;
                     PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
                     CallInst* setLabel = nullptr;
 
                     setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
                     setLabel->addParamAttr(0, Attribute::ZExt);
-                    errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
+                    //errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
                 }
                 else if (CallInst* callInst = dyn_cast<CallInst>(senVal)){
                     // Call Instruction, no need to add bitcast
-                    errs() <<"This is callInst "<<*callInst<<"\n";
+                    //errs() <<"This is callInst "<<*callInst<<"\n";
                     CallInst* setLabel = nullptr;
                     setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, callInst, noOfByte});
                     setLabel->addParamAttr(0, Attribute::ZExt);
-                    errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
+                    //errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
                 }
                 else if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
-                    errs() <<"This is GEPNode "<<*gepNode<<"\n";
+                    //errs() <<"This is GEPNode "<<*gepNode<<"\n";
                     IntegerType *IntptrTy;
                     IntptrTy = Type::getInt32Ty(M.getContext());
                     Size_t offset = gepNode->getLocationSet().getOffset();
@@ -374,222 +332,12 @@ namespace external {
                     CallInst* setLabel = nullptr;
                     setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
                     setLabel->addParamAttr(0, Attribute::ZExt);
-                    errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
+                    //errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
                 }
             }
         }
     }
 
-
-    void AESCache::widenAllocaAllocations(Module &M, std::set<PAGNode*>* SensitiveAllocaList,
-            std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
-        //initialize CUstom Malloc	
-        int initializeCount = 0;		
-        for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
-            if (auto *F = dyn_cast<Function>(MIterator)) {
-                //errs() << "Function " << F->getName()<< "\n"i;
-                if ( F->getName() == "main"){
-                    for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
-                        if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
-                            if ( BB->getName() == "entry"){
-                                for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-                                    if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-                                        errs()<<" Instruction "<<*Inst<< "\n";
-                                        IRBuilder<> Builder(Inst);
-                                        Value* initialize = Builder.CreateCall(this->initializeCustomMalloc);
-                                        initializeCount++;
-                                        break;
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-        for (PAGNode* senNode: *SensitiveAllocaList) {
-            bool widenedStructType = false;
-            // If it is a GepObjPN we need to be careful about what to widen in it
-            if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
-                errs() << "This is what I tried to widen: " << *gepNode << " " << gepNode->getLocationSet().getOffset() << "\n";
-                widenedStructType = widenSensitiveComplexType(gepNode, ptsFromMap);
-            } 
-            //if (!widenedStructType) {
-            assert(senNode->hasValue());
-            // Add padding regardless if we've padded individual fields
-            // Easy stuff
-            Value* senVal = const_cast<Value*>(senNode->getValue());
-            //intialize Custom Malloc
-            /*if (initializeCount == 0){
-              Instruction* inst = dyn_cast<Instruction>(senVal);
-              IRBuilder<> Builder(inst);
-              Value* initialize = Builder.CreateCall(this->initializeCustomMalloc);
-              initializeCount++;
-              }*/
-
-            if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
-                // Is an alloca instruction
-                allocInst->setAlignment(16);
-                IRBuilder<> Builder(allocInst);
-                /*
-                   AllocaInst* paddingAllocaInst1 = new AllocaInst (I128Ty, 0, "padding");
-                   MDNode* N1 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
-                   paddingAllocaInst1->setMetadata("PADDING", N1);
-                   paddingAllocaInst1->insertAfter(allocInst);
-                   */
-                AllocaInst* paddingAllocaInst2 = Builder.CreateAlloca(I128Ty, 0, "padding");
-                MDNode* N2 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
-                paddingAllocaInst2->setMetadata("PADDING", N2);
-                errs()<<" Get Padded \n";
-                errs()<< "ValueAlloca "<<*senVal<<"\n";
-
-
-                //myTestCode
-                //Value* allocaInstPtrOperand = allocInst->getPointerOperand();
-                //errs()<< "Value of alloca ptr "<< *allocaInstPtrOperand<<"\n";
-                /*Type *int64Ty;
-                  PointerType  *int8PtrTy;
-                  int8PtrTy = Type::getInt8PtrTy(M.getContext());
-                  int64Ty = Type::getInt64Ty(M.getContext());
-                  auto DL = M.getDataLayout();
-                  auto sz = DL.getTypeAllocSize(allocInst->getType()->getPointerElementType());
-                  auto sizeVal = ConstantInt::get(int64Ty, sz);
-
-                  Value* val = nullptr;
-                  val = Builder.CreateCall(this->safeMalloc, {sizeVal});
-                  */
-
-                /*Function *safeMalloc;		
-                  safeMalloc = dyn_cast<Function>(M.getOrInsertFunction("safeMalloc", ));
-                  Value* retVal = nullptr;
-                  retVal = Builder.CreateCall(safeMalloc, nullptr);
-
-                  Type* ITy = IntegerType::getInt32Ty(allocInst->getContext());
-                  Type* Ty = IntegerType::getInt8Ty(allocInst->getContext());
-                  Constant* allocsize = ConstantExpr::getSizeOf(Ty);
-                  allocsize = ConstantExpr::getTruncOrBitCast(allocsize, ITy);
-                  Instruction* Malloc = CallInst::CreateMalloc(allocInst, ITy, Ty, allocsize,
-                  nullptr, nullptr, "Malloc");		
-                  */
-                //mycode endis
-
-                // Find insertion point for the store
-                BasicBlock* parentBB = allocInst->getParent();
-                Instruction* insertionPoint = nullptr;
-                for (BasicBlock::iterator BBIterator = parentBB->begin(); BBIterator != parentBB->end(); BBIterator++) {
-                    if (Instruction* Inst = dyn_cast<Instruction>(BBIterator)) {
-                        if (!isa<AllocaInst>(Inst)) {
-                            insertionPoint = Inst;
-                            break;
-                        }
-                    }
-                }
-            }
-            /*else if (CallInst* callInst = dyn_cast<CallInst>(senVal)){
-
-              Function* function = callInst->getCalledFunction();
-              if (function) {
-              StringRef mallocStr("malloc");
-              StringRef callocStr("calloc");
-              if (mallocStr.equals(function->getName())) {
-              callInst->setCalledFunction(safeMalloc);
-              }
-              else if (callocStr.equals(function->getName())) {
-              callInst->setCalledFunction(aesCallocFunction);
-              }
-              }
-
-              }*/
-            //}
-        }
-
-        //M.dump();
-        // As for global variables, just align all of them to a 128 bit boundary
-        for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
-            if (I->getName() != "llvm.global.annotations") {
-                GlobalVariable* GV = cast<GlobalVariable>(I);
-                GV->setAlignment(16);
-            }
-        }
-
-        // Do processing for all instructions
-        for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
-            if (auto *F = dyn_cast<Function>(MIterator)) {
-                // Get the local sensitive values
-                for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
-                    if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
-                        //outs() << "Basic block found, name : " << BB->getName() << "\n";
-                        for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-                            if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-                                if (ReturnInst* retInst = dyn_cast<ReturnInst>(Inst)) {
-                                    writeback(retInst); // Invalidate the cache
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        std::set<StructType*> typeSet;
-        // Now consolidate. If all fields of a struct are sensitive, then
-        // nothing
-        for (StructType* stType: M.getIdentifiedStructTypes()) {
-            bool allFieldsSen = allFieldsSensitive(stType);
-            if (allFieldsSen) {
-                errs() << "Type: " << *stType << " became fully sensitive!\n";
-                //stType->getSensitiveFieldOffsets().clear();
-                typeSet.insert(stType);
-            }
-        }
-
-        for (StructType* stType: typeSet) {
-            stType->getSensitiveFieldOffsets().clear();
-        }
-
-        // So which types finally became sensitive?
-        for (StructType* stType: M.getIdentifiedStructTypes()) {
-            if (stType->getNumSensitiveFields() > 0) {
-                errs() << "Partially sensitive type: "<< *stType << " has following sensitive offsets: ";
-                for (int fld: stType->getSensitiveFieldOffsets()) {
-                    errs() << fld << " ";
-                }
-                errs() << "\n";
-            }
-
-        }
-
-        // Now that we've done this, we should also take care of type casts
-        for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
-            if (auto *F = dyn_cast<Function>(MIterator)) {
-                // Get the local sensitive values
-                for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
-                    if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
-                        //outs() << "Basic block found, name : " << BB->getName() << "\n";
-                        for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-                            if (BitCastInst *BCInst = dyn_cast<BitCastInst>(BBIterator)) {
-                                Type* srcType = BCInst->getSrcTy();
-                                Type* destType = BCInst->getDestTy();
-                                Type* srcBaseType = findBaseType(srcType);
-                                Type* destBaseType = findBaseType(destType);
-                                if (StructType* destStType = dyn_cast<StructType>(destBaseType)) {
-                                    if (StructType* srcStType = dyn_cast<StructType>(srcBaseType)) {
-                                        //errs() << srcStType->getName() << " casted to " << destStType->getName() << "\n";
-                                        // Copy over sensitive fields
-                                        for (int sensitiveField: srcStType->getSensitiveFieldOffsets()) {
-                                            destStType->addSensitiveFieldOffset(sensitiveField);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     void AESCache::widenSensitiveAllocationSites(Module &M, std::vector<PAGNode*>& SensitiveAllocaList,
             std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
@@ -989,119 +737,6 @@ namespace external {
     }
 
 
-    Value* AESCache::setEncryptedValueCachedPartitioning(StoreInst* plainTextVal) {
-        int byteOffset = 0;
-        Value* PointerVal = nullptr;
-        Type* PlainTextValType = nullptr;
-        GetElementPtrInst* GEPVal;
-        IRBuilder<> Builder(plainTextVal);
-        IntegerType* PlainTextValIntType = nullptr;
-        PointerType* PlainTextValPtrType = nullptr;
-
-        StoreInst* stInst = dyn_cast<StoreInst>(plainTextVal);
-        Value* stInstPtrOperand = stInst->getPointerOperand();
-        Value* stInstValueOperand = stInst->getValueOperand();
-
-        Type* byteType = Type::getInt8Ty(plainTextVal->getContext());
-        PointerType* bytePtrType = PointerType::get(byteType, 0);
-
-        bool isLoop = false;
-        int INCREMENT = 0;
-        PlainTextValIntType = dyn_cast<IntegerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
-        PlainTextValPtrType = dyn_cast<PointerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
-        if (PlainTextValIntType) {
-            if (PlainTextValIntType->getBitWidth() == 8) {
-                INCREMENT = 1;
-            } else if (PlainTextValIntType->getBitWidth() == 16) {
-                INCREMENT = 2;
-            } else if (PlainTextValIntType->getBitWidth() == 32) {
-                INCREMENT = 4;
-            } else if (PlainTextValIntType->getBitWidth() == 64) {
-                INCREMENT = 8;
-            }
-        } else if (PlainTextValPtrType) {
-            INCREMENT = 8; // Pointer always 64 bit
-        } else {
-            errs() << "Unknown type. Can't encrypt!\n";
-            assert(false);
-        }
-        std::vector<Value*> encryptArgList;
-        PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
-        IntegerType* stInstIntegerType = dyn_cast<IntegerType>(stInstPtrType->getPointerElementType());
-        PointerType* stInstPtrElemType = dyn_cast<PointerType>(stInstPtrType->getPointerElementType());
-        assert((stInstIntegerType != nullptr) || (stInstPtrElemType != nullptr));
-        Value* PtrOperand = nullptr;
-        Value* ValueOperand = nullptr;
-
-        if (stInstIntegerType && stInstIntegerType->getBitWidth() == 8) {
-            PtrOperand = stInstPtrOperand;
-        } else {
-            PtrOperand = Builder.CreateBitCast(stInstPtrOperand, bytePtrType);
-        }
-
-        if (stInstIntegerType) {
-            ValueOperand = stInstValueOperand;
-        } else {
-            // Check needed for NULL assignments
-            if (stInstValueOperand->getType()->isPointerTy()) {
-                // Convert the pointer to i64
-                ValueOperand = Builder.CreatePtrToInt(stInstValueOperand, IntegerType::get(stInstPtrOperand->getContext(), 64));
-            } else {
-                ValueOperand = stInstValueOperand;
-            }
-        }
-
-        //mycode
-        Value* safeRegion = nullptr;
-        safeRegion = Builder.CreateCall(this->checkBounds, {PtrOperand});
-        errs()<< "Value of safeRegion is :"<<*safeRegion<<"\n";
-
-        Type *int32Ty;
-        int32Ty = Type::getInt32Ty(plainTextVal->getContext());
-        //auto sizeVal = ConstantInt::get(int32Ty, 0);
-
-
-        ConstantInt *Zero = Builder.getInt32(0);
-        Value* cmpInst = Builder.CreateICmpEQ(safeRegion, Zero, "cmp");
-        //Value* safeRegion1 = Builder.CreateCall(this->checkBounds, {PtrOperand});
-        //Instruction* SplitBefore = cast<Instruction>(safeRegion1);
-        Instruction* SplitBefore = cast<Instruction>(plainTextVal);
-
-        TerminatorInst *ThenTerm, *ElseTerm;
-        SplitBlockAndInsertIfThenElse(cmpInst, SplitBefore, &ThenTerm, &ElseTerm);
-
-        Builder.SetInsertPoint(ThenTerm);
-
-        encryptArgList.push_back(PtrOperand);
-        encryptArgList.push_back(ValueOperand);
-
-        Value* val = nullptr;
-        switch(INCREMENT) {
-            case 1:
-                val = Builder.CreateCall(this->encryptLoopByteFunction, encryptArgList);
-                break;
-            case 2:
-                val = Builder.CreateCall(this->encryptLoopWordFunction, encryptArgList);
-                break;
-            case 4:
-                val = Builder.CreateCall(this->encryptLoopDWordFunction, encryptArgList);
-                break;
-            case 8:
-                val = Builder.CreateCall(this->encryptLoopQWordFunction, encryptArgList);
-                break;
-        }
-
-        Builder.SetInsertPoint(ElseTerm);
-        auto originalStore = Builder.CreateStore(stInstValueOperand,stInstPtrOperand);
-
-        Builder.SetInsertPoint(SplitBefore);
-        //PHINode *phi = Builder.CreatePHI(int32Ty, 2);
-        //phi->addIncoming(val, ThenTerm->getParent());
-        //phi->addIncoming(originalStore, ElseTerm->getParent());
-
-        return nullptr;
-    }
-
     Value* AESCache::setEncryptedValueCachedDfsan(StoreInst* plainTextVal) {
         int byteOffset = 0;
         Value* PointerVal = nullptr;
@@ -1170,7 +805,7 @@ namespace external {
         ConstantInt* noOfByte = Builder.getInt64(1);
         readLabel = Builder.CreateCall(this->DFSanReadLabelFn, {PtrOperand, noOfByte});
         readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
-        errs()<< "Value of readlabel is :"<<*readLabel<<"\n";
+        //errs()<< "Value of readlabel is :"<<*readLabel<<"\n";
 
         Type *int32Ty;
         int32Ty = Type::getInt32Ty(plainTextVal->getContext());
@@ -1297,131 +932,6 @@ namespace external {
 
     }
 
-    Value* AESCache::getDecryptedValueCachedPartitioning(LoadInst* encVal) {
-        Value* retVal = nullptr;
-        int byteOffset = 0;
-        Value* PointerVal = nullptr;
-        Type* EncValType = nullptr;
-        GetElementPtrInst* GEPVal;
-        IRBuilder<> Builder(encVal);
-        IntegerType* EncValIntType = nullptr;
-        PointerType* EncValPtrType = nullptr;
-
-        bool isLoop = false;
-
-        LoadInst* ldInst = dyn_cast<LoadInst>(encVal);
-        Value* ldInstPtrOperand = ldInst->getPointerOperand();
-
-
-
-        Type* byteType = Type::getInt8Ty(encVal->getContext());
-        PointerType* bytePtrType = PointerType::get(byteType, 0);
-
-        int INCREMENT = 0;
-        EncValIntType =  dyn_cast<IntegerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
-        EncValPtrType = dyn_cast<PointerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
-
-        if (EncValIntType) {
-            if (EncValIntType->getBitWidth() == 8) {
-                INCREMENT = 1;
-            } else if (EncValIntType->getBitWidth() == 16) {
-                INCREMENT = 2;
-            } else if (EncValIntType->getBitWidth() == 32) {
-                INCREMENT = 4;
-            } else if (EncValIntType->getBitWidth() == 64) {
-                INCREMENT = 8;
-            }
-        } else if (EncValPtrType) {
-            INCREMENT = 8;
-        } else {
-            errs() << "Unknown type - can't encrypt!\n";
-            assert(false);
-        }
-
-        PointerType* ldInstPtrType = dyn_cast<PointerType>(ldInstPtrOperand->getType());
-        IntegerType* ldInstIntegerType = dyn_cast<IntegerType>(ldInstPtrType->getPointerElementType());
-        PointerType* ldInstPtrElemType = dyn_cast<PointerType>(ldInstPtrType->getPointerElementType());
-
-        assert((ldInstIntegerType != nullptr) || (ldInstPtrElemType != nullptr));
-        Value* PtrOperand = nullptr;
-        if (ldInstIntegerType && ldInstIntegerType->getBitWidth() == 8) {
-            PtrOperand = ldInstPtrOperand;
-        } else {
-            PtrOperand = Builder.CreateBitCast(ldInstPtrOperand, bytePtrType);
-        }
-
-        /*mycode*/
-        errs()<< "Value of original load "<<*ldInst << "\n";
-        errs()<< "Value of decrypt ptr "<< *PtrOperand<<"\n";
-        errs()<< "Value of (ldInstPtrOperand ptr "<< *ldInstPtrOperand<<"\n";
-        Value* safeRegion = nullptr;
-        safeRegion = Builder.CreateCall(this->checkBounds, {PtrOperand});
-        errs()<< "Value of safeRegion is :"<<*safeRegion<<"\n";
-
-        Type *int32Ty;
-        int32Ty = Type::getInt32Ty(encVal->getContext());
-        //auto sizeVal = ConstantInt::get(int32Ty, 0);
-
-
-        ConstantInt *Zero = Builder.getInt32(0);
-        Value* cmpInst = Builder.CreateICmpEQ(safeRegion, Zero, "cmp");
-        //Value* safeRegion1 = Builder.CreateCall(this->checkBounds, {PtrOperand});
-        //Instruction* SplitBefore = cast<Instruction>(safeRegion1);
-        Instruction* SplitBefore = cast<Instruction>(encVal);
-
-        TerminatorInst *ThenTerm, *ElseTerm;
-        SplitBlockAndInsertIfThenElse(cmpInst, SplitBefore, &ThenTerm, &ElseTerm);
-
-        Builder.SetInsertPoint(ThenTerm);
-
-        /*auto originalLoad = Builder.CreateLoad(ldInstPtrOperand);
-
-          Builder.SetInsertPoint(ElseTerm);
-          auto originalLoad1 = Builder.CreateLoad(ldInstPtrOperand);
-
-          Builder.SetInsertPoint(SplitBefore);
-
-          PHINode *phi = Builder.CreatePHI(int32Ty, 2);
-          phi->addIncoming(originalLoad, ThenTerm->getParent());
-          phi->addIncoming(originalLoad1, ElseTerm->getParent());*/
-
-        std::vector<Value*> decryptArgList;
-        decryptArgList.push_back(PtrOperand);
-
-        switch(INCREMENT) {
-            case 1:
-                retVal = Builder.CreateCall(this->decryptLoopByteFunction, decryptArgList);
-                break;
-            case 2:
-                retVal = Builder.CreateCall(this->decryptLoopWordFunction, decryptArgList);
-                break;
-            case 4:
-                retVal = Builder.CreateCall(this->decryptLoopDWordFunction, decryptArgList);
-                break;
-            case 8:
-                retVal = Builder.CreateCall(this->decryptLoopQWordFunction, decryptArgList);
-                break;
-        }
-
-        if (ldInstPtrElemType) {
-            // If it's a pointer type, then the return value must be cast to the correct type
-            // int to ptr
-            retVal = Builder.CreateIntToPtr(retVal, ldInst->getType());
-        }
-
-        Builder.SetInsertPoint(ElseTerm);
-        auto originalLoad = Builder.CreateLoad(ldInstPtrOperand);
-
-        Builder.SetInsertPoint(SplitBefore);
-        //PHINode *phi = Builder.CreatePHI(int32Ty, 2);
-        PHINode *phi = Builder.CreatePHI(retVal->getType(), 2);
-        phi->addIncoming(retVal, ThenTerm->getParent());
-        phi->addIncoming(originalLoad, ElseTerm->getParent());
-
-        return phi;
-
-    }
-
     Value* AESCache::getDecryptedValueCachedDfsan(LoadInst* encVal) {
         Value* retVal = nullptr;
         int byteOffset = 0;
@@ -1436,8 +946,6 @@ namespace external {
 
         LoadInst* ldInst = dyn_cast<LoadInst>(encVal);
         Value* ldInstPtrOperand = ldInst->getPointerOperand();
-
-
 
         Type* byteType = Type::getInt8Ty(encVal->getContext());
         PointerType* bytePtrType = PointerType::get(byteType, 0);
@@ -1480,7 +988,7 @@ namespace external {
         ConstantInt* noOfByte = Builder.getInt64(1);
         readLabel = Builder.CreateCall(this->DFSanReadLabelFn, {PtrOperand, noOfByte});
         readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
-        errs()<< "Value of readlabel is :"<<*readLabel<<"\n";
+        //errs()<< "Value of readlabel is :"<<*readLabel<<"\n";
 
         Type *int32Ty;
         int32Ty = Type::getInt32Ty(encVal->getContext());
@@ -1497,17 +1005,6 @@ namespace external {
         SplitBlockAndInsertIfThenElse(cmpInst, SplitBefore, &ThenTerm, &ElseTerm);
 
         Builder.SetInsertPoint(ThenTerm);
-
-        /*auto originalLoad = Builder.CreateLoad(ldInstPtrOperand);
-
-          Builder.SetInsertPoint(ElseTerm);
-          auto originalLoad1 = Builder.CreateLoad(ldInstPtrOperand);
-
-          Builder.SetInsertPoint(SplitBefore);
-
-          PHINode *phi = Builder.CreatePHI(int32Ty, 2);
-          phi->addIncoming(originalLoad, ThenTerm->getParent());
-          phi->addIncoming(originalLoad1, ElseTerm->getParent());*/
 
         std::vector<Value*> decryptArgList;
         decryptArgList.push_back(PtrOperand);
