@@ -137,7 +137,6 @@ namespace {
 
             void collectGlobalSensitiveAnnotations(Module&);
             void collectLocalSensitiveAnnotations(Module&);
-            void collectSecureMallocs(Module&);
 
             std::vector<Type*> sensitiveTypes;
 
@@ -217,7 +216,6 @@ char EncryptionPass::ID = 0;
 //cl::opt<bool> NullEnc("null-enc", cl::desc("XOR Encryption"), cl::init(false), cl::Hidden);
 cl::opt<bool> AesEncCache("aes-enc-cache", cl::desc("AES Encryption - Cache"), cl::init(false), cl::Hidden);
 cl::opt<bool> DFSan("DFSAN", cl::desc("DFSan"), cl::init(false), cl::Hidden);
-cl::opt<bool> SecureMalloc("secure-malloc", cl::desc("Secure Malloc-based implementation. Only sensitive annotated variables and secure-mallocs are treated as sensitive"), cl::init(false));
 //cl::opt<bool> SkipVFA("skip-vfa-enc", cl::desc("Skip VFA"), cl::init(false), cl::Hidden);
 
 
@@ -819,26 +817,7 @@ void EncryptionPass::removeAnnotateInstruction(Module& M) {
 
 }
 
-void EncryptionPass::collectSecureMallocs(Module& M) {
-    /*
-       PAG* pag = getAnalysis<WPAPass>().getPAG();
 
-       for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
-       if (auto *F = dyn_cast<Function>(MIterator)) {
-       for (inst_iterator I = inst_begin(*F), E = inst_end(*F); I != E; ++I) {
-       if (CallInst* callInst = dyn_cast<CallInst>(&*I)) {
-       if (Function* calledFunc = callInst->getCalledFunction()) {
-       if (calledFunc->getName() == "secure_malloc") {
-       NodeID objID = pag->getObjectNode(callInst);
-       SensitiveObjList.push_back(pag->getPAGNode(objID);
-       }
-       }
-       }
-       }
-       }
-       }
-       */
-}
 
 void EncryptionPass::collectGlobalSensitiveAnnotations(Module& M) {
     std::vector<StringRef> GlobalSensitiveNameList;
@@ -3624,10 +3603,6 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     collectGlobalSensitiveAnnotations(M);
     collectLocalSensitiveAnnotations(M);
-
-    if (SecureMalloc) {
-        collectSecureMallocs(M);
-    }
 
     LLVM_DEBUG (
             dbgs() << "Collected sensitive annotations\n";
