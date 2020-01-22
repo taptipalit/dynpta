@@ -276,52 +276,28 @@ namespace external {
                 IRBuilder<> Builder(I);
                 Builder.SetInsertPoint(I->getNextNode());
 
-                /*For now, we are adding constant single label for all sensitive objects and setting in only 
+                /*
+                 * For now, we are adding constant single label for all sensitive objects and setting in only 
                  * first byte. It something break, will look into it later on. 
-                 * */
+                 */
                 ConstantInt* label = Builder.getInt16(1);
                 ConstantInt* noOfByte = Builder.getInt64(1);
-                /*if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
-                  errs() <<"This is GEPNode "<<*gepNode<<"\n";
-                  IntegerType *IntptrTy;
-                  IntptrTy = Type::getInt32Ty(M.getContext());
-                //Getting offset for GEP instruction 
-                Size_t offset = gepNode->getLocationSet().getOffset();
-                //Value* indexList[2] = {Builder.getInt32(0),Builder.getInt32(offset)};
-                //Value* gepInst = Builder.CreateGEP(senVal, ArrayRef<Value*>(indexList, 2));
-                Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, offset)};
-                //Creating getelementptr instruction to get address of struct field
-                Value* gepInst = Builder.CreateInBoundsGEP(senVal, ArrayRef<Value*>(indexList, 2));
-                Value* PtrOperand = nullptr;
-                PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
-                CallInst* setLabel = nullptr;
-                setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte}); 
-                setLabel->addParamAttr(0, Attribute::ZExt);
-                errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
-                }*/
                 if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
                     // Is an alloca instruction
-                    //Type* byteType = Type::getInt8Ty(M.getContext());
-                    //PointerType* bytePtrType = PointerType::get(byteType, 0);
-                    //errs() <<"This is Alloca "<<*allocInst<<"\n";
                     Value* PtrOperand = nullptr;
                     PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
                     CallInst* setLabel = nullptr;
 
                     setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
                     setLabel->addParamAttr(0, Attribute::ZExt);
-                    //errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
                 }
                 else if (CallInst* callInst = dyn_cast<CallInst>(senVal)){
                     // Call Instruction, no need to add bitcast
-                    //errs() <<"This is callInst "<<*callInst<<"\n";
                     CallInst* setLabel = nullptr;
                     setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, callInst, noOfByte});
                     setLabel->addParamAttr(0, Attribute::ZExt);
-                    //errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
                 }
                 else if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
-                    //errs() <<"This is GEPNode "<<*gepNode<<"\n";
                     IntegerType *IntptrTy;
                     IntptrTy = Type::getInt32Ty(M.getContext());
                     Size_t offset = gepNode->getLocationSet().getOffset();
@@ -332,7 +308,6 @@ namespace external {
                     CallInst* setLabel = nullptr;
                     setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
                     setLabel->addParamAttr(0, Attribute::ZExt);
-                    //errs()<< "Value of setLabel is :"<<*setLabel<<"\n";
                 }
             }
         }
@@ -348,7 +323,6 @@ namespace external {
                 errs() << "This is what I tried to widen: " << *gepNode << " " << gepNode->getLocationSet().getOffset() << "\n";
                 widenedStructType = widenSensitiveComplexType(gepNode, ptsFromMap);
             } 
-            //if (!widenedStructType) {
             assert(senNode->hasValue());
             // Add padding regardless if we've padded individual fields
             // Easy stuff
@@ -357,12 +331,6 @@ namespace external {
                 // Is an alloca instruction
                 allocInst->setAlignment(16);
                 IRBuilder<> Builder(allocInst);
-                /*
-                   AllocaInst* paddingAllocaInst1 = new AllocaInst (I128Ty, 0, "padding");
-                   MDNode* N1 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
-                   paddingAllocaInst1->setMetadata("PADDING", N1);
-                   paddingAllocaInst1->insertAfter(allocInst);
-                   */
                 AllocaInst* paddingAllocaInst2 = Builder.CreateAlloca(I128Ty, 0, "padding");
                 MDNode* N2 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
                 paddingAllocaInst2->setMetadata("PADDING", N2);
@@ -379,10 +347,8 @@ namespace external {
                     }
                 }
             }
-            //}
         }
 
-        //M.dump();
         // As for global variables, just align all of them to a 128 bit boundary
         for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
             if (I->getName() != "llvm.global.annotations") {
@@ -799,7 +765,7 @@ namespace external {
             }
         }
 
-        //Adding call to dfsan_read_label. Since we added constant 1 as label, we check against 1; 
+        // Adding call to dfsan_read_label. Since we added constant 1 as label, we check against 1; 
         // depending on the compare result we create branch
         CallInst* readLabel = nullptr;
         ConstantInt* noOfByte = Builder.getInt64(1);
@@ -809,13 +775,10 @@ namespace external {
 
         Type *int32Ty;
         int32Ty = Type::getInt32Ty(plainTextVal->getContext());
-        //auto sizeVal = ConstantInt::get(int32Ty, 0);
 
 
         ConstantInt *One = Builder.getInt16(1);
         Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
-        //Value* safeRegion1 = Builder.CreateCall(this->checkBounds, {PtrOperand});
-        //Instruction* SplitBefore = cast<Instruction>(safeRegion1);
         Instruction* SplitBefore = cast<Instruction>(plainTextVal);
 
         TerminatorInst *ThenTerm, *ElseTerm;
@@ -846,10 +809,7 @@ namespace external {
         auto originalStore = Builder.CreateStore(stInstValueOperand,stInstPtrOperand);
 
         Builder.SetInsertPoint(SplitBefore);
-        //PHINode *phi = Builder.CreatePHI(int32Ty, 2);
-        //phi->addIncoming(val, ThenTerm->getParent());
-        //phi->addIncoming(originalStore, ElseTerm->getParent());
-
+        
         return nullptr;
     }
 
@@ -983,22 +943,17 @@ namespace external {
             PtrOperand = Builder.CreateBitCast(ldInstPtrOperand, bytePtrType);
         }
 
-        /*mycode*/
         CallInst* readLabel = nullptr;
         ConstantInt* noOfByte = Builder.getInt64(1);
         readLabel = Builder.CreateCall(this->DFSanReadLabelFn, {PtrOperand, noOfByte});
         readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
-        //errs()<< "Value of readlabel is :"<<*readLabel<<"\n";
 
         Type *int32Ty;
         int32Ty = Type::getInt32Ty(encVal->getContext());
-        //auto sizeVal = ConstantInt::get(int32Ty, 0);
 
 
         ConstantInt *One = Builder.getInt16(1);
         Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
-        //Value* safeRegion1 = Builder.CreateCall(this->checkBounds, {PtrOperand});
-        //Instruction* SplitBefore = cast<Instruction>(safeRegion1);
         Instruction* SplitBefore = cast<Instruction>(encVal);
 
         TerminatorInst *ThenTerm, *ElseTerm;
@@ -1025,8 +980,6 @@ namespace external {
         }
 
         if (ldInstPtrElemType) {
-            // If it's a pointer type, then the return value must be cast to the correct type
-            // int to ptr
             retVal = Builder.CreateIntToPtr(retVal, ldInst->getType());
         }
 
@@ -1034,9 +987,7 @@ namespace external {
         auto originalLoad = Builder.CreateLoad(ldInstPtrOperand);
 
         Builder.SetInsertPoint(SplitBefore);
-        //PHINode *phi = Builder.CreatePHI(int32Ty, 2);
 
-        //Need to add phiNode to decide which branch result will be used later on.
         PHINode *phi = Builder.CreatePHI(retVal->getType(), 2);
         phi->addIncoming(retVal, ThenTerm->getParent());
         phi->addIncoming(originalLoad, ElseTerm->getParent());
