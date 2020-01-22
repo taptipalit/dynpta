@@ -19,23 +19,36 @@ void* CRYPTO_malloc(int size) {
 }
 
 struct A {
-    int* a1;
-    int* a2;
+    void (*fptr)();
 };
 
 struct B {
-    int* b1;
-    int* b2;
+    void (*gptr)();
 };
+
+void f() {
+    printf("hello\n");
+}
+
+void g() {
+    printf("hi\n");
+}
+
+void dothis(struct A* aptr) {
+    (*(aptr->fptr))();
+}
+
+void dothat(struct B* bptr) {
+    (*(bptr->gptr))();
+}
 
 int main(void) {
     struct A* aptr = CRYPTO_malloc(sizeof(struct A));    
     struct B* bptr = CRYPTO_malloc(sizeof(struct B));
-    int ten = 10;
-    int twenty = 20;
-    aptr->a1 = &ten;
-    bptr->b2 = &twenty;
-    printf("%d\n", *(aptr->a1));
-    printf("%d\n", *(bptr->b2));
+    aptr->fptr = f;
+    bptr->gptr = g;
+
+    dothis(aptr);
+    dothat(bptr);
     return 0;
 }

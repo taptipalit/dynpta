@@ -113,7 +113,7 @@ public:
         return extAPI;
     }
 
-    void update(std::vector<llvm::Function*>);
+    void update(std::vector<llvm::Function*>&);
 
     //Return the extf_t of (F).
     extf_t get_type(const llvm::Function *F) const {

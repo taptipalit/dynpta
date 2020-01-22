@@ -58,6 +58,7 @@ PAG* PAGBuilder::build(SVFModule svfModule) {
     for (SVFModule::iterator fit = svfModule.begin(), efit = svfModule.end();
             fit != efit; ++fit) {
         llvm::Function& fun = **fit;
+
         /// collect return node of function fun
         if(!analysisUtil::isExtCall(&fun)) {
             /// Return PAG node will not be created for function which can not
@@ -85,10 +86,11 @@ PAG* PAGBuilder::build(SVFModule svfModule) {
                 pag->addFunArgs(&fun,pag->getPAGNode(argValNodeId));
             }
         }
+        if (analysisUtil::isTreatAsExtCall(&fun))
+            continue;
         for (llvm::Function::iterator bit = fun.begin(), ebit = fun.end();
                 bit != ebit; ++bit) {
-            if (analysisUtil::isTreatAsExtCall(&fun))
-                continue;
+
             llvm::BasicBlock& bb = *bit;
             for (llvm::BasicBlock::iterator it = bb.begin(), eit = bb.end();
                     it != eit; ++it) {

@@ -859,7 +859,7 @@ void ExtAPI::init() {
     }
 }
 
-void ExtAPI::update(std::vector<llvm::Function*> criticalFunctions) {
+void ExtAPI::update(std::vector<llvm::Function*>& criticalFunctions) {
     for (llvm::Function* criticalFunction: criticalFunctions) {
         info[criticalFunction->getName()] = EFT_CUSTOM_ALLOC;
     }
