@@ -45,15 +45,7 @@ namespace {
             bool runOnModule(Module &M) override;
 
         private:
-
-
-            //bool DoNullEnc;
             bool DoAESEncCache;
-
-            /*
-               std::map<llvm::Value*, std::set<llvm::Value*>>* ptsToMapPtr;
-               std::map<llvm::Value*, std::set<llvm::Value*>>* ptsFromMapPtr;
-               */
 
             external::ExtLibraryHandler ExtLibHandler;
             external::AESCache AESCache;
