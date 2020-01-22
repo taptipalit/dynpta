@@ -199,13 +199,15 @@ bool PAG::addNormalGepEdge(NodeID src, NodeID dst, const LocationSet& ls) {
  * Find the base node id of src and connect base node to dst node
  */
 bool PAG::addVariantGepEdge(NodeID src, NodeID dst) {
-//    return addCopyEdge(src, dst);
+    return addCopyEdge(src, dst);
+    /*
     PAGNode* baseNode = getPAGNode(getBaseValNode(src));
     PAGNode* dstNode = getPAGNode(dst);
     if(hasIntraEdge(baseNode, dstNode, PAGEdge::VariantGep))
         return false;
     else
         return addEdge(baseNode, dstNode, new VariantGepPE(baseNode, dstNode));
+    */
 }
 
 /*!

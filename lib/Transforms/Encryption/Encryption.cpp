@@ -4464,14 +4464,7 @@ bool EncryptionPass::runOnModule(Module &M) {
         preprocessSensitiveAnnotatedPointers(M);
 
 
-    errs() << "After nested points-to analysis:\n";
-    for (PAGNode* senPAGNode: SensitiveObjList) {
-        errs() << *senPAGNode << "\n";
-        if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senPAGNode)) {
-            errs() << "Location: " << gepNode->getLocationSet().getOffset() << "\n";
-        }
-    }
-
+    
 
     /*errs() << "Begin: Perform dataflow analysis\n";
 
@@ -4479,17 +4472,26 @@ bool EncryptionPass::runOnModule(Module &M) {
     //performSourceSinkAnalysis(M);
     }*/
 
+    //errs() << "End: Perform dataflow analysis: " << SensitiveObjList.size() << " memory objects found\n";
     // Remove duplicates and copy back to SensitiveObjList
     SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
     SensitiveObjList.clear();
     std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
 
-    errs() << "After preprocessSensitiveAnnotatedPointers " << SensitiveObjList.size() << " memory objects found\n";
-    errs() << "End: Perform dataflow analysis: " << SensitiveObjList.size() << " memory objects found\n";
+    errs() << "After nested points-to analysis found new :" << SensitiveObjList.size() << " objects \n";
+    for (PAGNode* senPAGNode: SensitiveObjList) {
+        errs() << *senPAGNode << "\n";
+        if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senPAGNode)) {
+            errs() << "Offset: " << gepNode->getLocationSet().getOffset() << "\n";
+        }
+    }
+
     // Populate the sensitive data types now
+    /*
     for (PAGNode* senPAGNode: SensitiveObjList) {
         errs() << *senPAGNode << "\n";
     }
+    */
 
 	if (Partitioning) {
 		if (DoAESEncCache) {
