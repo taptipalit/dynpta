@@ -75,12 +75,12 @@ namespace {
             std::set<Value*>* SensitiveGEPPtrSet;
             std::set<Value*> SensitiveArgSet;
 
-            //Lists needed for adding check for DFSan
+            //Lists needed for adding check for Partitioning
             std::vector<Value*> SensitiveLoadPtrCheckList;
             std::vector<Value*> SensitiveLoadCheckList;
             std::vector<Value*> SensitiveGEPPtrCheckList;
 
-            //Sets needed for adding check for DFSan
+            //Sets needed for adding check for Partitioning
             std::set<Value*>* SensitiveLoadPtrCheckSet;
             std::set<Value*>* SensitiveLoadCheckSet;
             std::set<Value*>* SensitiveGEPPtrCheckSet;
@@ -157,8 +157,6 @@ namespace {
             Function* findSimpleFunArgFor(Value*);
             void preprocessSensitiveAnnotatedPointers(Module &M);
 
-            void constructPartitioningAwareSDD(Module&, std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
-
             void collectSensitivePointsToInfo(Module&, std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
             //void addExternInlineASMHandlers(Module&);
 
@@ -215,7 +213,7 @@ char EncryptionPass::ID = 0;
 
 //cl::opt<bool> NullEnc("null-enc", cl::desc("XOR Encryption"), cl::init(false), cl::Hidden);
 cl::opt<bool> AesEncCache("aes-enc-cache", cl::desc("AES Encryption - Cache"), cl::init(false), cl::Hidden);
-cl::opt<bool> DFSan("DFSAN", cl::desc("DFSan"), cl::init(false), cl::Hidden);
+cl::opt<bool> Partitioning("partitioning", cl::desc("Partitioning"), cl::init(false), cl::Hidden);
 //cl::opt<bool> SkipVFA("skip-vfa-enc", cl::desc("Skip VFA"), cl::init(false), cl::Hidden);
 
 
@@ -1015,98 +1013,6 @@ Function* EncryptionPass::findSimpleFunArgFor(Value* ptr) {
     return nullptr;
 }
 
-void EncryptionPass::constructPartitioningAwareSDD(Module& M, 
-		std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap,
-        std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
-    PAG* pag = getAnalysis<WPAPass>().getPAG();
-
-    std::map<PAGNode*, std::set<PAGNode*>>::iterator ptsToMapIt = ptsToMap.begin();
-    bool done = false;
-
-    std::vector<PAGNode*> tempObjList;
-    // If there are any pointers in the sensitive object list, we want find their targets right away
-    for (PAGNode* senPAGNode: SensitiveObjList) {
-        for(PAGNode* ptsToNode: ptsToMap[senPAGNode]) {
-            tempObjList.push_back(ptsToNode);
-        }
-    }
-    std::copy(tempObjList.begin(), tempObjList.end(), std::back_inserter(SensitiveObjList));
-
-    // --- We need to keep merging the points-to sets of each pointer that points to sensitive allocation sites
-    // Set if off
-    std::set<PAGNode*>* allocaSetPtr = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end()); 
-    std::set<PAGNode*>* newObjSetPtr = nullptr;
-    std::vector<PAGNode*>* newObjVecPtr = nullptr;
-    std::set<PAGNode*>* allAllocSitesSetPtr = nullptr;
-    std::set<PAGNode*>* diffSetPtr = nullptr;
-    std::set<PAGNode*>* tmpPtr = nullptr;
-
-    while (!done) {
-        dbgs() << allocaSetPtr->size() << " New allocation sites found ... \n";
-
-        if (allocaSetPtr->size() == 0) break;;
-
-        if (newObjVecPtr) {
-            delete newObjVecPtr;
-        }
-        newObjVecPtr = new std::vector<PAGNode*>();
-
-        int count = 0;
-
-        for (PAGNode* sensitiveObjSite: *allocaSetPtr) {
-            // --- Any pointer that points to the sensitiveObjSite also needs to be processed
-            for (PAGNode* ptr: ptsFromMap[sensitiveObjSite]) {
-                if (ptr->hasValue()) {
-                    if (isa<Function>(ptr->getValue()) || isa<CallInst>(ptr->getValue())) {
-                        continue;
-                    }
-                }
-
-                // --- All allocation sites ONLY ON THE STACK this pointer can point to is also sensitive
-                std::set<PAGNode*>* s = &ptsToMap[ptr];
-                for (PAGNode* obj: *s) {
-                    const Value* v = obj->getValue();
-                    if (!isa<AllocaInst>(v)) {
-                        continue;
-                    }
-                    newObjVecPtr->push_back(obj);
-                }
-            }
-        }
-        // newObjVecPtr has all newly discovered sensitive allocation sites
-        // Convert it to set and find difference
-        // Free the old guy
-        if (newObjSetPtr) {
-            delete newObjSetPtr;
-        }
-        newObjSetPtr = new std::set<PAGNode*>(newObjVecPtr->begin(), newObjVecPtr->end());
-
-        if (allAllocSitesSetPtr) {
-            delete allAllocSitesSetPtr;
-        }
-        allAllocSitesSetPtr = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
-
-        if (diffSetPtr) {
-            delete diffSetPtr;
-        }
-        diffSetPtr = new std::set<PAGNode*>();
-        // diff is the new allocation sites that have been found
-
-        set_difference(newObjSetPtr->begin(), newObjSetPtr->end(), allAllocSitesSetPtr->begin(), allAllocSitesSetPtr->end(), inserter(*diffSetPtr, diffSetPtr->begin()));
-
-        if (diffSetPtr->size() == 0) {
-            // Nothing new found, done!
-            done = true;
-        }
-
-        SensitiveObjList.insert(SensitiveObjList.end(), diffSetPtr->begin(), diffSetPtr->end());
-
-        allocaSetPtr = diffSetPtr;
-    }
-}
-
-
-
 void EncryptionPass::collectSensitivePointsToInfo(Module &M, 
 		std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap,
         std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
@@ -1134,8 +1040,8 @@ void EncryptionPass::collectSensitivePointsToInfo(Module &M,
     std::set<PAGNode*>* diffSetPtr = nullptr;
     std::set<PAGNode*>* tmpPtr = nullptr;
     
-    // For DFSan, we dont need to do the ptsFromMap analysis
-    if(DFSan)
+    // For Partitioning, we dont need to do the ptsFromMap analysis
+    if(Partitioning)
         done = true;
     while (!done) {
         dbgs() << allocaSetPtr->size() << " New allocation sites found ... \n";
@@ -1210,7 +1116,7 @@ void EncryptionPass::collectSensitivePointsToInfo(Module &M,
 void EncryptionPass::collectSensitiveGEPInstructions(Module& M, std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap) {
     // Find all the GEP instructions that load IR pointers that point to sensitive locations
     std::map<PAGNode*, std::set<PAGNode*>>::iterator mapIt = ptsToMap.begin();
-    if(DFSan){
+    if(Partitioning){
         for (; mapIt != ptsToMap.end(); ++mapIt) {
             PAGNode* ptrNode = mapIt->first;
             assert(ptrNode->hasValue() && "A PAG node made it so far, it should have a value.");
@@ -1276,7 +1182,7 @@ void EncryptionPass::collectSensitiveGEPInstructions(Module& M, std::map<PAGNode
         }
 
     }
-    if(DFSan){
+    if(Partitioning){
         // Find all Load instructions that load from sensitive locations pointed to by GEP instructions
         for (Value* GEPValue: SensitiveGEPPtrCheckList) {
             // Find all Users of this GEP instruction
@@ -1336,7 +1242,7 @@ void EncryptionPass::collectSensitiveGEPInstructionsFromLoad(Module& M, std::map
 void EncryptionPass::collectSensitiveLoadInstructions(Module& M, std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap) {
     // Find all the Load instructions that load IR pointers that point to sensitive locations
     std::map<PAGNode*, std::set<PAGNode*>>::iterator mapIt = ptsToMap.begin();
-    if(DFSan){
+    if(Partitioning){
         for (; mapIt != ptsToMap.end(); ++mapIt) {
             PAGNode* ptr = mapIt->first;
             assert(ptr->hasValue() && "A PAG node made it so far, it should have a value.");
@@ -1416,7 +1322,7 @@ void EncryptionPass::collectSensitiveLoadInstructions(Module& M, std::map<PAGNod
         }
 
     }
-    if(DFSan){
+    if(Partitioning){
         // Find all Load instructions that load sensitive locations from the points to graph and constant expressions
         for (Value* sensitivePtrLoad: SensitiveLoadPtrCheckList) {
             // Find all Users of this Load instruction
@@ -1465,7 +1371,7 @@ void EncryptionPass::collectSensitiveLoadInstructions(Module& M, std::map<PAGNod
 
     }
 
-    if(DFSan){
+    if(Partitioning){
         // Find all Load instructions that load sensitive locations from the points to graph and constant expressions
         for (Value* sensitivePtrLoad: SensitiveLoadPtrCheckList) {
             // Find all Users of this Load instruction
@@ -1651,7 +1557,7 @@ void EncryptionPass::preprocessAllocaAndLoadInstructions(Instruction* Inst) {
             Replacement->Type = LOAD;
             ReplacementList.push_back(Replacement);
         }
-        else if(DFSan){
+        else if(Partitioning){
             // Keeping separate ReplacementList where we need to add check
             if(isSensitiveLoadCheckSet(LdInst)) {
                 LLVMContext& C = LdInst->getContext();
@@ -1703,7 +1609,7 @@ void EncryptionPass::preprocessStoreInstructions(Instruction* Inst) {
         Replacement->Type = STORE;
         ReplacementList.push_back(Replacement);
     }
-    else if(DFSan){
+    else if(Partitioning){
         if ((pag->hasObjectNode(PointerOperand) && isSensitiveObjSet(getPAGObjNodeFromValue(PointerOperand))) || isSensitiveLoadPtrCheckSet(PointerOperand) || isSensitiveGEPPtrCheckSet(PointerOperand)/* || sensitiveGEPCE*/) {
             LLVMContext& C = StInst->getContext();
             MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
@@ -1763,15 +1669,15 @@ void EncryptionPass::resetInstructionLists(Function *F) {
     for (inst_iterator I = inst_begin(*F), E = inst_end(*F); I != E; ++I) {
         InstructionList.push_back(&*I);
     }
-    if(DFSan){
+    if(Partitioning){
         ReplacementCheckList.clear();
     }
 
 }
 
 void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap) {
-    /*ReplacementList contains only the sensitive loads/stores for DFSan, so we directly add encryption/decryption.
-      ReplacementCheckList is where we need to add check; so we call encryption/decryption functions written for DFSan which read labels and add checks
+    /*ReplacementList contains only the sensitive loads/stores for Partitioning, so we directly add encryption/decryption.
+      ReplacementCheckList is where we need to add check; so we call encryption/decryption functions written for Partitioning which read labels and add checks
       */
     for (std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementList.begin() ; ReplacementIt != ReplacementList.end(); ++ReplacementIt) {
         InstructionReplacement* Repl = *ReplacementIt;
@@ -1817,7 +1723,7 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
             StInst->eraseFromParent();
         }
     }
-    if(DFSan){
+    if(Partitioning){
         for (std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementCheckList.begin() ; ReplacementIt != ReplacementCheckList.end(); ++ReplacementIt) {
             InstructionReplacement* Repl = *ReplacementIt;
             if (Repl->Type == LOAD) {
@@ -3445,7 +3351,7 @@ void EncryptionPass::buildSets(Module &M) {
     SensitiveLoadPtrSet = new std::set<Value*>(SensitiveLoadPtrList.begin(), SensitiveLoadPtrList.end()); // Any pointer that points to sensitive location
     SensitiveLoadSet = new std::set<Value*>(SensitiveLoadList.begin(), SensitiveLoadList.end());
     SensitiveGEPPtrSet = new std::set<Value*>(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
-    if(DFSan){
+    if(Partitioning){
         SensitiveLoadPtrCheckSet = new std::set<Value*>(SensitiveLoadPtrCheckList.begin(), SensitiveLoadPtrCheckList.end());
         SensitiveLoadCheckSet = new std::set<Value*>(SensitiveLoadCheckList.begin(), SensitiveLoadCheckList.end());
         SensitiveGEPPtrCheckSet = new std::set<Value*>(SensitiveGEPPtrCheckList.begin(), SensitiveGEPPtrCheckList.end());
@@ -3666,7 +3572,7 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     if (DoAESEncCache) {
         AESCache.initializeAes(M);
-        if(DFSan){
+        if(Partitioning){
             //Set Labels for Sensitive objects
             AESCache.SetLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
         }
@@ -3677,7 +3583,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     unConstantifySensitiveAllocSites(M);
 
     /*
-     * For DFSan, we will keep separate lists and sets for SensitiveGEPPtr, SensitiveLoadPtr and SensitiveLoad so that 
+     * For Partitioning, we will keep separate lists and sets for SensitiveGEPPtr, SensitiveLoadPtr and SensitiveLoad so that 
      * checks don't get added where senstive objects are accesed directly or all of the targets of a pointer are sensitive
      */
 
@@ -3696,7 +3602,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     SensitiveLoadPtrSet = new std::set<Value*>(SensitiveLoadPtrList.begin(), SensitiveLoadPtrList.end()); // Any pointer that points to sensitive location
     SensitiveLoadSet = new std::set<Value*>(SensitiveLoadList.begin(), SensitiveLoadList.end());
 
-    if(DFSan){
+    if(Partitioning){
         SensitiveLoadPtrCheckSet = new std::set<Value*>(SensitiveLoadPtrCheckList.begin(), SensitiveLoadPtrCheckList.end());
         SensitiveLoadCheckSet = new std::set<Value*>(SensitiveLoadCheckList.begin(), SensitiveLoadCheckList.end());
     }
