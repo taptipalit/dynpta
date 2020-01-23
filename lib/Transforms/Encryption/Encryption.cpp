@@ -3557,7 +3557,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     buildSets(M);
 
 
-    //ExtLibHandler.addNullExtFuncHandler(M);
+    ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall
     ExtLibHandler.addAESCacheExtFuncHandler(M);
 
 

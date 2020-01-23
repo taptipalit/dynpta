@@ -19,7 +19,7 @@ ln -s $LLVM_CUSTOM_SRC/lib/Transforms/Encryption/aes_helper.c_ aes_helper.c
 ln -s $LLVM_CUSTOM_SRC/lib/Transforms/LibcTransform/internal_libc.c_ internal_libc.c
 
 GGDB=-ggdb 
-$LLVMROOT/clang -O0 -c $GGDB -emit-llvm $file.c -o $file.bc
+#$LLVMROOT/clang -O0 -c $GGDB -emit-llvm $file.c -o $file.bc
 if [ $? -ne 0 ]
 then
     exit 1
@@ -42,7 +42,7 @@ fi
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $fileinst.bc 
-$LLVMROOT/opt -encryption -ander -partitioning=false -debug-only=encryption  $file.bc -o $fileinst.bc 
+$LLVMROOT/opt -encryption -ander -partitioning=false  $file.bc -o $fileinst.bc 
 $LLVMROOT/opt --dfsan $fileinst.bc -o $filedfsan.bc
 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
