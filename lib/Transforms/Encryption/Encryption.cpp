@@ -1554,7 +1554,7 @@ void EncryptionPass::preprocessStoreInstructions(Instruction* Inst) {
         Replacement->Type = STORE;
         ReplacementList.push_back(Replacement);
     }
-    if ((pag->hasObjectNode(PointerOperand) && isSensitiveObjSet(getPAGObjNodeFromValue(PointerOperand))) || isSensitiveLoadPtrCheckSet(PointerOperand) || isSensitiveGEPPtrCheckSet(PointerOperand)/* || sensitiveGEPCE*/) {
+    if (/*(pag->hasObjectNode(PointerOperand) && isSensitiveObjSet(getPAGObjNodeFromValue(PointerOperand))) || */isSensitiveLoadPtrCheckSet(PointerOperand) || isSensitiveGEPPtrCheckSet(PointerOperand)/* || sensitiveGEPCE*/) {
         LLVMContext& C = StInst->getContext();
         MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
         StInst->setMetadata("SENSITIVE", N);
