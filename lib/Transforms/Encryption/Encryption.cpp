@@ -1270,7 +1270,6 @@ void EncryptionPass::collectSensitiveLoadInstructions(Module& M, std::map<PAGNod
         for(Value::user_iterator User = loadValue->user_begin(); User != loadValue->user_end(); ++User) {
             if (GetElementPtrInst* GEPInst = dyn_cast<GetElementPtrInst>(*User) ) {
                 SensitiveGEPPtrList.push_back(GEPInst);
-                SensitiveGEPPtrSet->insert(GEPInst);
             }
         }
 
@@ -1283,7 +1282,6 @@ void EncryptionPass::collectSensitiveLoadInstructions(Module& M, std::map<PAGNod
         for(Value::user_iterator User = loadValue->user_begin(); User != loadValue->user_end(); ++User) {
             if (GetElementPtrInst* GEPInst = dyn_cast<GetElementPtrInst>(*User) ) {
                 SensitiveGEPPtrCheckList.push_back(GEPInst);
-                SensitiveGEPPtrCheckSet->insert(GEPInst);
             }
         }
 

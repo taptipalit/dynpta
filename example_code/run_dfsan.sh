@@ -41,9 +41,9 @@ fi
 #wpa -nander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
-#$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $fileinst.bc 
-$LLVMROOT/opt -encryption -ander -partitioning=false  $file.bc -o $fileinst.bc 
-$LLVMROOT/opt --dfsan $fileinst.bc -o $filedfsan.bc
+#$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $file.bc 
+$LLVMROOT/opt -encryption -ander -partitioning=true  $file.bc -o $fileinst.bc 
+$LLVMROOT/opt --dfsan $file.bc -o $filedfsan.bc
 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc
@@ -56,14 +56,14 @@ $LLVMROOT/llvm-dis $filedfsan.bc -o $filedfsan.ll
 #dot -Tpng consCG_final.dot -o $file"_consg_full_final.png"
 #dot -Tpng consCG_selective_final.dot -o $file"_consg_selective_final.png"
 
-$LLVMROOT/llc -O0 -filetype=obj $filedfsan.bc -o $filedfsan.o
+$LLVMROOT/clang -O0 -c -fPIC -fPIE $filedfsan.bc -o $filedfsan.o
 if [ $? -ne 0 ]
 then
     exit 1
 fi
 
-$LLVMROOT/clang -c -fPIC -pie aes_inmemkey.s -o aes.o
-$LLVMROOT/clang -c -fPIC -pie aes_helper.c -o aes_h.o
+$LLVMROOT/clang -c -fPIC -fPIE aes_inmemkey.s -o aes.o
+$LLVMROOT/clang -c -fPIC -fPIE aes_helper.c -o aes_h.o
 #$LLVMROOT/clang -fPIC -pie -fsanitize=dataflow $GGDB aes.o aes_h.o $filedfsan.o -o $file
 $LLVMROOT/clang $GGDB -fsanitize=dataflow aes.o aes_h.o $filedfsan.o -o $file
 if [ $? -ne 0 ]
