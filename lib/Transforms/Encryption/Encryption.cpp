@@ -3464,11 +3464,11 @@ bool EncryptionPass::runOnModule(Module &M) {
     preprocessSensitiveAnnotatedPointers(M);
 
 
-    errs() << "After nested points-to analysis:\n";
+    //errs() << "After nested points-to analysis:\n";
     for (PAGNode* senPAGNode: SensitiveObjList) {
-        errs() << *senPAGNode << "\n";
+        //errs() << *senPAGNode << "\n";
         if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senPAGNode)) {
-            errs() << "Location: " << gepNode->getLocationSet().getOffset() << "\n";
+            //errs() << "Location: " << gepNode->getLocationSet().getOffset() << "\n";
         }
     }
 
@@ -3487,9 +3487,11 @@ bool EncryptionPass::runOnModule(Module &M) {
     errs() << "End: Perform dataflow analysis: " << SensitiveObjList.size() << " memory objects found\n";
 
     // Populate the sensitive data types now
+    /*
     for (PAGNode* senPAGNode: SensitiveObjList) {
         errs() << *senPAGNode << "\n";
     }
+    */
 
     collectSensitivePointsToInfo(M, ptsToMap, ptsFromMap);
 

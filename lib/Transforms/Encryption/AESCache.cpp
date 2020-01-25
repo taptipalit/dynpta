@@ -207,9 +207,12 @@ namespace external {
                 int beg = 0;
                 findTrueOffset(stType, offset, &beg, &nestedType, &nestedOffset);
                 // Widen the field
-                nestedType->addSensitiveFieldOffset(nestedOffset);
-                errs() << "Widening sensitive complex type: " << nestedType->getName() << " with offset: " << nestedOffset << " original type: " << stType->getName() << " original offset: " << offset << " \n";
-                return true;
+                if (nestedType) {
+                    // Else it's an array within a struct
+                    nestedType->addSensitiveFieldOffset(nestedOffset);
+                    errs() << "Widening sensitive complex type: " << nestedType->getName() << " with offset: " << nestedOffset << " original type: " << stType->getName() << " original offset: " << offset << " \n";
+                    return true;
+                }
             }
         }
 

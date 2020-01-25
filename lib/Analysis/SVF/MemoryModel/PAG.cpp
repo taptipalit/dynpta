@@ -200,7 +200,7 @@ bool PAG::addNormalGepEdge(NodeID src, NodeID dst, const LocationSet& ls) {
  */
 bool PAG::addVariantGepEdge(NodeID src, NodeID dst) {
 
-    return addCopyEdge(src, dst);
+//    return addCopyEdge(src, dst);
 
     PAGNode* baseNode = getPAGNode(getBaseValNode(src));
     PAGNode* dstNode = getPAGNode(dst);
