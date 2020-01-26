@@ -43,6 +43,7 @@
 #include <llvm/Analysis/AliasAnalysis.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Pass.h>
+#include <llvm/Analysis/ContextSensitivityAnalysis.h>
 
 #include <vector>
 #include <set>
@@ -81,6 +82,7 @@ public:
     /// LLVM analysis usage
     virtual inline void getAnalysisUsage(llvm::AnalysisUsage &au) const {
         // declare your dependencies here.
+        au.addRequired<ContextSensitivityAnalysisPass>();
         /// do not intend to change the IR in this pass,
         au.setPreservesAll();
     }
@@ -100,6 +102,7 @@ public:
 
     /// We start from here
     virtual bool runOnModule(llvm::Module& module) {
+        contextSensitivityPass = &(getAnalysis<ContextSensitivityAnalysisPass>());
         SVFModule *svfModule = new SVFModule(module);
         runOnModule(*svfModule);
         delete svfModule;
@@ -166,6 +169,8 @@ private:
     std::vector<PAGNode*> SensitiveObjList;
     std::map<PAGNode*, std::set<PAGNode*>> pagPtsToMap;
     std::map<PAGNode*, std::set<PAGNode*>> pagPtsFromMap;
+
+    ContextSensitivityAnalysisPass* contextSensitivityPass;
 };
 
 namespace llvm {

@@ -3477,6 +3477,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     }
     */
 
+    //errs() << "End: Perform dataflow analysis: " << SensitiveObjList.size() << " memory objects found\n";
     // Remove duplicates and copy back to SensitiveObjList
     SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
     SensitiveObjList.clear();

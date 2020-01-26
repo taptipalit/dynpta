@@ -19,20 +19,7 @@ ln -s /mnt/Projects/LLVM-custom/lib/Transforms/Encryption/aes_helper.c_ aes_help
 ln -s /mnt/Projects/LLVM-custom/lib/Transforms/LibcTransform/internal_libc.c_ internal_libc.c
 
 GGDB=-ggdb 
-musl-clang -O0 -c $GGDB  -emit-llvm $file.c -o $file.bc
-if [ $? -ne 0 ]
-then
-    exit 1
-fi
-
-musl-clang -c $GGDB -emit-llvm internal_libc.c -o internal_libc.bc
-if [ $? -ne 0 ]
-then
-    exit 1
-fi
-
-
-$LLVMROOT/llvm-link $file.bc internal_libc.bc  -o $file.bc #internal_libc.bc
+$LLVMROOT/clang -O0 -c $GGDB  -emit-llvm $file.c -o $file.bc
 if [ $? -ne 0 ]
 then
     exit 1
@@ -42,15 +29,15 @@ fi
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $fileinst.bc 
-$LLVMROOT/opt -encryption $analysis -dump-pag -dump-consG $file.bc -o $fileinst.bc # -print-all-pts -debug-only=encryption 
+$LLVMROOT/opt -encryption $analysis -ander -dump-pag -dump-consG $file.bc -o $fileinst.bc # -print-all-pts -debug-only=encryption 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc
 $LLVMROOT/llvm-dis $file.bc -o $file.ll
 $LLVMROOT/llvm-dis $fileinst.bc -o $fileinst.ll
 #exit 0
-#dot -Tpng pag_final.dot -o $file"_pag_final.png"
-#dot -Tpng pag_initial.dot -o $file"_pag_initial.png"
-#dot -Tpng consCG_final.dot -o $file"_consg_full_final.png"
+dot -Tpng pag_final.dot -o $file"_pag_final.png"
+dot -Tpng pag_initial.dot -o $file"_pag_initial.png"
+dot -Tpng consCG_final.dot -o $file"_consg_full_final.png"
 #dot -Tpng consCG_selective_final.dot -o $file"_consg_selective_final.png"
 
 $LLVMROOT/llc -O0 -filetype=obj $fileinst.bc -o $fileinst.o
@@ -59,7 +46,7 @@ then
     exit 1
 fi
 
-musl-clang -static $GGDB aes_inreg.s aes_helper.c $fileinst.o -o $file.exe
+$LLVMROOT/clang -static $GGDB aes_inmemkey.s aes_helper.c $fileinst.o -o $file.exe
 if [ $? -ne 0 ]
 then
     exit 1

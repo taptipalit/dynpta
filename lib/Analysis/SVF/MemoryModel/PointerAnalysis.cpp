@@ -137,11 +137,15 @@ void PointerAnalysis::initialize(SVFModule svfModule) {
             PAGBuilderFromFile fileBuilder(SVFModule::pagFileName());
             pag = fileBuilder.build();
         } else {
+            // Initialize the ExtAPI, and update it
+            ExtAPI* extAPI = ExtAPI::getExtAPI();
+            extAPI->update(contextCriticalFunctions);
             DBOUT(DGENERAL, outs() << pasMsg("Building Symbol table ...\n"));
             SymbolTableInfo* symTable = SymbolTableInfo::Symbolnfo();
             symTable->buildMemModel(svfModule);
 
             PAGBuilder builder;
+
             pag = builder.build(svfModule);
 
             chgraph = new CHGraph(svfModule);

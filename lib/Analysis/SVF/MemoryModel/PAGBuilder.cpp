@@ -58,6 +58,7 @@ PAG* PAGBuilder::build(SVFModule svfModule) {
     for (SVFModule::iterator fit = svfModule.begin(), efit = svfModule.end();
             fit != efit; ++fit) {
         llvm::Function& fun = **fit;
+
         /// collect return node of function fun
         if(!analysisUtil::isExtCall(&fun)) {
             /// Return PAG node will not be created for function which can not
@@ -85,8 +86,11 @@ PAG* PAGBuilder::build(SVFModule svfModule) {
                 pag->addFunArgs(&fun,pag->getPAGNode(argValNodeId));
             }
         }
+        if (analysisUtil::isTreatAsExtCall(&fun))
+            continue;
         for (llvm::Function::iterator bit = fun.begin(), ebit = fun.end();
                 bit != ebit; ++bit) {
+
             llvm::BasicBlock& bb = *bit;
             for (llvm::BasicBlock::iterator it = bb.begin(), eit = bb.end();
                     it != eit; ++it) {
@@ -863,6 +867,7 @@ void PAGBuilder::handleExtCall(CallSite cs, const Function *callee) {
                 break;
             }
             case ExtAPI::EFT_ALLOC:
+            case ExtAPI::EFT_CUSTOM_ALLOC:
             case ExtAPI::EFT_NOSTRUCT_ALLOC:
             case ExtAPI::EFT_STAT:
             case ExtAPI::EFT_STAT2:
