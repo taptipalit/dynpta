@@ -1306,7 +1306,6 @@ void EncryptionPass::collectSensitiveLoadInstructions(Module& M, std::map<PAGNod
             }
         }
     }
-
     // Find all Load instructions that load sensitive locations from the points to graph and constant expressions
     for (Value* sensitivePtrLoad: SensitiveLoadPtrList) {
         // Find all Users of this Load instruction
@@ -3537,6 +3536,8 @@ bool EncryptionPass::runOnModule(Module &M) {
     errs() << "After collectSensitiveGEPInstructions: " << SensitiveGEPPtrSet->size() << " sensitive GEP instructions found\n";
 
     dbgs() << "Collected sensitive GEP instructions\n";
+    
+    buildSets(M);
 
     collectSensitiveLoadInstructions(M, ptsToMap);
 
@@ -3554,7 +3555,7 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     dbgs() << "Collected sensitive External Library calls\n";
 
-    buildSets(M);
+    //buildSets(M);
 
 
     ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall

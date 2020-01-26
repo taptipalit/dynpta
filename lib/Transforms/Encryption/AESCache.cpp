@@ -265,56 +265,137 @@ namespace external {
 
                                   
     void AESCache::SetLabelsForSensitiveObjects(Module &M, std::set<PAGNode*>* SensitiveAllocaList,
-            std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
-        LLVMContext *Ctx;
-        Ctx = &M.getContext();
-        const DataLayout &DL = M.getDataLayout();
-        //Setting Label for Sensitive Objects:
-        for (PAGNode* senNode: *SensitiveAllocaList) {
-            assert(senNode->hasValue());
-            Value* senVal = const_cast<Value*>(senNode->getValue());
-            //errs() << "Value " << *senVal<<"\n";
-            //Creating insert position
-            if(Instruction *I = dyn_cast<Instruction>(senVal)){
-                IRBuilder<> Builder(I);
-                Builder.SetInsertPoint(I->getNextNode());
-
-                /*
-                 * For now, we are adding constant single label for all sensitive objects and setting in only 
-                 * first byte. It something break, will look into it later on. 
-                 */
-                ConstantInt* label = Builder.getInt16(1);
-                ConstantInt* noOfByte = Builder.getInt64(1);
-                if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
-                    // Is an alloca instruction
-                    Value* PtrOperand = nullptr;
-                    PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
-                    CallInst* setLabel = nullptr;
-
-                    setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
-                    setLabel->addParamAttr(0, Attribute::ZExt);
-                }
-                else if (CallInst* callInst = dyn_cast<CallInst>(senVal)){
-                    // Call Instruction, no need to add bitcast
-                    CallInst* setLabel = nullptr;
-                    setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, callInst, noOfByte});
-                    setLabel->addParamAttr(0, Attribute::ZExt);
-                }
-                else if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
-                    IntegerType *IntptrTy;
-                    IntptrTy = Type::getInt32Ty(M.getContext());
-                    Size_t offset = gepNode->getLocationSet().getOffset();
-                    Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, offset)};
-                    Value* gepInst = Builder.CreateInBoundsGEP(senVal, ArrayRef<Value*>(indexList, 2));
-                    Value* PtrOperand = nullptr;
-                    PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
-                    CallInst* setLabel = nullptr;
-                    setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
-                    setLabel->addParamAttr(0, Attribute::ZExt);
-                }
-            }
-        }
-    }
+			std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
+		LLVMContext *Ctx;
+		Ctx = &M.getContext();
+		const DataLayout &DL = M.getDataLayout();
+		std::map<std::string, StructType*> structNameTypeMap;
+		for (StructType* stType: M.getIdentifiedStructTypes()) {
+			structNameTypeMap[stType->getName()] = stType;
+		}
+		//errs()<<"Setting Label for Sensitive Objects:\n";
+		for (PAGNode* senNode: *SensitiveAllocaList) {
+			assert(senNode->hasValue());
+			Value* senVal = const_cast<Value*>(senNode->getValue());
+			//errs() << "Value " << *senVal<<"\n";
+			//Creating insert position
+			if(Instruction *I = dyn_cast<Instruction>(senVal)){
+				IRBuilder<> Builder(I);
+				Builder.SetInsertPoint(I->getNextNode());
+				​
+					/*For now, we are adding constant single label for all sensitive objects and setting in only 
+					 * first byte. It something break, will look into it later on. 
+					 * */
+					ConstantInt* label = Builder.getInt16(1);
+				ConstantInt* noOfByte = Builder.getInt64(1);
+				Value* PtrOperand = nullptr;
+				CallInst* setLabel = nullptr;
+				​
+					if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
+						if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
+							//For a gepNode we need to create gepELementPtr instruction
+							IntegerType *IntptrTy;  
+							IntptrTy = Type::getInt32Ty(M.getContext());
+							Size_t offset = gepNode->getLocationSet().getOffset();
+							//errs()<<"Offset is "<<offset<<"\n";
+							/*Type* type = dyn_cast<PointerType>(senVal->getType())->getElementType();
+							  if(type->isStructTy()){
+							  StructType* structType = dyn_cast<StructType>(type);
+							  errs()<< " Type of alloca "<<structType->getName()<<"\n";
+							  }*/
+							Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, offset)};
+							Value* gepInst = Builder.CreateInBoundsGEP(senVal, ArrayRef<Value*>(indexList, 2));
+							PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
+							//errs()<<"Bitcast "<<*PtrOperand<<"\n";
+						}
+						else {
+							// Is an alloca instruction
+							PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
+						}
+						/*We need to check if it is an array. For arrays adding
+						  label only at the first byte would not work. So we need
+						  to calculate size of array*/
+						Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
+						if(T->isArrayTy()){
+							ArrayType* Arr = dyn_cast<ArrayType>(T);
+							int noOfElements = Arr->getNumElements();
+							int bitWidth = cast<IntegerType>(Arr->getElementType())->getBitWidth();
+							int byteLength = (noOfElements * bitWidth)/8;
+							noOfByte = Builder.getInt64(byteLength);
+							//errs()<<"Array and size is "<<noOfElements<<" and bitwidth is "<<bitWidth<<"\n";
+						}
+						setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
+						setLabel->addParamAttr(0, Attribute::ZExt);
+					}
+					else if (CallInst* callInst = dyn_cast<CallInst>(senVal)){
+						if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)){
+							IntegerType *IntptrTy;
+							IntptrTy = Type::getInt32Ty(M.getContext());
+							Size_t offset = gepNode->getLocationSet().getOffset();
+							//errs()<<"Offset is "<<offset;
+							​
+								/* For a gepNode with callInst, we need to find the
+								 * type of struct and actual offset to create gep
+								 * Instruction */
+								Type* structType = nullptr;
+							MDNode* argIndNode = callInst->getMetadata("sizeOfTypeArgNum");
+							MDNode* structTypeNode = callInst->getMetadata("sizeOfTypeName");
+							​
+								if (argIndNode && structTypeNode) {
+									MDString* structTypeNameStr = cast<MDString>(structTypeNode->getOperand(0));
+									structType = structNameTypeMap[structTypeNameStr->getString()];
+									if (!structType) {
+										structType = structNameTypeMap["struct."+structTypeNameStr->getString().str()];
+										if (!structType) {
+											assert(false && "Cannot find sizeof type");
+										}
+									}
+								}
+							if(!structType){
+								setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, callInst, noOfByte});
+								setLabel->addParamAttr(0, Attribute::ZExt);
+								continue;
+							}
+							if (StructType* stType = dyn_cast<StructType>(structType)) {
+								StructType* nestedType = nullptr;
+								int nestedOffset = -1;
+								int beg = 0;
+								​
+									findTrueOffset(stType, offset, &beg, &nestedType, &nestedOffset);
+								if (nestedType) {
+									//errs() << "Nested type name: " << nestedType->getName() << " with offset: " << nestedOffset << " original struct type: " << stType->getName() << " original offset: " << offset << " \n";
+									​
+										Value* bitcast = nullptr;
+									bitcast = Builder.CreateBitCast(callInst, llvm::PointerType::getUnqual(nestedType));
+									//errs()<<"bitcast "<<*bitcast<<"\n";
+									​
+										Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, nestedOffset)};
+									Value* gepInst = Builder.CreateInBoundsGEP(bitcast, ArrayRef<Value*>(indexList, 2));
+									PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
+									//Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
+									Type *T = dyn_cast<PointerType>(gepInst->getType())->getElementType();
+									if(T->isArrayTy()){
+										ArrayType* Arr = dyn_cast<ArrayType>(T);
+										int noOfElements = Arr->getNumElements();
+										int bitWidth = cast<IntegerType>(Arr->getElementType())->getBitWidth();
+										int byteLength = (noOfElements * bitWidth)/8;
+										noOfByte = Builder.getInt64(byteLength);
+										//errs()<<"Array and size is "<<noOfElements<<" and bitwidth is "<<bitWidth<<"\n";
+									}
+									setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
+									setLabel->addParamAttr(0, Attribute::ZExt);
+								}
+							}
+						}
+						else {
+							// Call Instruction, no need to add bitcast
+							setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, callInst, noOfByte});
+							setLabel->addParamAttr(0, Attribute::ZExt);
+						}
+					}
+			}
+		}
+	}
 
 
     void AESCache::widenSensitiveAllocationSites(Module &M, std::vector<PAGNode*>& SensitiveAllocaList,
@@ -909,6 +990,7 @@ namespace external {
 
         LoadInst* ldInst = dyn_cast<LoadInst>(encVal);
         Value* ldInstPtrOperand = ldInst->getPointerOperand();
+        errs()<<"Value of loadptr "<<*ldInstPtrOperand<<"\n";
 
         Type* byteType = Type::getInt8Ty(encVal->getContext());
         PointerType* bytePtrType = PointerType::get(byteType, 0);
