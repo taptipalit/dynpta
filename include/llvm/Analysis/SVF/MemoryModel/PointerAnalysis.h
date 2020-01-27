@@ -102,10 +102,15 @@ public:
     Size_t numOfIteration;
     //@}
 
+    void setContextCriticalFunctions(std::vector<llvm::Function*>& contextCriticalFunctions) {
+        this->contextCriticalFunctions = contextCriticalFunctions;
+    }
+
 private:
     /// Release the memory
     void destroy();
 
+    std::vector<llvm::Function*> contextCriticalFunctions;
 protected:
 
     /// User input flags

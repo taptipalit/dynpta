@@ -401,6 +401,7 @@ void initializeLibcTransformPassPass(PassRegistry&);
 //void initializeSVFPass(PassRegistry &);
 void initializeWPAPassPass(PassRegistry&);
 void initializeEncryptionPassPass(PassRegistry&);
+void initializeContextSensitivityAnalysisPassPass(PassRegistry&);
 //void initializeAndersenAAWrapperPassPass(PassRegistry &);
 
 } // end namespace llvm
