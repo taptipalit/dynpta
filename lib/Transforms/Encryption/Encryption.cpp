@@ -1612,8 +1612,8 @@ void EncryptionPass::collectSensitiveLoadInstructions(Module& M, std::map<PAGNod
     //errs()<<"SensitiveLoadPtrCheckList size: "<<SensitiveLoadPtrCheckList.size()<<"\n";
     LLVM_DEBUG (
             for (Value* LdInst: SensitiveLoadPtrList) {
-            dbgs() << "Sensitive Load Ptr instruction: ";
-            LdInst->dump();
+                dbgs() << "Sensitive Load Ptr instruction: ";
+                LdInst->dump();
             }
             );
     // Find all Load instructions that load sensitive locations from the points to graph and constant expressions
@@ -1684,7 +1684,6 @@ void EncryptionPass::collectSensitiveLoadInstructions(Module& M, std::map<PAGNod
             }
         }
     }
-
     // Find all Load instructions that load sensitive locations from the points to graph and constant expressions
     for (Value* sensitivePtrLoad: SensitiveLoadPtrList) {
         // Find all Users of this Load instruction
@@ -4232,7 +4231,10 @@ void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
         //next if added for test purpose; should be removed later
         /*if (isa<GepObjPN>(work))
           continue;*/
-
+        if(DFSan){
+            if (isa<GepObjPN>(work))
+                continue;
+        }
         // And Child Nodes, and who ever they point to 
         NodeBS nodeBS = constraintGraph->getAllFieldsObjNode(work->getId());
 
@@ -4245,11 +4247,12 @@ void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
             }
             std::copy(ptsToMap[fldNode].begin(), ptsToMap[fldNode].end(), std::back_inserter(workList));
             std::copy(ptsToMap[fldNode].begin(), ptsToMap[fldNode].end(), std::back_inserter(SensitiveObjList));
-            /*errs()<<"Points-to map of fldNode "<<fldNode->getId()<<"\n";
-              for (PAGNode* worklist: SensitiveObjList) {
-              errs()<< " V "<<worklist->getId();
-              }
-              errs()<<"\n";*/
+            /* errs()<<"Points-to map of fldNode "<<fldNode->getId()<<"\n";
+               for (PAGNode* worklist: SensitiveObjList) {
+               errs()<< " V "<<worklist->getId();
+               }
+               errs()<<"\n";
+               */
 
         }
 
@@ -4427,9 +4430,9 @@ bool EncryptionPass::runOnModule(Module &M) {
     /*errs() << "Begin: Perform dataflow analysis\n";
 
       if (!SkipVFA) {
-    //performSourceSinkAnalysis(M);
-    }*/
-
+          performSourceSinkAnalysis(M);
+        }
+    */
     // Remove duplicates and copy back to SensitiveObjList
     SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
     SensitiveObjList.clear();
@@ -4489,11 +4492,12 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     if (DoAESEncCache) {
         AESCache.initializeAes(M);
+        AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
         if(DFSan){
             //Set Labels for Sensitive objects
             AESCache.SetLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
         }
-        AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
+        //AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
         dbgs() << "Initialized AES, widened buffers to multiples of 128 bits\n";
     }
 
@@ -4525,6 +4529,8 @@ bool EncryptionPass::runOnModule(Module &M) {
     */
 
     dbgs() << "Collected sensitive GEP instructions\n";
+    
+    buildSets(M);
 
     collectSensitiveLoadInstructions(M, ptsToMap);
 
@@ -4545,7 +4551,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     dbgs() << "Collected sensitive External Library calls\n";
 
     // Build the sets, now that we have the lists
-    buildSets(M);
+    //buildSets(M);
 
 
     ExtLibHandler.addNullExtFuncHandler(M);
