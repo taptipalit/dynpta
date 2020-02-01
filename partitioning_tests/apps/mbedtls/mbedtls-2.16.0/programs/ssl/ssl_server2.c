@@ -42,7 +42,7 @@
 #define MBEDTLS_EXIT_SUCCESS    EXIT_SUCCESS
 #define MBEDTLS_EXIT_FAILURE    EXIT_FAILURE
 #endif
-
+#define SENSITIVE __attribute__((annotate("sensitive")))
 #if !defined(MBEDTLS_ENTROPY_C) || \
     !defined(MBEDTLS_SSL_TLS_C) || !defined(MBEDTLS_SSL_SRV_C) || \
     !defined(MBEDTLS_NET_C) || !defined(MBEDTLS_CTR_DRBG_C)

@@ -112,17 +112,17 @@ typedef struct mbedtls_rsa_context
     SENSITIVE mbedtls_mpi P;              /*!<  The first prime factor. */
     SENSITIVE mbedtls_mpi Q;              /*!<  The second prime factor. */
 
-    SENSITIVE mbedtls_mpi DP;             /*!<  <code>D % (P - 1)</code>. */
-    SENSITIVE mbedtls_mpi DQ;             /*!<  <code>D % (Q - 1)</code>. */
-    SENSITIVE mbedtls_mpi QP;             /*!<  <code>1 / (Q % P)</code>. */
+    mbedtls_mpi DP;             /*!<  <code>D % (P - 1)</code>. */
+    mbedtls_mpi DQ;             /*!<  <code>D % (Q - 1)</code>. */
+    mbedtls_mpi QP;             /*!<  <code>1 / (Q % P)</code>. */
 
-    SENSITIVE mbedtls_mpi RN;             /*!<  cached <code>R^2 mod N</code>. */
+    mbedtls_mpi RN;             /*!<  cached <code>R^2 mod N</code>. */
 
-    SENSITIVE mbedtls_mpi RP;             /*!<  cached <code>R^2 mod P</code>. */
-    SENSITIVE mbedtls_mpi RQ;             /*!<  cached <code>R^2 mod Q</code>. */
+    mbedtls_mpi RP;             /*!<  cached <code>R^2 mod P</code>. */
+    mbedtls_mpi RQ;             /*!<  cached <code>R^2 mod Q</code>. */
 
-    SENSITIVE mbedtls_mpi Vi;             /*!<  The cached blinding value. */
-    SENSITIVE mbedtls_mpi Vf;             /*!<  The cached un-blinding value. */
+    mbedtls_mpi Vi;             /*!<  The cached blinding value. */
+    mbedtls_mpi Vf;             /*!<  The cached un-blinding value. */
 
     int padding;                /*!< Selects padding mode:
                                      #MBEDTLS_RSA_PKCS_V15 for 1.5 padding and

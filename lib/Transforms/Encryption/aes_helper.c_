@@ -18,7 +18,8 @@ int dirty __attribute__ ((aligned (16)));
 char asm_str[100] __attribute__ ((aligned (16)));
 char offset_str[2] __attribute__ ((aligned (16)));
 
-
+int enc = 0;
+int dec = 0;
 long aesenccount, aesdeccount;
 
 void encrypt_cache(void*);
@@ -166,6 +167,7 @@ void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
             asm("pinsrb $15, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
             break;
     }
+    //printf("Encryption %d\n",enc++);
 }
 
 void setEncryptedValueWord(void* ptr, uint16_t word_arg) {
@@ -216,6 +218,7 @@ void setEncryptedValueWord(void* ptr, uint16_t word_arg) {
             asm("pinsrw $7, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
             break;
     }
+    //printf("Encryption %d\n",enc++);
 }
 
 void setEncryptedValueDWord(void* ptr, uint32_t dword_arg) {
@@ -266,6 +269,7 @@ void setEncryptedValueDWord(void* ptr, uint32_t dword_arg) {
             asm("pinsrd $7, %0, %%xmm13\n\t":: "r"(dword_arg) : );
             break;
     }
+    //printf("Encryption %d\n",enc++);
 }
 
 void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
@@ -313,6 +317,7 @@ void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
             asm("pinsrq $7, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
             break;
     }
+    //printf("Encryption %d\n",enc++);
 }
 
 
@@ -388,6 +393,7 @@ uint8_t getDecryptedValueByte(void* ptr) {
     }
     //printf ("After decrypted : %d ",result);
     //printf("and %" PRIu8 "\n", result);
+    //printf("Decryption %d\n",dec++);
     return (uint8_t)result;
 }
 
@@ -438,6 +444,7 @@ uint16_t getDecryptedValueWord(void* ptr) {
     }
     //printf ("After decrypted : %d ",result);
     //printf("and %" PRIu16 "\n", result);
+    //printf("Decryption %d\n",dec++);
     return (uint16_t)result;
 }
 
@@ -491,6 +498,7 @@ uint32_t getDecryptedValueDWord(void* ptr) {
     }
     //printf ("After decrypted : %d ",dword_result);
     //printf("and %" PRIu32 "\n", dword_result);
+    //printf("Decryption %d\n",dec++);
     return dword_result;
 }
 
@@ -541,6 +549,7 @@ uint64_t getDecryptedValueQWord(void* ptr) {
     }
     //printf ("After decrypted : %d ",qword_result);
     //printf("and %" PRIu64 "\n", qword_result);
+    //printf("Decryption %d\n",dec++);
     return qword_result;
 }
 
@@ -746,6 +755,7 @@ void* aes_calloc(long nmem, long elem_size) {
     void* Ptr = aligned_alloc(16, roundedSize);
     memset(Ptr, 0, roundedSize);
     //fprintf(stderr, "Calloc ptr = %p\n", Ptr);
+    //printf("AES_calloc size %d\n",roundedSize);
     return Ptr;
 }
 

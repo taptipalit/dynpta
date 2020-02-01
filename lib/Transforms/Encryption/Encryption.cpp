@@ -1270,6 +1270,7 @@ void EncryptionPass::collectSensitiveLoadInstructions(Module& M, std::map<PAGNod
         for(Value::user_iterator User = loadValue->user_begin(); User != loadValue->user_end(); ++User) {
             if (GetElementPtrInst* GEPInst = dyn_cast<GetElementPtrInst>(*User) ) {
                 SensitiveGEPPtrList.push_back(GEPInst);
+                SensitiveGEPPtrSet->insert(GEPInst);
             }
         }
 
@@ -1282,6 +1283,7 @@ void EncryptionPass::collectSensitiveLoadInstructions(Module& M, std::map<PAGNod
         for(Value::user_iterator User = loadValue->user_begin(); User != loadValue->user_end(); ++User) {
             if (GetElementPtrInst* GEPInst = dyn_cast<GetElementPtrInst>(*User) ) {
                 SensitiveGEPPtrCheckList.push_back(GEPInst);
+                SensitiveGEPPtrCheckSet->insert(GEPInst);
             }
         }
 
@@ -1301,6 +1303,10 @@ void EncryptionPass::collectSensitiveLoadInstructions(Module& M, std::map<PAGNod
                     }
                     if (isSensitiveGEPPtrSet(LdInst->getPointerOperand())) {
                         SensitiveLoadList.push_back(LdInst);
+                    }
+
+                    if (isSensitiveGEPPtrCheckSet(LdInst->getPointerOperand())) {
+                        SensitiveLoadCheckList.push_back(LdInst);
                     }
                 }
             }
@@ -3334,12 +3340,13 @@ void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
     std::vector<PAGNode*> processedList;
 
     for (PAGNode* initSensitiveNode: SensitiveObjList) {
-        //errs() << "initSensitiveNode: "<<initSensitiveNode->getId()<<"\n";
+        errs() << "initSensitiveNode: "<<initSensitiveNode->getId()<<"\n";
         assert(initSensitiveNode->hasValue() && "PAG Node should have a value if it came so far");
         workList.push_back(initSensitiveNode);
     }
     while (!workList.empty()) {
         PAGNode* work = workList.back();
+        errs()<<"WordIDFront "<<work->getId()<<"\n";
         workList.pop_back();
         if (std::find(processedList.begin(), processedList.end(), work) != processedList.end()) {
             continue;
@@ -3355,23 +3362,33 @@ void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
         //next if added for test purpose; should be removed later
         /*if (isa<GepObjPN>(work))
           continue;*/
-        /*if(DFSan){
-            if (isa<GepObjPN>(work))
-                continue;
-        }*/
+        if(Partitioning){
+            if (isa<GepObjPN>(work)){
+                errs()<<"Work id :"<<work->getId()<<"\n";
+                errs()<<"Base Id "<<constraintGraph->getBaseObjNode(work->getId())<<"\n";
+            }
+
+        }
         // And Child Nodes, and who ever they point to 
         NodeBS nodeBS = constraintGraph->getAllFieldsObjNode(work->getId());
+        errs()<<"Work id :"<<work->getId()<<"\n";
+        errs()<<"Base Id "<<constraintGraph->getBaseObjNode(work->getId())<<"\n";
+        /*if(work->getId() != constraintGraph->getBaseObjNode(work->getId()))
+            continue;*/
 
         for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
             // And everything they point to
 
             PAGNode* fldNode = pag->getPAGNode(*fIt);
+            errs()<<"FLDNode "<<fldNode->getId()<<" ";
             if (isa<GepObjPN>(fldNode)) {
-                SensitiveObjList.push_back(fldNode); // Individual fields of the Sensitive object is also sensitive
+                SensitiveObjList.push_back(fldNode);
+               errs()<<"Pushed "<<fldNode->getId()<<" "; // Individual fields of the Sensitive object is also sensitive
             }
             std::copy(ptsToMap[fldNode].begin(), ptsToMap[fldNode].end(), std::back_inserter(workList));
             std::copy(ptsToMap[fldNode].begin(), ptsToMap[fldNode].end(), std::back_inserter(SensitiveObjList));
         }
+        errs()<<"\n";
     }
 
     // Remove all top-level pointers in SensitiveObjList
@@ -3478,11 +3495,11 @@ bool EncryptionPass::runOnModule(Module &M) {
         }
     }
 
-    /*
+    /* 
     if (!SkipVFA) {
-        //performSourceSinkAnalysis(M);
-    }
-    */
+        performSourceSinkAnalysis(M);
+    }*/
+    
 
     //errs() << "End: Perform dataflow analysis: " << SensitiveObjList.size() << " memory objects found\n";
     // Remove duplicates and copy back to SensitiveObjList
@@ -3518,14 +3535,14 @@ bool EncryptionPass::runOnModule(Module &M) {
         }
     }
 
-
     if (DoAESEncCache) {
         AESCache.initializeAes(M);
+        AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
         if(Partitioning){
             //Set Labels for Sensitive objects
             AESCache.SetLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
         }
-        AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
+        //AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
         dbgs() << "Initialized AES, widened buffers to multiples of 128 bits\n";
     }
 
@@ -3537,6 +3554,7 @@ bool EncryptionPass::runOnModule(Module &M) {
      */
 
     initializeSensitiveGlobalVariables(M);
+    buildSets(M);
 
     collectSensitiveGEPInstructions(M, ptsToMap);
 
@@ -3544,8 +3562,9 @@ bool EncryptionPass::runOnModule(Module &M) {
     errs() << "After collectSensitiveGEPInstructions: " << SensitiveGEPPtrSet->size() << " sensitive GEP instructions found\n";
 
     dbgs() << "Collected sensitive GEP instructions\n";
+    SensitiveGEPPtrCheckSet = new std::set<Value*>(SensitiveGEPPtrCheckList.begin(), SensitiveGEPPtrCheckList.end());
     
-    buildSets(M);
+    //buildSets(M);
 
     collectSensitiveLoadInstructions(M, ptsToMap);
 
@@ -3555,8 +3574,29 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     SensitiveLoadPtrCheckSet = new std::set<Value*>(SensitiveLoadPtrCheckList.begin(), SensitiveLoadPtrCheckList.end());
     SensitiveLoadCheckSet = new std::set<Value*>(SensitiveLoadCheckList.begin(), SensitiveLoadCheckList.end());
-    //collectSensitiveAsmInstructions(M, ptsToMap);
 
+    SensitiveGEPPtrSet = new std::set<Value*>(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
+    SensitiveGEPPtrCheckSet = new std::set<Value*>(SensitiveGEPPtrCheckList.begin(), SensitiveGEPPtrCheckList.end());
+    //collectSensitiveAsmInstructions(M, ptsToMap);
+    errs()<<"SENSITIVE load "<<"\n";
+    for (Value* sensitiveLoadInst: *SensitiveLoadSet) {
+        errs()<<*sensitiveLoadInst<<"\n";
+    }
+
+    errs()<<"SENSITIVE load Check"<<"\n";
+    for (Value* sensitiveLoadInst: *SensitiveLoadCheckSet) {
+        errs()<<*sensitiveLoadInst<<"\n";
+    }
+    
+    errs()<<"SENSITIVE GEP ptr"<<"\n";
+    for (Value* sensitiveLoadInst: *SensitiveGEPPtrSet) {
+        errs()<<*sensitiveLoadInst<<"\n";
+    }
+
+    errs()<<"SENSITIVE GEP Check ptr"<<"\n";
+    for (Value* sensitiveLoadInst: *SensitiveGEPPtrCheckSet) {
+        errs()<<*sensitiveLoadInst<<"\n";
+    }
     dbgs() << "Collected sensitive load instructions\n";
 
     collectSensitiveExternalLibraryCalls(M, ptsToMap);
