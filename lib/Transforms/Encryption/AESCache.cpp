@@ -199,7 +199,6 @@ namespace external {
         PointerType* pointerType = dyn_cast<PointerType>(gepObjPN->getValue()->getType());
         if (pointerType) {
             // Pointer to what?
-            errs()<<"Pointer Type\n";
             Type* trueType = pointerType->getPointerElementType();
             StructType* nestedType = nullptr;
             int nestedOffset = -1;
@@ -266,7 +265,7 @@ namespace external {
 
                                   
     void AESCache::SetLabelsForSensitiveObjects(Module &M, std::set<PAGNode*>* SensitiveAllocaList,
-			std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
+            std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
         LLVMContext *Ctx;
         Ctx = &M.getContext();
         const DataLayout &DL = M.getDataLayout();
@@ -278,13 +277,10 @@ namespace external {
         for (PAGNode* senNode: *SensitiveAllocaList) {
             assert(senNode->hasValue());
             Value* senVal = const_cast<Value*>(senNode->getValue());
-            //Instruction *instruction = dyn_cast<Instruction>(senVal)->getPrevNode();
-            //Value* prevVal = dyn_cast<Value>(instruction);
             //errs() << "Value " << *senVal<<"\n";
-            //errs() << "Previous "<<*prevVal<<"\n";
             //Creating insert position
             if(Instruction *I = dyn_cast<Instruction>(senVal)){
-                errs() << "Value " << *senVal<<"\n";
+                //errs() << "Value " << *senVal<<"\n";
                 IRBuilder<> Builder(I);
                 Builder.SetInsertPoint(I->getNextNode());
 
@@ -302,19 +298,19 @@ namespace external {
                         IntegerType *IntptrTy;  
                         IntptrTy = Type::getInt32Ty(M.getContext());
                         Size_t offset = gepNode->getLocationSet().getOffset();
-                        errs()<<"Offset is "<<offset<<"\n";
+                        //errs()<<"Offset is "<<offset<<"\n";
                         Type* type = dyn_cast<PointerType>(senVal->getType())->getElementType();
                         if(type->isStructTy()){
-                          StructType* structType = dyn_cast<StructType>(type);
-                          errs()<< " Type of alloca "<<structType->getName()<<"\n";
-                          StructType* nestedType = nullptr;
-                          int nestedOffset = -1;
+                            StructType* structType = dyn_cast<StructType>(type);
+                            //errs()<< " Type of alloca "<<structType->getName()<<"\n";
+                            StructType* nestedType = nullptr;
+                            int nestedOffset = -1;
                             int beg = 0;
 
                             findTrueOffset(structType, offset, &beg, &nestedType, &nestedOffset);
-                            errs()<<"Came Untill This \n";
                             if (nestedType) {
-                                errs() << "Nested type name: " << nestedType->getName() << " with offset: " << nestedOffset << " original struct type: " << structType->getName() << " original offset: " << offset << " \n";
+                                //errs() << "Nested type name: " << nestedType->getName() << " with offset: " << nestedOffset << " original struct type: ";
+                                //errs() << structType->getName() << " original offset: " << offset << " \n";
 
                                 Value* bitcast = nullptr;
                                 bitcast = Builder.CreateBitCast(allocInst, llvm::PointerType::getUnqual(nestedType));
@@ -324,49 +320,41 @@ namespace external {
                                 Value* gepInst = Builder.CreateInBoundsGEP(bitcast, ArrayRef<Value*>(indexList, 2));
                                 PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
                                 //Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
-                            }
-                            else {
-                                errs()<<"Came is else\n";
+                            } else {
                                 Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, offset)};
                                 Value* gepInst = Builder.CreateInBoundsGEP(senVal, ArrayRef<Value*>(indexList, 2));
                                 PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
                             }
-                        }
-                        else {
+                        } else {
                             PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
                         }
-                    }
-                    else {
+                    } else {
                         // Is an alloca instruction
                         PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
                     }
-                    /*We need to check if it is an array. For arrays adding
-                      label only at the first byte would not work. So we need
-                      to calculate size of array*/
 
                     //finding size of type
                     Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
                     int sizeOfType = M.getDataLayout().getTypeAllocSize(T);
-                    errs()<<"Size of Type is "<<sizeOfType<<"\n";
+                    //errs()<<"Size of Type is "<<sizeOfType<<"\n";
                     noOfByte = Builder.getInt64(sizeOfType);
 
-                    Value* size = nullptr;
-                    ConstantInt* multiplier = Builder.getInt64(128);
-                    size = Builder.CreateMul(dyn_cast<Value>(noOfByte), dyn_cast<Value>(multiplier));
+                    /*Value* size = nullptr;
+                      ConstantInt* multiplier = Builder.getInt64(128);
+                      size = Builder.CreateMul(dyn_cast<Value>(noOfByte), dyn_cast<Value>(multiplier));*/
 
                     setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
                     setLabel->addParamAttr(0, Attribute::ZExt);
-                }
-                else if (CallInst* callInst = dyn_cast<CallInst>(senVal)){
+                } else if (CallInst* callInst = dyn_cast<CallInst>(senVal)){
                     if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)){
                         IntegerType *IntptrTy;
                         IntptrTy = Type::getInt32Ty(M.getContext());
                         Size_t offset = gepNode->getLocationSet().getOffset();
                         //errs()<<"Offset is "<<offset;
 
-                        /* For a gepNode with callInst, we need to find the
-                         * type of struct and actual offset to create gep
-                         * Instruction */
+                        // For a gepNode with callInst, we need to find the
+                        // type of struct and actual offset to create gep
+                        // Instruction
                         Type* structType = nullptr;
                         MDNode* argIndNode = callInst->getMetadata("sizeOfTypeArgNum");
                         MDNode* structTypeNode = callInst->getMetadata("sizeOfTypeName");
@@ -393,7 +381,8 @@ namespace external {
 
                             findTrueOffset(stType, offset, &beg, &nestedType, &nestedOffset);
                             if (nestedType) {
-                                //errs() << "Nested type name: " << nestedType->getName() << " with offset: " << nestedOffset << " original struct type: " << stType->getName() << " original offset: " << offset << " \n";
+                                //errs() << "Nested type name: " << nestedType->getName() << " with offset: " << nestedOffset << " original struct type: ";
+                                //errs() << stType->getName() << " original offset: " << offset << " \n";
 
                                 Value* bitcast = nullptr;
                                 bitcast = Builder.CreateBitCast(callInst, llvm::PointerType::getUnqual(nestedType));
@@ -416,8 +405,7 @@ namespace external {
                                 setLabel->addParamAttr(0, Attribute::ZExt);
                             }
                         }
-                    }
-                    else {
+                    } else {
                         // Call Instruction, no need to add bitcast
                         Function* function = callInst->getCalledFunction();
                         Value* size = nullptr;
@@ -428,13 +416,13 @@ namespace external {
                             if (mallocStr.equals(function->getName())) {
                                 Value* argumentOfMalloc = callInst->getArgOperand(0);
                                 size = argumentOfMalloc;
-                                errs()<<"Argument of Malloc is "<<*argumentOfMalloc<<"\n";
+                                //errs()<<"Argument of Malloc is "<<*argumentOfMalloc<<"\n";
                             } else if (callocStr.equals(function->getName())) {
                                 Value* argument1OfCalloc = callInst->getArgOperand(0);
                                 Value* argument2OfCalloc = callInst->getArgOperand(1);
-                                errs()<<"Argument1 of Calloc is "<<*argument1OfCalloc<<" and Argument 2 of Calloc is "<<*argument2OfCalloc<<"\n";
+                                //errs()<<"Argument1 of Calloc is "<<*argument1OfCalloc<<" and Argument 2 of Calloc is "<<*argument2OfCalloc<<"\n";
                                 size = Builder.CreateMul(argument1OfCalloc, argument2OfCalloc);
-                                errs()<<"Size of Calloc is "<<*size<<"\n";
+                                //errs()<<"Size of Calloc is "<<*size<<"\n";
                             }
                             //size = Builder.CreateMul(size, dyn_cast<Value>(multiplier));
                         }
@@ -444,7 +432,7 @@ namespace external {
                 }
             }
         }
-}
+    }
 
 
     void AESCache::widenSensitiveAllocationSites(Module &M, std::vector<PAGNode*>& SensitiveAllocaList,

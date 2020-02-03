@@ -2224,7 +2224,44 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             // If it is the source, then decrypt before the call to memcpy
             // If it is the destination, then decrypt after the call to memcpy
 
+            /*if (Partitioning){
+                IRBuilder<> Builder(externalCallInst);
+                Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
+                CallInst* readDestLabel = nullptr;
+                CallInst* readSrcLabel = nullptr;
+                ConstantInt* noOfByte = Builder.getInt64(1);
+                ConstantInt *One = Builder.getInt16(1);
+
+                readDestLabel = Builder.CreateCall(DFSanReadLabelFn,{firstBuff , noOfByte});
+                readDestLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+                Value* cmpInstDest = Builder.CreateICmpEQ(readDestLabel, One, "cmp");
+                Instruction* SplitBefore = cast<Instruction>(externalCallInst);
+                TerminatorInst* ThenTerm = SplitBlockAndInsertIfThen(cmpInstDest, SplitBefore, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* destDecryptArray = Builder.CreateCall(decryptFunction, {firstBuff, numBytes});
+                Builder.SetInsertPoint(SplitBefore);
+
+                readSrcLabel = Builder.CreateCall(DFSanReadLabelFn,{firstBuff , noOfByte});
+                readSrcLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+                Value* cmpInstSrc = Builder.CreateICmpEQ(readSrcLabel, One, "cmp");
+                ThenTerm = SplitBlockAndInsertIfThen(cmpInstSrc, SplitBefore, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* srcDecryptArray = Builder.CreateCall(decryptFunction, {secondBuff, numBytes});
+
+                Builder.SetInsertPoint(SplitBefore);
+                Instruction* SplitBeforeNew = cast<Instruction>(externalCallInst->getNextNode());
+                ThenTerm  = SplitBlockAndInsertIfThen(cmpInstDest, SplitBeforeNew, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* destEnecryptArray = Builder.CreateCall(encryptFunction, {firstBuff, numBytes});
+                Builder.SetInsertPoint(SplitBeforeNew);
+
+                ThenTerm  = SplitBlockAndInsertIfThen(cmpInstSrc, SplitBeforeNew, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* srcEnecryptArray = Builder.CreateCall(encryptFunction, {secondBuff, numBytes});
+                Builder.SetInsertPoint(SplitBeforeNew);
+            }
             //if (firstBuffSens xor secondBuffSens) {
+            else {*/
             if (firstBuffSens) {
                 std::vector<Value*> ArgList;
                 ArgList.push_back(firstBuff);
@@ -2251,6 +2288,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 encCInst->insertAfter(externalCallInst);
 
             }
+            
             //}
         } else if (externalFunction->getName().find("llvm.memmove") != StringRef::npos) {
             Value* firstBuff = externalCallInst->getArgOperand(0);
@@ -2644,33 +2682,72 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
             Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
 
+            /*if (Partitioning){
+                IRBuilder<> Builder(externalCallInst);
+                Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
+                CallInst* readDestLabel = nullptr;
+                CallInst* readSrcLabel = nullptr;
+                ConstantInt* noOfByte = Builder.getInt64(1);
+                ConstantInt *One = Builder.getInt16(1);
+
+                readDestLabel = Builder.CreateCall(DFSanReadLabelFn,{destBufferPtr,noOfByte});
+                readDestLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+                Value* cmpInstDest = Builder.CreateICmpEQ(readDestLabel, One, "cmp");
+                Instruction* SplitBefore = cast<Instruction>(externalCallInst);
+                TerminatorInst* ThenTerm = SplitBlockAndInsertIfThen(cmpInstDest, SplitBefore, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* destDecryptArray = Builder.CreateCall(decryptFunction, {destBufferPtr, numBytes});
+                Builder.SetInsertPoint(SplitBefore);
+
+                readSrcLabel = Builder.CreateCall(DFSanReadLabelFn,{srcBufferPtr,noOfByte});
+                readSrcLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+                Value* cmpInstSrc = Builder.CreateICmpEQ(readSrcLabel, One, "cmp");
+                ThenTerm = SplitBlockAndInsertIfThen(cmpInstSrc, SplitBefore, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* srcDecryptArray = Builder.CreateCall(decryptFunction, {srcBufferPtr, numBytes});
+
+                Builder.SetInsertPoint(SplitBefore);
+                Instruction* SplitBeforeNew = cast<Instruction>(externalCallInst->getNextNode());
+                ThenTerm  = SplitBlockAndInsertIfThen(cmpInstDest, SplitBeforeNew, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* destEnecryptArray = Builder.CreateCall(encryptFunction, {destBufferPtr, numBytes});
+                Builder.SetInsertPoint(SplitBeforeNew);
+
+                ThenTerm  = SplitBlockAndInsertIfThen(cmpInstSrc, SplitBeforeNew, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* srcEnecryptArray = Builder.CreateCall(encryptFunction, {srcBufferPtr, numBytes});
+                Builder.SetInsertPoint(SplitBeforeNew);
+            }
+
             // One of them is sensitive, the other is not
             // If it is the source, then decrypt before the call to memcpy
             // If it is the destination, then decrypt after the call to memcpy
 
-            if (isSensitiveArg(srcBufferPtr, ptsToMap)) {
-                std::vector<Value*> ArgList;
-                ArgList.push_back(srcBufferPtr);
-                ArgList.push_back(numBytes);
-                // Insert call instruction to call the function
-                IRBuilder<> InstBuilder(externalCallInst);
-                /*CallInst* CInst = */
-                InstBuilder.CreateCall(decryptFunction, ArgList);
-                // Encrypt it back
-                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
-                encCInst->insertAfter(externalCallInst);
+            else {*/
+                if (isSensitiveArg(srcBufferPtr, ptsToMap)) {
+                    std::vector<Value*> ArgList;
+                    ArgList.push_back(srcBufferPtr);
+                    ArgList.push_back(numBytes);
+                    // Insert call instruction to call the function
+                    IRBuilder<> InstBuilder(externalCallInst);
+                    /*CallInst* CInst = */
+                    InstBuilder.CreateCall(decryptFunction, ArgList);
+                    // Encrypt it back
+                    CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                    encCInst->insertAfter(externalCallInst);
 
-            } 
-            if (isSensitiveArg(destBufferPtr, ptsToMap)) {
-                std::vector<Value*> ArgList;
-                ArgList.push_back(destBufferPtr);
-                ArgList.push_back(numBytes);
-                IRBuilder<> InstBuilder(externalCallInst);
-                InstBuilder.CreateCall(decryptFunction, ArgList); // Bug Fix - Need to do this for unaligned buffers
-                // Can't use IRBuilder, TODO - is this ok to do?
-                CallInst* CInst = CallInst::Create(encryptFunction, ArgList);
-                CInst->insertAfter(externalCallInst);
-            }
+                } 
+                if (isSensitiveArg(destBufferPtr, ptsToMap)) {
+                    std::vector<Value*> ArgList;
+                    ArgList.push_back(destBufferPtr);
+                    ArgList.push_back(numBytes);
+                    IRBuilder<> InstBuilder(externalCallInst);
+                    InstBuilder.CreateCall(decryptFunction, ArgList); // Bug Fix - Need to do this for unaligned buffers
+                    // Can't use IRBuilder, TODO - is this ok to do?
+                    CallInst* CInst = CallInst::Create(encryptFunction, ArgList);
+                    CInst->insertAfter(externalCallInst);
+                }
+            //}
             /*
                }
                */
@@ -2691,7 +2768,33 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         } else if (externalFunction->getName().find("memset") != StringRef::npos) {
             Value *bufferPtr = externalCallInst->getArgOperand(0);
             Value *numBytes = externalCallInst->getArgOperand(2);
-            if (isSensitiveArg(bufferPtr, ptsToMap)) {
+                
+            if (Partitioning){
+                IRBuilder<> Builder(externalCallInst);
+                Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+                Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
+                CallInst* readLabel = nullptr;
+                ConstantInt* noOfByte = Builder.getInt64(1);
+                ConstantInt *One = Builder.getInt16(1);
+
+                readLabel = Builder.CreateCall(DFSanReadLabelFn,{bufferPtr , noOfByte});
+                readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+                Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+                Instruction* SplitBefore = cast<Instruction>(externalCallInst);
+                TerminatorInst* ThenTerm = SplitBlockAndInsertIfThen(cmpInst, SplitBefore, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* decryptArray = Builder.CreateCall(decryptFunction, {bufferPtr, numBytes});
+                Builder.SetInsertPoint(SplitBefore);
+
+                Instruction* SplitBeforeNew = cast<Instruction>(externalCallInst->getNextNode());
+                ThenTerm  = SplitBlockAndInsertIfThen(cmpInst, SplitBeforeNew, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* enecryptArray = Builder.CreateCall(encryptFunction, {bufferPtr, numBytes});
+                Builder.SetInsertPoint(SplitBeforeNew);
+
+            }
+            else if (isSensitiveArg(bufferPtr, ptsToMap)) {
                 Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
                 Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
                 IRBuilder<> InstBuilder(externalCallInst);
@@ -2705,7 +2808,33 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         } else if (externalFunction->getName().find("llvm.memset") != StringRef::npos) {
             Value *bufferPtr = externalCallInst->getArgOperand(0);
             Value *numBytes = externalCallInst->getArgOperand(2);
-            if (isSensitiveArg(bufferPtr, ptsToMap)) {
+
+            if (Partitioning){
+                IRBuilder<> Builder(externalCallInst);
+                Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+                Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
+                CallInst* readLabel = nullptr;
+                ConstantInt* noOfByte = Builder.getInt64(1);
+                ConstantInt *One = Builder.getInt16(1);
+
+                readLabel = Builder.CreateCall(DFSanReadLabelFn,{bufferPtr , noOfByte});
+                readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+                Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+                Instruction* SplitBefore = cast<Instruction>(externalCallInst);
+                TerminatorInst* ThenTerm = SplitBlockAndInsertIfThen(cmpInst, SplitBefore, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* decryptArray = Builder.CreateCall(decryptFunction, {bufferPtr, numBytes});
+                Builder.SetInsertPoint(SplitBefore);
+
+                Instruction* SplitBeforeNew = cast<Instruction>(externalCallInst->getNextNode());
+                ThenTerm  = SplitBlockAndInsertIfThen(cmpInst, SplitBeforeNew, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* enecryptArray = Builder.CreateCall(encryptFunction, {bufferPtr, numBytes});
+                Builder.SetInsertPoint(SplitBeforeNew);
+
+            }
+            else if (isSensitiveArg(bufferPtr, ptsToMap)) {
                 Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
                 Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
                 IRBuilder<> InstBuilder(externalCallInst);
@@ -2719,7 +2848,33 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         } else if (externalFunction->getName() == "read") {
             Value* bufferPtr = externalCallInst->getArgOperand(1);
             Value* numBytes = externalCallInst->getArgOperand(2);
-            if (isSensitiveArg(bufferPtr, ptsToMap)) {
+
+            if (Partitioning){
+                IRBuilder<> Builder(externalCallInst);
+                Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+                Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
+                CallInst* readLabel = nullptr;
+                ConstantInt* noOfByte = Builder.getInt64(1);
+                ConstantInt *One = Builder.getInt16(1);
+
+                readLabel = Builder.CreateCall(DFSanReadLabelFn,{bufferPtr , noOfByte});
+                readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+                Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+                Instruction* SplitBefore = cast<Instruction>(externalCallInst);
+                TerminatorInst* ThenTerm = SplitBlockAndInsertIfThen(cmpInst, SplitBefore, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* decryptArray = Builder.CreateCall(decryptFunction, {bufferPtr, numBytes});
+                Builder.SetInsertPoint(SplitBefore);
+
+                Instruction* SplitBeforeNew = cast<Instruction>(externalCallInst->getNextNode());
+                ThenTerm  = SplitBlockAndInsertIfThen(cmpInst, SplitBeforeNew, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* enecryptArray = Builder.CreateCall(encryptFunction, {bufferPtr, numBytes});
+                Builder.SetInsertPoint(SplitBeforeNew);
+
+            }
+            else if (isSensitiveArg(bufferPtr, ptsToMap)) {
                 Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
                 Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
                 std::vector<Value*> ArgList;
@@ -2732,7 +2887,33 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         } else if (externalFunction->getName() == "write") {
             Value* bufferPtr = externalCallInst->getArgOperand(1);
             Value* numBytes = externalCallInst->getArgOperand(2);
-            if (isSensitiveArg(bufferPtr, ptsToMap)) {
+  
+            if (Partitioning){
+                IRBuilder<> Builder(externalCallInst);
+                Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+                Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
+                CallInst* readLabel = nullptr;
+                ConstantInt* noOfByte = Builder.getInt64(1);
+                ConstantInt *One = Builder.getInt16(1);
+
+                readLabel = Builder.CreateCall(DFSanReadLabelFn,{bufferPtr , noOfByte});
+                readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+                Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+                Instruction* SplitBefore = cast<Instruction>(externalCallInst);
+                TerminatorInst* ThenTerm = SplitBlockAndInsertIfThen(cmpInst, SplitBefore, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* decryptArray = Builder.CreateCall(decryptFunction, {bufferPtr, numBytes});
+                Builder.SetInsertPoint(SplitBefore);
+
+                Instruction* SplitBeforeNew = cast<Instruction>(externalCallInst->getNextNode());
+                ThenTerm  = SplitBlockAndInsertIfThen(cmpInst, SplitBeforeNew, false);
+                Builder.SetInsertPoint(ThenTerm);
+                CallInst* enecryptArray = Builder.CreateCall(encryptFunction, {bufferPtr, numBytes});
+                Builder.SetInsertPoint(SplitBeforeNew);
+
+            }
+            else if (isSensitiveArg(bufferPtr, ptsToMap)) {
                 Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
                 Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
                 std::vector<Value*> ArgList;
@@ -3557,13 +3738,14 @@ bool EncryptionPass::runOnModule(Module &M) {
     buildSets(M);
 
     collectSensitiveGEPInstructions(M, ptsToMap);
+    dbgs() << "Collected sensitive GEP instructions\n";
 
     SensitiveGEPPtrSet = new std::set<Value*>(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
     errs() << "After collectSensitiveGEPInstructions: " << SensitiveGEPPtrSet->size() << " sensitive GEP instructions found\n";
 
-    dbgs() << "Collected sensitive GEP instructions\n";
     SensitiveGEPPtrCheckSet = new std::set<Value*>(SensitiveGEPPtrCheckList.begin(), SensitiveGEPPtrCheckList.end());
-    
+    errs() << "After collectSensitiveGEPInstructions: " << SensitiveGEPPtrCheckSet->size() << " sensitive GEPCheck instructions found\n";
+     
     //buildSets(M);
 
     collectSensitiveLoadInstructions(M, ptsToMap);
@@ -3578,25 +3760,6 @@ bool EncryptionPass::runOnModule(Module &M) {
     SensitiveGEPPtrSet = new std::set<Value*>(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
     SensitiveGEPPtrCheckSet = new std::set<Value*>(SensitiveGEPPtrCheckList.begin(), SensitiveGEPPtrCheckList.end());
     //collectSensitiveAsmInstructions(M, ptsToMap);
-    errs()<<"SENSITIVE load "<<"\n";
-    for (Value* sensitiveLoadInst: *SensitiveLoadSet) {
-        errs()<<*sensitiveLoadInst<<"\n";
-    }
-
-    errs()<<"SENSITIVE load Check"<<"\n";
-    for (Value* sensitiveLoadInst: *SensitiveLoadCheckSet) {
-        errs()<<*sensitiveLoadInst<<"\n";
-    }
-    
-    errs()<<"SENSITIVE GEP ptr"<<"\n";
-    for (Value* sensitiveLoadInst: *SensitiveGEPPtrSet) {
-        errs()<<*sensitiveLoadInst<<"\n";
-    }
-
-    errs()<<"SENSITIVE GEP Check ptr"<<"\n";
-    for (Value* sensitiveLoadInst: *SensitiveGEPPtrCheckSet) {
-        errs()<<*sensitiveLoadInst<<"\n";
-    }
     dbgs() << "Collected sensitive load instructions\n";
 
     collectSensitiveExternalLibraryCalls(M, ptsToMap);
