@@ -6,20 +6,16 @@
 #include <stdarg.h>
 #include <dirent.h>
 #include <inttypes.h>
+#include <sanitizer/dfsan_interface.h>
 
-struct MyMalloc {
-    void* baseAddress;
-    void* currentAvailableAddress;
-    void* lastAddress;
-}customMalloc;
 uint64_t rbp, rsp;
 uint64_t lastAddr __attribute__ ((aligned (16)));
 int dirty __attribute__ ((aligned (16)));
 char asm_str[100] __attribute__ ((aligned (16)));
 char offset_str[2] __attribute__ ((aligned (16)));
 
-int enc = 0;
-int dec = 0;
+long enc = 1;
+long dec = 1;
 long aesenccount, aesdeccount;
 
 void encrypt_cache(void*);
@@ -39,63 +35,6 @@ void writeback_cache() {
     dirty = 0;
 }
 
-void initializeCustomMalloc(){
-    uint64_t temp;
-    asm("\t mov %%rbp,%0" : "=r"(temp));
-    uint64_t* value = temp;
-    rbp = *value;
-    printf("RBP = 0x%" PRIx64 "\n", rbp);
-    long size = 67108864;
-    int* tempLastAddress;
-    int incrementSize = size/4;
-    customMalloc.baseAddress = malloc(size);
-    printf( "CustomMalloc baseAddress = %p for size = %d bytes.\n", customMalloc.baseAddress, size);
-    customMalloc.currentAvailableAddress = customMalloc.baseAddress;
-    printf( "CustomMalloc currentAvailableAddress = %p \n", customMalloc.currentAvailableAddress);
-    tempLastAddress = customMalloc.baseAddress;
-    tempLastAddress = tempLastAddress + incrementSize;
-    customMalloc.lastAddress = tempLastAddress;
-    printf( "CustomMalloc lastAddress = %p\n", customMalloc.lastAddress);
-}
-
-
-void* getSafeMalloc(long size) {
-    long roundedSize = -1;
-    if (size % 16 == 0) {
-        roundedSize = size;
-    } else {
-        roundedSize = size + 16;
-    }
-
-    void* Ptr = customMalloc.currentAvailableAddress;
-    int* tempAddress;
-    int incrementSize = roundedSize/4; 
-    tempAddress = customMalloc.currentAvailableAddress;
-    tempAddress = tempAddress + incrementSize;
-    customMalloc.currentAvailableAddress = tempAddress;
-    printf( "Malloc sensitivePtr = %p for size = %d bytes.\n", Ptr, roundedSize);
-    printf( "CustomMalloc currentAvailableAddress = %p \n", customMalloc.currentAvailableAddress);
-    return Ptr;
-
-}
-
-int checkBounds (void* Ptr) {
-    //asm("\t mov %%rsp,%0" : "=r"(rsp));
-    //printf("RSP = 0x%" PRIx64 "\n", rsp);
-
-    //printf(" Address is %p ",Ptr);
-    int* tempAddress = Ptr;
-    if ((tempAddress >= customMalloc.baseAddress && tempAddress <= customMalloc.lastAddress) || (tempAddress >= rsp && tempAddress <= rbp)){
-        //printf(" and Address is in the sensitive range\n");
-        return 0;
-    }
-    else {
-        printf(" and Address is not in the sensitive range\n");
-        return 1;
-    }
-}
-
-
 void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
     //printf ("Encrypted_Byte: %p ",ptr);
     //printf ("Value to be encrypted : %d",byte_arg);
@@ -110,6 +49,8 @@ void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
         if (lastAddr > 0 && dirty) {
 
             encrypt_cache((void*)lastAddr);
+
+            printf("Encryption %ld\n",enc++);        
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -167,7 +108,6 @@ void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
             asm("pinsrb $15, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
             break;
     }
-    //printf("Encryption %d\n",enc++);
 }
 
 void setEncryptedValueWord(void* ptr, uint16_t word_arg) {
@@ -184,6 +124,8 @@ void setEncryptedValueWord(void* ptr, uint16_t word_arg) {
         if (lastAddr > 0 && dirty) {
 
             encrypt_cache((void*)lastAddr);
+
+            printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -218,7 +160,6 @@ void setEncryptedValueWord(void* ptr, uint16_t word_arg) {
             asm("pinsrw $7, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
             break;
     }
-    //printf("Encryption %d\n",enc++);
 }
 
 void setEncryptedValueDWord(void* ptr, uint32_t dword_arg) {
@@ -237,6 +178,8 @@ void setEncryptedValueDWord(void* ptr, uint32_t dword_arg) {
 
 
             encrypt_cache((void*)lastAddr);
+
+            printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -269,7 +212,6 @@ void setEncryptedValueDWord(void* ptr, uint32_t dword_arg) {
             asm("pinsrd $7, %0, %%xmm13\n\t":: "r"(dword_arg) : );
             break;
     }
-    //printf("Encryption %d\n",enc++);
 }
 
 void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
@@ -285,6 +227,8 @@ void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
 
         if (lastAddr > 0 && dirty) {
             encrypt_cache((void*)lastAddr);
+
+            printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -317,7 +261,6 @@ void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
             asm("pinsrq $7, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
             break;
     }
-    //printf("Encryption %d\n",enc++);
 }
 
 
@@ -334,10 +277,12 @@ uint8_t getDecryptedValueByte(void* ptr) {
 
             encrypt_cache((void*)lastAddr);
             dirty = 0;
+            printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
 
         decrypt_cache((void*)aligned_ptr);
+        printf("Decryption %ld\n",dec++);
     }
     switch(offset) {
         case 0:
@@ -393,7 +338,6 @@ uint8_t getDecryptedValueByte(void* ptr) {
     }
     //printf ("After decrypted : %d ",result);
     //printf("and %" PRIu8 "\n", result);
-    //printf("Decryption %d\n",dec++);
     return (uint8_t)result;
 }
 
@@ -410,10 +354,12 @@ uint16_t getDecryptedValueWord(void* ptr) {
         if (lastAddr > 0 && dirty) {
             encrypt_cache((void*)lastAddr);
             dirty = 0;
+            printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
 
         decrypt_cache((void*)aligned_ptr);
+        printf("Decryption %ld\n",dec++);
     }
     offset = offset/2;
     switch(offset) {
@@ -444,7 +390,6 @@ uint16_t getDecryptedValueWord(void* ptr) {
     }
     //printf ("After decrypted : %d ",result);
     //printf("and %" PRIu16 "\n", result);
-    //printf("Decryption %d\n",dec++);
     return (uint16_t)result;
 }
 
@@ -464,10 +409,12 @@ uint32_t getDecryptedValueDWord(void* ptr) {
 
             encrypt_cache((void*)lastAddr);
             dirty = 0;
+            printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
 
         decrypt_cache((void*)aligned_ptr);
+        printf("Decryption %ld\n",dec++);
     }
     offset = offset/4;
     switch(offset) {
@@ -498,7 +445,6 @@ uint32_t getDecryptedValueDWord(void* ptr) {
     }
     //printf ("After decrypted : %d ",dword_result);
     //printf("and %" PRIu32 "\n", dword_result);
-    //printf("Decryption %d\n",dec++);
     return dword_result;
 }
 
@@ -515,10 +461,12 @@ uint64_t getDecryptedValueQWord(void* ptr) {
         if (lastAddr > 0 && dirty) {
             encrypt_cache((void*)lastAddr);
             dirty = 0;
+            printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
 
         decrypt_cache((void*)aligned_ptr);
+        printf("Decryption %ld\n",dec++);
     }
     offset = offset/8;
     switch(offset) {
@@ -549,7 +497,6 @@ uint64_t getDecryptedValueQWord(void* ptr) {
     }
     //printf ("After decrypted : %d ",qword_result);
     //printf("and %" PRIu64 "\n", qword_result);
-    //printf("Decryption %d\n",dec++);
     return qword_result;
 }
 
@@ -729,6 +676,21 @@ void decryptArrayForLibCall(char* ptr, int numBytes) {
     }
 }
 
+void aes_free(void* ptr) {
+    //printf( "Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
+    size_t noOfByte = malloc_usable_size(ptr);
+    dfsan_set_label(0, ptr, noOfByte);
+    free(ptr);
+}
+
+
+void* aes_freeWithBitcast(void* ptr) {
+    //printf( "Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
+    size_t noOfByte = malloc_usable_size(ptr);
+    dfsan_set_label(0, ptr, noOfByte);
+    free(ptr);
+    return ptr;
+}
 
 void* aes_malloc(long size) {
     size = size*128; // hack to fix widening

@@ -135,6 +135,23 @@ namespace external {
 
         this->aesCallocFunction = Function::Create(FTypeCalloc, Function::ExternalLinkage, "aes_calloc", &M);
 
+        
+        // The instrumented free function
+        std::vector<Type*> freeVec;
+        freeVec.push_back(voidPtrType);
+        ArrayRef<Type*> freeArrRef(freeVec);
+        FunctionType* FTypeFree = FunctionType::get(Type::getVoidTy(*Ctx), freeArrRef, false);
+
+        this->aesFreeFunction = Function::Create(FTypeFree, Function::ExternalLinkage, "aes_free", &M);
+
+        
+        // The instrumented free function
+        std::vector<Type*> freeWithBitcastVec;
+        freeWithBitcastVec.push_back(voidPtrType);
+        ArrayRef<Type*> freeWithBitcastArrRef(freeWithBitcastVec);
+        FunctionType* FTypeFreeWithBitcast = FunctionType::get(voidPtrType, freeWithBitcastArrRef, false);
+
+        this->aesFreeWithBitcastFunction = Function::Create(FTypeFreeWithBitcast, Function::ExternalLinkage, "aes_freeWithBitcast", &M);
 
         // The "sensitivity" aware versions of memcpy
         std::vector<Type*> memcpyVec;
@@ -424,7 +441,7 @@ namespace external {
                                 size = Builder.CreateMul(argument1OfCalloc, argument2OfCalloc);
                                 //errs()<<"Size of Calloc is "<<*size<<"\n";
                             }
-                            //size = Builder.CreateMul(size, dyn_cast<Value>(multiplier));
+                            size = Builder.CreateMul(size, dyn_cast<Value>(multiplier));
                         }
                         setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, callInst, size});
                         setLabel->addParamAttr(0, Attribute::ZExt);
@@ -490,6 +507,7 @@ namespace external {
                                 if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
                                     // Is a malloc instruction
                                     Function* function = callInst->getCalledFunction();
+                                    StringRef freeStr("free");
                                     if (function) {
                                         StringRef mallocStr("malloc");
                                         StringRef callocStr("calloc");
@@ -499,6 +517,27 @@ namespace external {
                                             callInst->setCalledFunction(aesMallocFunction);
                                         } else if (callocStr.equals(function->getName())) {
                                             callInst->setCalledFunction(aesCallocFunction);
+                                        } else if (freeStr.equals(function->getName())) {
+                                           //callInst->setCalledFunction(aesFreeFunction);
+                                            std::vector<Value*> argList;
+                                            CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
+                                            writebackInst->insertAfter(callInst);
+                                            callInst->setCalledFunction(aesFreeFunction);
+                                        } 
+                                    } else {
+                                        if (BitCastOperator* castOp = dyn_cast<BitCastOperator>(callInst->getCalledValue())) {
+                                            for (int i = 0; i < castOp->getNumOperands(); i++) {
+                                                Value* op = castOp->getOperand(i);
+                                                if (Function* func = dyn_cast<Function>(op)) {
+                                                    if (freeStr.equals(func->getName())) {
+                                                        std::vector<Value*> argList;
+                                                        CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
+                                                        writebackInst->insertAfter(callInst);
+                                                        callInst->setCalledFunction(aesFreeWithBitcastFunction);
+                                                    }
+                                                }
+                                            }
+
                                         }
                                     }
                                 } else if (ReturnInst* retInst = dyn_cast<ReturnInst>(Inst)) {
