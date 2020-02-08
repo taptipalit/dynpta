@@ -102,7 +102,9 @@ namespace external{
             // For AES Cache
             void widenSensitiveAllocationSites(llvm::Module&, std::vector<PAGNode*>&,
                     std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
-            void SetLabelsForSensitiveObjects(llvm::Module&, std::set<PAGNode*>*,
+            void gepCallInstHandlerForPartitioning(llvm::Module&, CallInst*, GepObjPN*);
+            void gepAllocaInstHandlerForPartitioning(llvm::Module&, AllocaInst* allocInst, GepObjPN*, Value*);
+            void setLabelsForSensitiveObjects(llvm::Module&, std::set<PAGNode*>*,
                     std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
 
             Type* findBaseType(Type*);

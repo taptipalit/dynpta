@@ -280,22 +280,160 @@ namespace external {
         return allFieldsSen;
     }
 
-                                  
-    void AESCache::SetLabelsForSensitiveObjects(Module &M, std::set<PAGNode*>* SensitiveAllocaList,
-            std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
+    void AESCache::gepCallInstHandlerForPartitioning(Module &M, CallInst* callInst, GepObjPN* gepNode){
+
         LLVMContext *Ctx;
         Ctx = &M.getContext();
         const DataLayout &DL = M.getDataLayout();
+
         std::map<std::string, StructType*> structNameTypeMap;
         for (StructType* stType: M.getIdentifiedStructTypes()) {
             structNameTypeMap[stType->getName()] = stType;
         }
-        errs()<<"Setting Label for Sensitive Objects:\n";
+
+
+        IRBuilder<> Builder(callInst);
+        Builder.SetInsertPoint(callInst->getNextNode());
+
+        ConstantInt* label = Builder.getInt16(1);
+        ConstantInt* noOfByte = Builder.getInt64(1);
+        Value* PtrOperand = nullptr;
+        CallInst* setLabel = nullptr;
+        IntegerType *IntptrTy;
+        IntptrTy = Type::getInt32Ty(M.getContext());
+        Size_t offset = gepNode->getLocationSet().getOffset();
+        //errs()<<"Offset is "<<offset;
+
+        // For a gepNode with callInst, we need to find the
+        // type of struct and actual offset to create gep
+        // Instruction
+        Type* structType = nullptr;
+        MDNode* argIndNode = callInst->getMetadata("sizeOfTypeArgNum");
+        MDNode* structTypeNode = callInst->getMetadata("sizeOfTypeName");
+
+        if (argIndNode && structTypeNode) {
+            MDString* structTypeNameStr = cast<MDString>(structTypeNode->getOperand(0));
+            structType = structNameTypeMap[structTypeNameStr->getString()];
+            if (!structType) {
+                structType = structNameTypeMap["struct."+structTypeNameStr->getString().str()];
+                if (!structType) {
+                    assert(false && "Cannot find sizeof type");
+                }
+            }
+        }
+        if(!structType){
+            setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, callInst, noOfByte});
+            setLabel->addParamAttr(0, Attribute::ZExt);
+            return;
+        }
+        if (StructType* stType = dyn_cast<StructType>(structType)) {
+            StructType* nestedType = nullptr;
+            int nestedOffset = -1;
+            int beg = 0;
+
+            findTrueOffset(stType, offset, &beg, &nestedType, &nestedOffset);
+            if (nestedType) {
+                //errs() << "Nested type name: " << nestedType->getName() << " with offset: " << nestedOffset << " original struct type: ";
+                //errs() << stType->getName() << " original offset: " << offset << " \n";
+
+                Value* bitcast = nullptr;
+                bitcast = Builder.CreateBitCast(callInst, llvm::PointerType::getUnqual(nestedType));
+                //errs()<<"bitcast "<<*bitcast<<"\n";
+
+                Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, nestedOffset)};
+                Value* gepInst = Builder.CreateInBoundsGEP(bitcast, ArrayRef<Value*>(indexList, 2));
+                PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
+                //Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
+                Type *T = dyn_cast<PointerType>(gepInst->getType())->getElementType();
+                if(T->isArrayTy()){
+                    ArrayType* Arr = dyn_cast<ArrayType>(T);
+                    int noOfElements = Arr->getNumElements();
+                    int bitWidth = cast<IntegerType>(Arr->getElementType())->getBitWidth();
+                    int byteLength = (noOfElements * bitWidth)/8;
+                    noOfByte = Builder.getInt64(byteLength);
+                    //errs()<<"Array and size is "<<noOfElements<<" and bitwidth is "<<bitWidth<<"\n";
+                }
+                setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
+                setLabel->addParamAttr(0, Attribute::ZExt);
+            }
+        }
+
+    }
+
+
+    void AESCache::gepAllocaInstHandlerForPartitioning(Module &M, AllocaInst* allocInst, GepObjPN* gepNode, Value* senVal){
+
+        LLVMContext *Ctx;
+        Ctx = &M.getContext();
+        const DataLayout &DL = M.getDataLayout();
+
+        IRBuilder<> Builder(allocInst);
+        Builder.SetInsertPoint(allocInst->getNextNode());
+
+        ConstantInt* label = Builder.getInt16(1);
+        ConstantInt* noOfByte = Builder.getInt64(1);
+        Value* PtrOperand = nullptr;
+        CallInst* setLabel = nullptr;
+        //For a gepNode we need to create gepELementPtr instruction
+        IntegerType *IntptrTy;  
+        IntptrTy = Type::getInt32Ty(M.getContext());
+        Size_t offset = gepNode->getLocationSet().getOffset();
+        //errs()<<"Offset is "<<offset<<"\n";
+        Type* type = dyn_cast<PointerType>(senVal->getType())->getElementType();
+        if(type->isStructTy()){
+            StructType* structType = dyn_cast<StructType>(type);
+            //errs()<< " Type of alloca "<<structType->getName()<<"\n";
+            StructType* nestedType = nullptr;
+            int nestedOffset = -1;
+            int beg = 0;
+
+            findTrueOffset(structType, offset, &beg, &nestedType, &nestedOffset);
+            if (nestedType) {
+                //errs() << "Nested type name: " << nestedType->getName() << " with offset: " << nestedOffset << " original struct type: ";
+                //errs() << structType->getName() << " original offset: " << offset << " \n";
+
+                Value* bitcast = nullptr;
+                bitcast = Builder.CreateBitCast(allocInst, llvm::PointerType::getUnqual(nestedType));
+                errs()<<"bitcast "<<*bitcast<<"\n";
+
+                Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, nestedOffset)};
+                Value* gepInst = Builder.CreateInBoundsGEP(bitcast, ArrayRef<Value*>(indexList, 2));
+                PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
+                //Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
+            } else {
+                Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, offset)};
+                Value* gepInst = Builder.CreateInBoundsGEP(senVal, ArrayRef<Value*>(indexList, 2));
+                PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
+            }
+        } else {
+            PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
+        }
+
+        //finding size of type
+        Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
+        int sizeOfType = M.getDataLayout().getTypeAllocSize(T);
+        //errs()<<"Size of Type is "<<sizeOfType<<"\n";
+        noOfByte = Builder.getInt64(sizeOfType);
+
+        /*Value* size = nullptr;
+          ConstantInt* multiplier = Builder.getInt64(128);
+          size = Builder.CreateMul(dyn_cast<Value>(noOfByte), dyn_cast<Value>(multiplier));*/
+
+        setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
+        setLabel->addParamAttr(0, Attribute::ZExt);
+    }
+
+                                  
+    void AESCache::setLabelsForSensitiveObjects(Module &M, std::set<PAGNode*>* SensitiveAllocaList,
+            std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
+        LLVMContext *Ctx;
+        Ctx = &M.getContext();
+        const DataLayout &DL = M.getDataLayout();
+        //Setting Label for Sensitive Objects
+
         for (PAGNode* senNode: *SensitiveAllocaList) {
             assert(senNode->hasValue());
             Value* senVal = const_cast<Value*>(senNode->getValue());
-            //errs() << "Value " << *senVal<<"\n";
-            //Creating insert position
             if(Instruction *I = dyn_cast<Instruction>(senVal)){
                 //errs() << "Value " << *senVal<<"\n";
                 IRBuilder<> Builder(I);
@@ -311,117 +449,23 @@ namespace external {
 
                 if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
                     if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
-                        //For a gepNode we need to create gepELementPtr instruction
-                        IntegerType *IntptrTy;  
-                        IntptrTy = Type::getInt32Ty(M.getContext());
-                        Size_t offset = gepNode->getLocationSet().getOffset();
-                        //errs()<<"Offset is "<<offset<<"\n";
-                        Type* type = dyn_cast<PointerType>(senVal->getType())->getElementType();
-                        if(type->isStructTy()){
-                            StructType* structType = dyn_cast<StructType>(type);
-                            //errs()<< " Type of alloca "<<structType->getName()<<"\n";
-                            StructType* nestedType = nullptr;
-                            int nestedOffset = -1;
-                            int beg = 0;
-
-                            findTrueOffset(structType, offset, &beg, &nestedType, &nestedOffset);
-                            if (nestedType) {
-                                //errs() << "Nested type name: " << nestedType->getName() << " with offset: " << nestedOffset << " original struct type: ";
-                                //errs() << structType->getName() << " original offset: " << offset << " \n";
-
-                                Value* bitcast = nullptr;
-                                bitcast = Builder.CreateBitCast(allocInst, llvm::PointerType::getUnqual(nestedType));
-                                errs()<<"bitcast "<<*bitcast<<"\n";
-
-                                Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, nestedOffset)};
-                                Value* gepInst = Builder.CreateInBoundsGEP(bitcast, ArrayRef<Value*>(indexList, 2));
-                                PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
-                                //Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
-                            } else {
-                                Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, offset)};
-                                Value* gepInst = Builder.CreateInBoundsGEP(senVal, ArrayRef<Value*>(indexList, 2));
-                                PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
-                            }
-                        } else {
-                            PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
-                        }
+                        gepAllocaInstHandlerForPartitioning(M, allocInst, gepNode, senVal);
                     } else {
                         // Is an alloca instruction
                         PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
+
+                        //finding size of type
+                        Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
+                        int sizeOfType = M.getDataLayout().getTypeAllocSize(T);
+                        //errs()<<"Size of Type is "<<sizeOfType<<"\n";
+                        noOfByte = Builder.getInt64(sizeOfType);
+
+                        setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
+                        setLabel->addParamAttr(0, Attribute::ZExt);
                     }
-
-                    //finding size of type
-                    Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
-                    int sizeOfType = M.getDataLayout().getTypeAllocSize(T);
-                    //errs()<<"Size of Type is "<<sizeOfType<<"\n";
-                    noOfByte = Builder.getInt64(sizeOfType);
-
-                    /*Value* size = nullptr;
-                      ConstantInt* multiplier = Builder.getInt64(128);
-                      size = Builder.CreateMul(dyn_cast<Value>(noOfByte), dyn_cast<Value>(multiplier));*/
-
-                    setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
-                    setLabel->addParamAttr(0, Attribute::ZExt);
                 } else if (CallInst* callInst = dyn_cast<CallInst>(senVal)){
                     if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)){
-                        IntegerType *IntptrTy;
-                        IntptrTy = Type::getInt32Ty(M.getContext());
-                        Size_t offset = gepNode->getLocationSet().getOffset();
-                        //errs()<<"Offset is "<<offset;
-
-                        // For a gepNode with callInst, we need to find the
-                        // type of struct and actual offset to create gep
-                        // Instruction
-                        Type* structType = nullptr;
-                        MDNode* argIndNode = callInst->getMetadata("sizeOfTypeArgNum");
-                        MDNode* structTypeNode = callInst->getMetadata("sizeOfTypeName");
-
-                        if (argIndNode && structTypeNode) {
-                            MDString* structTypeNameStr = cast<MDString>(structTypeNode->getOperand(0));
-                            structType = structNameTypeMap[structTypeNameStr->getString()];
-                            if (!structType) {
-                                structType = structNameTypeMap["struct."+structTypeNameStr->getString().str()];
-                                if (!structType) {
-                                    assert(false && "Cannot find sizeof type");
-                                }
-                            }
-                        }
-                        if(!structType){
-                            setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, callInst, noOfByte});
-                            setLabel->addParamAttr(0, Attribute::ZExt);
-                            continue;
-                        }
-                        if (StructType* stType = dyn_cast<StructType>(structType)) {
-                            StructType* nestedType = nullptr;
-                            int nestedOffset = -1;
-                            int beg = 0;
-
-                            findTrueOffset(stType, offset, &beg, &nestedType, &nestedOffset);
-                            if (nestedType) {
-                                //errs() << "Nested type name: " << nestedType->getName() << " with offset: " << nestedOffset << " original struct type: ";
-                                //errs() << stType->getName() << " original offset: " << offset << " \n";
-
-                                Value* bitcast = nullptr;
-                                bitcast = Builder.CreateBitCast(callInst, llvm::PointerType::getUnqual(nestedType));
-                                //errs()<<"bitcast "<<*bitcast<<"\n";
-
-                                Value* indexList[2] = {ConstantInt::get(IntptrTy, 0), ConstantInt::get(IntptrTy, nestedOffset)};
-                                Value* gepInst = Builder.CreateInBoundsGEP(bitcast, ArrayRef<Value*>(indexList, 2));
-                                PtrOperand = Builder.CreateBitCast(gepInst, Type::getInt8PtrTy(*Ctx));
-                                //Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
-                                Type *T = dyn_cast<PointerType>(gepInst->getType())->getElementType();
-                                if(T->isArrayTy()){
-                                    ArrayType* Arr = dyn_cast<ArrayType>(T);
-                                    int noOfElements = Arr->getNumElements();
-                                    int bitWidth = cast<IntegerType>(Arr->getElementType())->getBitWidth();
-                                    int byteLength = (noOfElements * bitWidth)/8;
-                                    noOfByte = Builder.getInt64(byteLength);
-                                    //errs()<<"Array and size is "<<noOfElements<<" and bitwidth is "<<bitWidth<<"\n";
-                                }
-                                setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, PtrOperand, noOfByte});
-                                setLabel->addParamAttr(0, Attribute::ZExt);
-                            }
-                        }
+                        gepCallInstHandlerForPartitioning(M, callInst, gepNode);
                     } else {
                         // Call Instruction, no need to add bitcast
                         Function* function = callInst->getCalledFunction();
@@ -452,96 +496,154 @@ namespace external {
     }
 
 
-    void AESCache::widenSensitiveAllocationSites(Module &M, std::vector<PAGNode*>& SensitiveAllocaList,
-            std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
-        for (PAGNode* senNode: SensitiveAllocaList) {
-            bool widenedStructType = false;
-            // If it is a GepObjPN we need to be careful about what to widen in it
-            if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
-                errs() << "This is what I tried to widen: " << *gepNode << " " << gepNode->getLocationSet().getOffset() << "\n";
-                widenedStructType = widenSensitiveComplexType(gepNode, ptsFromMap);
-            } 
-            assert(senNode->hasValue());
-            // Add padding regardless if we've padded individual fields
-            // Easy stuff
-            Value* senVal = const_cast<Value*>(senNode->getValue());
-            if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
-                // Is an alloca instruction
-                allocInst->setAlignment(16);
-                IRBuilder<> Builder(allocInst);
-                AllocaInst* paddingAllocaInst2 = Builder.CreateAlloca(I128Ty, 0, "padding");
-                MDNode* N2 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
-                paddingAllocaInst2->setMetadata("PADDING", N2);
+        void AESCache::widenSensitiveAllocationSites(Module &M, std::vector<PAGNode*>& SensitiveAllocaList,
+                std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
+            for (PAGNode* senNode: SensitiveAllocaList) {
+                bool widenedStructType = false;
+                // If it is a GepObjPN we need to be careful about what to widen in it
+                if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senNode)) {
+                    errs() << "This is what I tried to widen: " << *gepNode << " " << gepNode->getLocationSet().getOffset() << "\n";
+                    widenedStructType = widenSensitiveComplexType(gepNode, ptsFromMap);
+                } 
+                assert(senNode->hasValue());
+                // Add padding regardless if we've padded individual fields
+                // Easy stuff
+                Value* senVal = const_cast<Value*>(senNode->getValue());
+                if (AllocaInst* allocInst = dyn_cast<AllocaInst>(senVal)) {
+                    // Is an alloca instruction
+                    allocInst->setAlignment(16);
+                    IRBuilder<> Builder(allocInst);
+                    AllocaInst* paddingAllocaInst2 = Builder.CreateAlloca(I128Ty, 0, "padding");
+                    MDNode* N2 = MDNode::get(allocInst->getContext(), MDString::get(allocInst->getContext(), "padding"));
+                    paddingAllocaInst2->setMetadata("PADDING", N2);
 
-                // Find insertion point for the store
-                BasicBlock* parentBB = allocInst->getParent();
-                Instruction* insertionPoint = nullptr;
-                for (BasicBlock::iterator BBIterator = parentBB->begin(); BBIterator != parentBB->end(); BBIterator++) {
-                    if (Instruction* Inst = dyn_cast<Instruction>(BBIterator)) {
-                        if (!isa<AllocaInst>(Inst)) {
-                            insertionPoint = Inst;
-                            break;
+                    // Find insertion point for the store
+                    BasicBlock* parentBB = allocInst->getParent();
+                    Instruction* insertionPoint = nullptr;
+                    for (BasicBlock::iterator BBIterator = parentBB->begin(); BBIterator != parentBB->end(); BBIterator++) {
+                        if (Instruction* Inst = dyn_cast<Instruction>(BBIterator)) {
+                            if (!isa<AllocaInst>(Inst)) {
+                                insertionPoint = Inst;
+                                break;
+                            }
                         }
                     }
                 }
             }
-        }
 
-        // As for global variables, just align all of them to a 128 bit boundary
-        for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
-            if (I->getName() != "llvm.global.annotations") {
-                GlobalVariable* GV = cast<GlobalVariable>(I);
-                GV->setAlignment(16);
+            // As for global variables, just align all of them to a 128 bit boundary
+            for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+                if (I->getName() != "llvm.global.annotations") {
+                    GlobalVariable* GV = cast<GlobalVariable>(I);
+                    GV->setAlignment(16);
+                }
             }
-        }
 
-        // Do processing for all instructions
-        for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
-            if (auto *F = dyn_cast<Function>(MIterator)) {
-                // Get the local sensitive values
-                for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
-                    if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
-                        //outs() << "Basic block found, name : " << BB->getName() << "\n";
-                        for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-                            if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-                                if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
-                                    // Is a malloc instruction
-                                    Function* function = callInst->getCalledFunction();
-                                    StringRef freeStr("free");
-                                    if (function) {
-                                        StringRef mallocStr("malloc");
-                                        StringRef callocStr("calloc");
-                                        if (mallocStr.equals(function->getName())) {
-                                            // Change the called function to inst_malloc
-                                            //need to check changing malloc and calloc for DFSan
-                                            callInst->setCalledFunction(aesMallocFunction);
-                                        } else if (callocStr.equals(function->getName())) {
-                                            callInst->setCalledFunction(aesCallocFunction);
-                                        } else if (freeStr.equals(function->getName())) {
-                                           //callInst->setCalledFunction(aesFreeFunction);
-                                            std::vector<Value*> argList;
-                                            CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
-                                            writebackInst->insertAfter(callInst);
-                                            callInst->setCalledFunction(aesFreeFunction);
-                                        } 
-                                    } else {
-                                        if (BitCastOperator* castOp = dyn_cast<BitCastOperator>(callInst->getCalledValue())) {
-                                            for (int i = 0; i < castOp->getNumOperands(); i++) {
-                                                Value* op = castOp->getOperand(i);
-                                                if (Function* func = dyn_cast<Function>(op)) {
-                                                    if (freeStr.equals(func->getName())) {
-                                                        std::vector<Value*> argList;
-                                                        CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
-                                                        writebackInst->insertAfter(callInst);
-                                                        callInst->setCalledFunction(aesFreeWithBitcastFunction);
+            // Do processing for all instructions
+            for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+                if (auto *F = dyn_cast<Function>(MIterator)) {
+                    // Get the local sensitive values
+                    for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+                        if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+                            //outs() << "Basic block found, name : " << BB->getName() << "\n";
+                            for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+                                if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                                    if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
+                                        // Is a malloc instruction
+                                        Function* function = callInst->getCalledFunction();
+                                        StringRef freeStr("free");
+                                        if (function) {
+                                            StringRef mallocStr("malloc");
+                                            StringRef callocStr("calloc");
+                                            if (mallocStr.equals(function->getName())) {
+                                                // Change the called function to inst_malloc
+                                                //need to check changing malloc and calloc for DFSan
+                                                callInst->setCalledFunction(aesMallocFunction);
+                                            } else if (callocStr.equals(function->getName())) {
+                                                callInst->setCalledFunction(aesCallocFunction);
+                                            } else if (freeStr.equals(function->getName())) {
+                                                //callInst->setCalledFunction(aesFreeFunction);
+                                                std::vector<Value*> argList;
+                                                CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
+                                                writebackInst->insertAfter(callInst);
+                                                callInst->setCalledFunction(aesFreeFunction);
+                                            } 
+                                        } else {
+                                            if (BitCastOperator* castOp = dyn_cast<BitCastOperator>(callInst->getCalledValue())) {
+                                                for (int i = 0; i < castOp->getNumOperands(); i++) {
+                                                    Value* op = castOp->getOperand(i);
+                                                    if (Function* func = dyn_cast<Function>(op)) {
+                                                        if (freeStr.equals(func->getName())) {
+                                                            std::vector<Value*> argList;
+                                                            CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
+                                                            writebackInst->insertAfter(callInst);
+                                                            callInst->setCalledFunction(aesFreeWithBitcastFunction);
+                                                        }
                                                     }
                                                 }
+
                                             }
+                                        }
+                                    } else if (ReturnInst* retInst = dyn_cast<ReturnInst>(Inst)) {
+                                        writeback(retInst); // Invalidate the cache
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
+            std::set<StructType*> typeSet;
+            // Now consolidate. If all fields of a struct are sensitive, then
+            // nothing
+            for (StructType* stType: M.getIdentifiedStructTypes()) {
+                bool allFieldsSen = allFieldsSensitive(stType);
+                if (allFieldsSen) {
+                    errs() << "Type: " << *stType << " became fully sensitive!\n";
+                    //stType->getSensitiveFieldOffsets().clear();
+                    typeSet.insert(stType);
+                }
+            }
+
+            for (StructType* stType: typeSet) {
+                stType->getSensitiveFieldOffsets().clear();
+            }
+
+            // So which types finally became sensitive?
+            for (StructType* stType: M.getIdentifiedStructTypes()) {
+                if (stType->getNumSensitiveFields() > 0) {
+                    errs() << "Partially sensitive type: "<< *stType << " has following sensitive offsets: ";
+                    for (int fld: stType->getSensitiveFieldOffsets()) {
+                        errs() << fld << " ";
+                    }
+                    errs() << "\n";
+                }
+
+            }
+
+            // Now that we've done this, we should also take care of type casts
+            for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+                if (auto *F = dyn_cast<Function>(MIterator)) {
+                    // Get the local sensitive values
+                    for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+                        if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+                            //outs() << "Basic block found, name : " << BB->getName() << "\n";
+                            for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+                                if (BitCastInst *BCInst = dyn_cast<BitCastInst>(BBIterator)) {
+                                    Type* srcType = BCInst->getSrcTy();
+                                    Type* destType = BCInst->getDestTy();
+                                    Type* srcBaseType = findBaseType(srcType);
+                                    Type* destBaseType = findBaseType(destType);
+                                    if (StructType* destStType = dyn_cast<StructType>(destBaseType)) {
+                                        if (StructType* srcStType = dyn_cast<StructType>(srcBaseType)) {
+                                            //errs() << srcStType->getName() << " casted to " << destStType->getName() << "\n";
+                                            // Copy over sensitive fields
+                                            for (int sensitiveField: srcStType->getSensitiveFieldOffsets()) {
+                                                destStType->addSensitiveFieldOffset(sensitiveField);
+                                            }
                                         }
                                     }
-                                } else if (ReturnInst* retInst = dyn_cast<ReturnInst>(Inst)) {
-                                    writeback(retInst); // Invalidate the cache
                                 }
                             }
                         }
@@ -550,618 +652,577 @@ namespace external {
             }
         }
 
-        std::set<StructType*> typeSet;
-        // Now consolidate. If all fields of a struct are sensitive, then
-        // nothing
-        for (StructType* stType: M.getIdentifiedStructTypes()) {
-            bool allFieldsSen = allFieldsSensitive(stType);
-            if (allFieldsSen) {
-                errs() << "Type: " << *stType << " became fully sensitive!\n";
-                //stType->getSensitiveFieldOffsets().clear();
-                typeSet.insert(stType);
+        Type* AESCache::findBaseType(Type* type) {
+            Type* trueType = type;
+            while (trueType->isPointerTy()) {
+                trueType = trueType->getPointerElementType();
             }
+            return trueType;
         }
 
-        for (StructType* stType: typeSet) {
-            stType->getSensitiveFieldOffsets().clear();
-        }
-
-        // So which types finally became sensitive?
-        for (StructType* stType: M.getIdentifiedStructTypes()) {
-            if (stType->getNumSensitiveFields() > 0) {
-                errs() << "Partially sensitive type: "<< *stType << " has following sensitive offsets: ";
-                for (int fld: stType->getSensitiveFieldOffsets()) {
-                    errs() << fld << " ";
-                }
-                errs() << "\n";
-            }
-
-        }
-
-        // Now that we've done this, we should also take care of type casts
-        for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
-            if (auto *F = dyn_cast<Function>(MIterator)) {
-                // Get the local sensitive values
-                for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
-                    if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
-                        //outs() << "Basic block found, name : " << BB->getName() << "\n";
-                        for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-                            if (BitCastInst *BCInst = dyn_cast<BitCastInst>(BBIterator)) {
-                                Type* srcType = BCInst->getSrcTy();
-                                Type* destType = BCInst->getDestTy();
-                                Type* srcBaseType = findBaseType(srcType);
-                                Type* destBaseType = findBaseType(destType);
-                                if (StructType* destStType = dyn_cast<StructType>(destBaseType)) {
-                                    if (StructType* srcStType = dyn_cast<StructType>(srcBaseType)) {
-                                        //errs() << srcStType->getName() << " casted to " << destStType->getName() << "\n";
-                                        // Copy over sensitive fields
-                                        for (int sensitiveField: srcStType->getSensitiveFieldOffsets()) {
-                                            destStType->addSensitiveFieldOffset(sensitiveField);
-                                        }
-                                    }
-                                }
-                            }
-                        }
+        /*
+         * Check if the particular offset of the value pointed to by ptr is in the cache
+         * Return the register if it is, null otherwise
+         */
+        OffsetXMMPair* AESCache::findValueInCache(Value* ptr, int offsetBytes) {
+            std::map<Value*, std::vector<OffsetXMMPair*>>::iterator it = cacheMap.find(ptr);
+            if (it != cacheMap.end()) {
+                std::vector<OffsetXMMPair*> offXMMList = it->second;
+                for (OffsetXMMPair* pair: offXMMList) {
+                    if (offsetBytes >= pair->startOffsetBytes && offsetBytes < pair->startOffsetBytes + 16) {
+                        return pair;
                     }
                 }
             }
-        }
-    }
 
-    Type* AESCache::findBaseType(Type* type) {
-        Type* trueType = type;
-        while (trueType->isPointerTy()) {
-            trueType = trueType->getPointerElementType();
+            return nullptr;
         }
-        return trueType;
-    }
 
-    /*
-     * Check if the particular offset of the value pointed to by ptr is in the cache
-     * Return the register if it is, null otherwise
-     */
-    OffsetXMMPair* AESCache::findValueInCache(Value* ptr, int offsetBytes) {
-        std::map<Value*, std::vector<OffsetXMMPair*>>::iterator it = cacheMap.find(ptr);
-        if (it != cacheMap.end()) {
-            std::vector<OffsetXMMPair*> offXMMList = it->second;
-            for (OffsetXMMPair* pair: offXMMList) {
-                if (offsetBytes >= pair->startOffsetBytes && offsetBytes < pair->startOffsetBytes + 16) {
-                    return pair;
+        void AESCache::insertInsertByteToXMM(llvm::StoreInst* SI, int byteOffset, int xmmRegNo) {
+            IRBuilder<> Builder(SI);
+            std::vector<llvm::Type *> asmArgTypes;
+            asmArgTypes.push_back(IntegerType::get(SI->getContext(), 8));
+            ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
+
+            FunctionType* FuncTy = FunctionType::get(Type::getVoidTy(SI->getContext()), asmArgArrayRef, false);
+            std::string AsmStringStr = "pinsrb $$" + std::to_string(byteOffset) + ", $0, %xmm13 ;";
+            StringRef AsmString(AsmStringStr) ;
+            StringRef Constraints = "r";
+            InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
+            std::vector<llvm::Value*> argsArr;
+            argsArr.push_back(SI->getValueOperand());
+
+            ArrayRef<Value*> args(argsArr);
+            Value* result = Builder.CreateCall(pextAsm, args); 
+        }
+
+        void AESCache::insertInsertWordToXMM(llvm::StoreInst* SI, int wordOffset, int xmmRegNo) {
+            IRBuilder<> Builder(SI);
+            std::vector<llvm::Type *> asmArgTypes;
+            asmArgTypes.push_back(IntegerType::get(SI->getContext(), 16));
+            ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
+
+            FunctionType* FuncTy = FunctionType::get(Type::getVoidTy(SI->getContext()), asmArgArrayRef, false);
+            std::string AsmStringStr = "pinsrw $$" + std::to_string(wordOffset) + ", $0, %xmm13 ;";
+            StringRef AsmString(AsmStringStr) ;
+            StringRef Constraints = "r";
+            InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
+            std::vector<llvm::Value*> argsArr;
+            argsArr.push_back(SI->getValueOperand());
+
+            ArrayRef<Value*> args(argsArr);
+            Value* result = Builder.CreateCall(pextAsm, args); 
+        }
+
+        void AESCache::insertInsertDWordToXMM(llvm::StoreInst* SI, int dwordOffset, int xmmRegNo) {
+            IRBuilder<> Builder(SI);
+            std::vector<llvm::Type *> asmArgTypes;
+            asmArgTypes.push_back(IntegerType::get(SI->getContext(), 32));
+
+            ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
+
+            FunctionType* FuncTy = FunctionType::get(Type::getVoidTy(SI->getContext()), asmArgArrayRef, false);
+            std::string AsmStringStr = "pinsrd $$" + std::to_string(dwordOffset) + ", $0, %xmm13 ;";
+            StringRef AsmString(AsmStringStr) ;
+            StringRef Constraints = "r";
+            InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
+            std::vector<llvm::Value*> argsArr;
+            argsArr.push_back(SI->getValueOperand());
+
+            ArrayRef<Value*> args(argsArr);
+            Value* result = Builder.CreateCall(pextAsm, args); 
+
+        }
+
+        void AESCache::insertInsertQWordToXMM(llvm::StoreInst* SI, int qwordOffset, int xmmRegNo) {
+            IRBuilder<> Builder(SI);
+            std::vector<llvm::Type *> asmArgTypes;
+            asmArgTypes.push_back(IntegerType::get(SI->getContext(), 64));
+
+            ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
+
+            FunctionType* FuncTy = FunctionType::get(Type::getVoidTy(SI->getContext()), asmArgArrayRef, false);
+            std::string AsmStringStr = "pinsrq $$" + std::to_string(qwordOffset) + ", $0, %xmm13 ;";
+            StringRef AsmString(AsmStringStr) ;
+            StringRef Constraints = "r";
+            InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
+            std::vector<llvm::Value*> argsArr;
+            argsArr.push_back(SI->getValueOperand());
+
+            ArrayRef<Value*> args(argsArr);
+            Value* result = Builder.CreateCall(pextAsm, args); 
+        }
+
+        Value* AESCache::insertExtractByteFromXMM(LoadInst* LI, int byteOffset, int xmmRegNo) {
+            IRBuilder<> Builder(LI);
+            std::vector<llvm::Type *> asmArgTypes; 
+            ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
+
+            FunctionType* FuncTy = FunctionType::get(IntegerType::get(LI->getContext(), 8), asmArgArrayRef, false);
+            std::string AsmStringStr = "pextrb $$"+std::to_string(byteOffset) + ", %xmm13, $0;";
+
+            StringRef AsmString(AsmStringStr) ;
+            StringRef Constraints = "=r";
+            InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
+            std::vector<llvm::Value*> argsArr;
+
+            ArrayRef<Value*> args(argsArr);
+            Value* result = Builder.CreateCall(pextAsm, args); 
+            return result;
+        }
+
+        Value* AESCache::insertExtractWordFromXMM(LoadInst* LI, int wordOffset, int xmmRegNo) {
+            IRBuilder<> Builder(LI);
+            std::vector<llvm::Type *> asmArgTypes; 
+            ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
+
+            FunctionType* FuncTy = FunctionType::get(IntegerType::get(LI->getContext(), 16), asmArgArrayRef, false);
+            std::string AsmStringStr = "pextrw $$"+std::to_string(wordOffset) + ", %xmm13, $0;";
+
+            StringRef AsmString (AsmStringStr);
+            StringRef Constraints = "=r";
+            InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
+            std::vector<llvm::Value*> argsArr;
+
+            ArrayRef<Value*> args(argsArr);
+            Value* result = Builder.CreateCall(pextAsm, args); 
+            return result;
+
+        }
+
+        Value* AESCache::insertExtractDWordFromXMM(LoadInst* LI, int dwordOffset, int xmmRegNo) {
+            IRBuilder<> Builder(LI);
+            std::vector<llvm::Type *> asmArgTypes; 
+            ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
+
+            FunctionType* FuncTy = FunctionType::get(IntegerType::get(LI->getContext(), 32), asmArgArrayRef, false);
+            std::string AsmStringStr = "pextrd $$"+std::to_string(dwordOffset) + ", %xmm13, $0;";
+            StringRef AsmString(AsmStringStr);
+            StringRef Constraints = "=r";
+            InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
+            std::vector<llvm::Value*> argsArr;
+
+            ArrayRef<Value*> args(argsArr);
+            Value* result = Builder.CreateCall(pextAsm, args); 
+            return result;
+        }
+
+        Value* AESCache::insertExtractQWordFromXMM(LoadInst* LI, int qwordOffset, int xmmRegNo) {
+            IRBuilder<> Builder(LI);
+            std::vector<llvm::Type *> asmArgTypes; 
+            ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
+
+            FunctionType* FuncTy = FunctionType::get(IntegerType::get(LI->getContext(), 64), asmArgArrayRef, false);
+            std::string AsmStringStr = "pextrq $$"+std::to_string(qwordOffset) + ", %xmm13, $0;";
+            StringRef AsmString(AsmStringStr);
+            StringRef Constraints = "=r";
+            InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
+            std::vector<llvm::Value*> argsArr;
+
+            ArrayRef<Value*> args(argsArr);
+            Value* result = Builder.CreateCall(pextAsm, args); 
+            return result;
+        }
+        Value* AESCache::setEncryptedValueCached(StoreInst* plainTextVal) {
+            int byteOffset = 0;
+            Value* PointerVal = nullptr;
+            Type* PlainTextValType = nullptr;
+            GetElementPtrInst* GEPVal;
+            IRBuilder<> Builder(plainTextVal);
+            IntegerType* PlainTextValIntType = nullptr;
+            PointerType* PlainTextValPtrType = nullptr;
+
+            StoreInst* stInst = dyn_cast<StoreInst>(plainTextVal);
+            Value* stInstPtrOperand = stInst->getPointerOperand();
+            Value* stInstValueOperand = stInst->getValueOperand();
+            //errs()<<"Original store "<<*stInst<<"\n";
+
+            /*if (stInstPtrOperand->getType()->getPointerElementType()->isPointerTy()) {
+              errs()<<" Pointer Type "<<*stInstPtrOperand<<"\n";
+              auto* originalStore = stInst->clone();
+              originalStore->insertBefore(stInst);
+              errs()<<"Created Store "<<*originalStore<<"\n";
+              return nullptr;
+              }*/
+            Type* byteType = Type::getInt8Ty(plainTextVal->getContext());
+            PointerType* bytePtrType = PointerType::get(byteType, 0);
+
+            bool isLoop = false;
+            int INCREMENT = 0;
+            PlainTextValIntType = dyn_cast<IntegerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
+            PlainTextValPtrType = dyn_cast<PointerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
+            if (PlainTextValIntType) {
+                if (PlainTextValIntType->getBitWidth() == 8) {
+                    INCREMENT = 1;
+                } else if (PlainTextValIntType->getBitWidth() == 16) {
+                    INCREMENT = 2;
+                } else if (PlainTextValIntType->getBitWidth() == 32) {
+                    INCREMENT = 4;
+                } else if (PlainTextValIntType->getBitWidth() == 64) {
+                    INCREMENT = 8;
+                }
+            } else if (PlainTextValPtrType) {
+                INCREMENT = 8; // Pointer always 64 bit
+            } else {
+                errs() << "Unknown type. Can't encrypt!\n";
+                assert(false);
+            }
+            std::vector<Value*> encryptArgList;
+            PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
+            IntegerType* stInstIntegerType = dyn_cast<IntegerType>(stInstPtrType->getPointerElementType());
+            PointerType* stInstPtrElemType = dyn_cast<PointerType>(stInstPtrType->getPointerElementType());
+            assert((stInstIntegerType != nullptr) || (stInstPtrElemType != nullptr));
+            Value* PtrOperand = nullptr;
+            Value* ValueOperand = nullptr;
+
+            if (stInstIntegerType && stInstIntegerType->getBitWidth() == 8) {
+                PtrOperand = stInstPtrOperand;
+            } else {
+                PtrOperand = Builder.CreateBitCast(stInstPtrOperand, bytePtrType);
+            }
+
+            if (stInstIntegerType) {
+                ValueOperand = stInstValueOperand;
+            } else {
+                // Check needed for NULL assignments
+                if (stInstValueOperand->getType()->isPointerTy()) {
+                    // Convert the pointer to i64
+                    ValueOperand = Builder.CreatePtrToInt(stInstValueOperand, IntegerType::get(stInstPtrOperand->getContext(), 64));
+                } else {
+                    ValueOperand = stInstValueOperand;
                 }
             }
-        }
 
-        return nullptr;
-    }
+            encryptArgList.push_back(PtrOperand);
+            encryptArgList.push_back(ValueOperand);
 
-    void AESCache::insertInsertByteToXMM(llvm::StoreInst* SI, int byteOffset, int xmmRegNo) {
-        IRBuilder<> Builder(SI);
-        std::vector<llvm::Type *> asmArgTypes;
-        asmArgTypes.push_back(IntegerType::get(SI->getContext(), 8));
-        ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
-
-        FunctionType* FuncTy = FunctionType::get(Type::getVoidTy(SI->getContext()), asmArgArrayRef, false);
-        std::string AsmStringStr = "pinsrb $$" + std::to_string(byteOffset) + ", $0, %xmm13 ;";
-        StringRef AsmString(AsmStringStr) ;
-        StringRef Constraints = "r";
-        InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
-        std::vector<llvm::Value*> argsArr;
-        argsArr.push_back(SI->getValueOperand());
-
-        ArrayRef<Value*> args(argsArr);
-        Value* result = Builder.CreateCall(pextAsm, args); 
-    }
-
-    void AESCache::insertInsertWordToXMM(llvm::StoreInst* SI, int wordOffset, int xmmRegNo) {
-        IRBuilder<> Builder(SI);
-        std::vector<llvm::Type *> asmArgTypes;
-        asmArgTypes.push_back(IntegerType::get(SI->getContext(), 16));
-        ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
-
-        FunctionType* FuncTy = FunctionType::get(Type::getVoidTy(SI->getContext()), asmArgArrayRef, false);
-        std::string AsmStringStr = "pinsrw $$" + std::to_string(wordOffset) + ", $0, %xmm13 ;";
-        StringRef AsmString(AsmStringStr) ;
-        StringRef Constraints = "r";
-        InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
-        std::vector<llvm::Value*> argsArr;
-        argsArr.push_back(SI->getValueOperand());
-
-        ArrayRef<Value*> args(argsArr);
-        Value* result = Builder.CreateCall(pextAsm, args); 
-    }
-
-    void AESCache::insertInsertDWordToXMM(llvm::StoreInst* SI, int dwordOffset, int xmmRegNo) {
-        IRBuilder<> Builder(SI);
-        std::vector<llvm::Type *> asmArgTypes;
-        asmArgTypes.push_back(IntegerType::get(SI->getContext(), 32));
-
-        ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
-
-        FunctionType* FuncTy = FunctionType::get(Type::getVoidTy(SI->getContext()), asmArgArrayRef, false);
-        std::string AsmStringStr = "pinsrd $$" + std::to_string(dwordOffset) + ", $0, %xmm13 ;";
-        StringRef AsmString(AsmStringStr) ;
-        StringRef Constraints = "r";
-        InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
-        std::vector<llvm::Value*> argsArr;
-        argsArr.push_back(SI->getValueOperand());
-
-        ArrayRef<Value*> args(argsArr);
-        Value* result = Builder.CreateCall(pextAsm, args); 
-
-    }
-
-    void AESCache::insertInsertQWordToXMM(llvm::StoreInst* SI, int qwordOffset, int xmmRegNo) {
-        IRBuilder<> Builder(SI);
-        std::vector<llvm::Type *> asmArgTypes;
-        asmArgTypes.push_back(IntegerType::get(SI->getContext(), 64));
-
-        ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
-
-        FunctionType* FuncTy = FunctionType::get(Type::getVoidTy(SI->getContext()), asmArgArrayRef, false);
-        std::string AsmStringStr = "pinsrq $$" + std::to_string(qwordOffset) + ", $0, %xmm13 ;";
-        StringRef AsmString(AsmStringStr) ;
-        StringRef Constraints = "r";
-        InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
-        std::vector<llvm::Value*> argsArr;
-        argsArr.push_back(SI->getValueOperand());
-
-        ArrayRef<Value*> args(argsArr);
-        Value* result = Builder.CreateCall(pextAsm, args); 
-    }
-
-    Value* AESCache::insertExtractByteFromXMM(LoadInst* LI, int byteOffset, int xmmRegNo) {
-        IRBuilder<> Builder(LI);
-        std::vector<llvm::Type *> asmArgTypes; 
-        ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
-
-        FunctionType* FuncTy = FunctionType::get(IntegerType::get(LI->getContext(), 8), asmArgArrayRef, false);
-        std::string AsmStringStr = "pextrb $$"+std::to_string(byteOffset) + ", %xmm13, $0;";
-
-        StringRef AsmString(AsmStringStr) ;
-        StringRef Constraints = "=r";
-        InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
-        std::vector<llvm::Value*> argsArr;
-
-        ArrayRef<Value*> args(argsArr);
-        Value* result = Builder.CreateCall(pextAsm, args); 
-        return result;
-    }
-
-    Value* AESCache::insertExtractWordFromXMM(LoadInst* LI, int wordOffset, int xmmRegNo) {
-        IRBuilder<> Builder(LI);
-        std::vector<llvm::Type *> asmArgTypes; 
-        ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
-
-        FunctionType* FuncTy = FunctionType::get(IntegerType::get(LI->getContext(), 16), asmArgArrayRef, false);
-        std::string AsmStringStr = "pextrw $$"+std::to_string(wordOffset) + ", %xmm13, $0;";
-
-        StringRef AsmString (AsmStringStr);
-        StringRef Constraints = "=r";
-        InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
-        std::vector<llvm::Value*> argsArr;
-
-        ArrayRef<Value*> args(argsArr);
-        Value* result = Builder.CreateCall(pextAsm, args); 
-        return result;
-
-    }
-
-    Value* AESCache::insertExtractDWordFromXMM(LoadInst* LI, int dwordOffset, int xmmRegNo) {
-        IRBuilder<> Builder(LI);
-        std::vector<llvm::Type *> asmArgTypes; 
-        ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
-
-        FunctionType* FuncTy = FunctionType::get(IntegerType::get(LI->getContext(), 32), asmArgArrayRef, false);
-        std::string AsmStringStr = "pextrd $$"+std::to_string(dwordOffset) + ", %xmm13, $0;";
-        StringRef AsmString(AsmStringStr);
-        StringRef Constraints = "=r";
-        InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
-        std::vector<llvm::Value*> argsArr;
-
-        ArrayRef<Value*> args(argsArr);
-        Value* result = Builder.CreateCall(pextAsm, args); 
-        return result;
-    }
-
-    Value* AESCache::insertExtractQWordFromXMM(LoadInst* LI, int qwordOffset, int xmmRegNo) {
-        IRBuilder<> Builder(LI);
-        std::vector<llvm::Type *> asmArgTypes; 
-        ArrayRef<Type*> asmArgArrayRef(asmArgTypes);
-
-        FunctionType* FuncTy = FunctionType::get(IntegerType::get(LI->getContext(), 64), asmArgArrayRef, false);
-        std::string AsmStringStr = "pextrq $$"+std::to_string(qwordOffset) + ", %xmm13, $0;";
-        StringRef AsmString(AsmStringStr);
-        StringRef Constraints = "=r";
-        InlineAsm* pextAsm = InlineAsm::get(FuncTy, AsmString, Constraints, true /*hasSideEffects*/, false /*align stack*/, llvm::InlineAsm::AD_ATT);
-        std::vector<llvm::Value*> argsArr;
-
-        ArrayRef<Value*> args(argsArr);
-        Value* result = Builder.CreateCall(pextAsm, args); 
-        return result;
-    }
-    Value* AESCache::setEncryptedValueCached(StoreInst* plainTextVal) {
-        int byteOffset = 0;
-        Value* PointerVal = nullptr;
-        Type* PlainTextValType = nullptr;
-        GetElementPtrInst* GEPVal;
-        IRBuilder<> Builder(plainTextVal);
-        IntegerType* PlainTextValIntType = nullptr;
-        PointerType* PlainTextValPtrType = nullptr;
-
-        StoreInst* stInst = dyn_cast<StoreInst>(plainTextVal);
-        Value* stInstPtrOperand = stInst->getPointerOperand();
-        Value* stInstValueOperand = stInst->getValueOperand();
-
-        Type* byteType = Type::getInt8Ty(plainTextVal->getContext());
-        PointerType* bytePtrType = PointerType::get(byteType, 0);
-
-        bool isLoop = false;
-        int INCREMENT = 0;
-        PlainTextValIntType = dyn_cast<IntegerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
-        PlainTextValPtrType = dyn_cast<PointerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
-        if (PlainTextValIntType) {
-            if (PlainTextValIntType->getBitWidth() == 8) {
-                INCREMENT = 1;
-            } else if (PlainTextValIntType->getBitWidth() == 16) {
-                INCREMENT = 2;
-            } else if (PlainTextValIntType->getBitWidth() == 32) {
-                INCREMENT = 4;
-            } else if (PlainTextValIntType->getBitWidth() == 64) {
-                INCREMENT = 8;
+            Value* val = nullptr;
+            switch(INCREMENT) {
+                case 1:
+                    val = Builder.CreateCall(this->encryptLoopByteFunction, encryptArgList);
+                    break;
+                case 2:
+                    val = Builder.CreateCall(this->encryptLoopWordFunction, encryptArgList);
+                    break;
+                case 4:
+                    val = Builder.CreateCall(this->encryptLoopDWordFunction, encryptArgList);
+                    break;
+                case 8:
+                    val = Builder.CreateCall(this->encryptLoopQWordFunction, encryptArgList);
+                    break;
             }
-        } else if (PlainTextValPtrType) {
-            INCREMENT = 8; // Pointer always 64 bit
-        } else {
-            errs() << "Unknown type. Can't encrypt!\n";
-            assert(false);
-        }
-        std::vector<Value*> encryptArgList;
-        PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
-        IntegerType* stInstIntegerType = dyn_cast<IntegerType>(stInstPtrType->getPointerElementType());
-        PointerType* stInstPtrElemType = dyn_cast<PointerType>(stInstPtrType->getPointerElementType());
-        assert((stInstIntegerType != nullptr) || (stInstPtrElemType != nullptr));
-        Value* PtrOperand = nullptr;
-        Value* ValueOperand = nullptr;
-
-        if (stInstIntegerType && stInstIntegerType->getBitWidth() == 8) {
-            PtrOperand = stInstPtrOperand;
-        } else {
-            PtrOperand = Builder.CreateBitCast(stInstPtrOperand, bytePtrType);
+            return nullptr;
         }
 
-        if (stInstIntegerType) {
-            ValueOperand = stInstValueOperand;
-        } else {
-            // Check needed for NULL assignments
-            if (stInstValueOperand->getType()->isPointerTy()) {
-                // Convert the pointer to i64
-                ValueOperand = Builder.CreatePtrToInt(stInstValueOperand, IntegerType::get(stInstPtrOperand->getContext(), 64));
+
+        Value* AESCache::setEncryptedValueCachedDfsan(StoreInst* plainTextVal) {
+            int byteOffset = 0;
+            Value* PointerVal = nullptr;
+            Type* PlainTextValType = nullptr;
+            GetElementPtrInst* GEPVal;
+            IRBuilder<> Builder(plainTextVal);
+            IntegerType* PlainTextValIntType = nullptr;
+            PointerType* PlainTextValPtrType = nullptr;
+
+            StoreInst* stInst = dyn_cast<StoreInst>(plainTextVal);
+            Value* stInstPtrOperand = stInst->getPointerOperand();
+            Value* stInstValueOperand = stInst->getValueOperand();
+
+            Type* byteType = Type::getInt8Ty(plainTextVal->getContext());
+            PointerType* bytePtrType = PointerType::get(byteType, 0);
+
+            bool isLoop = false;
+            int INCREMENT = 0;
+            PlainTextValIntType = dyn_cast<IntegerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
+            PlainTextValPtrType = dyn_cast<PointerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
+            if (PlainTextValIntType) {
+                if (PlainTextValIntType->getBitWidth() == 8) {
+                    INCREMENT = 1;
+                } else if (PlainTextValIntType->getBitWidth() == 16) {
+                    INCREMENT = 2;
+                } else if (PlainTextValIntType->getBitWidth() == 32) {
+                    INCREMENT = 4;
+                } else if (PlainTextValIntType->getBitWidth() == 64) {
+                    INCREMENT = 8;
+                }
+            } else if (PlainTextValPtrType) {
+                INCREMENT = 8; // Pointer always 64 bit
             } else {
-                ValueOperand = stInstValueOperand;
+                errs() << "Unknown type. Can't encrypt!\n";
+                assert(false);
             }
-        }
+            std::vector<Value*> encryptArgList;
+            PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
+            IntegerType* stInstIntegerType = dyn_cast<IntegerType>(stInstPtrType->getPointerElementType());
+            PointerType* stInstPtrElemType = dyn_cast<PointerType>(stInstPtrType->getPointerElementType());
+            assert((stInstIntegerType != nullptr) || (stInstPtrElemType != nullptr));
+            Value* PtrOperand = nullptr;
+            Value* ValueOperand = nullptr;
 
-        encryptArgList.push_back(PtrOperand);
-        encryptArgList.push_back(ValueOperand);
-
-        Value* val = nullptr;
-        switch(INCREMENT) {
-            case 1:
-                val = Builder.CreateCall(this->encryptLoopByteFunction, encryptArgList);
-                break;
-            case 2:
-                val = Builder.CreateCall(this->encryptLoopWordFunction, encryptArgList);
-                break;
-            case 4:
-                val = Builder.CreateCall(this->encryptLoopDWordFunction, encryptArgList);
-                break;
-            case 8:
-                val = Builder.CreateCall(this->encryptLoopQWordFunction, encryptArgList);
-                break;
-        }
-        return nullptr;
-    }
-
-
-    Value* AESCache::setEncryptedValueCachedDfsan(StoreInst* plainTextVal) {
-        int byteOffset = 0;
-        Value* PointerVal = nullptr;
-        Type* PlainTextValType = nullptr;
-        GetElementPtrInst* GEPVal;
-        IRBuilder<> Builder(plainTextVal);
-        IntegerType* PlainTextValIntType = nullptr;
-        PointerType* PlainTextValPtrType = nullptr;
-
-        StoreInst* stInst = dyn_cast<StoreInst>(plainTextVal);
-        Value* stInstPtrOperand = stInst->getPointerOperand();
-        Value* stInstValueOperand = stInst->getValueOperand();
-
-        Type* byteType = Type::getInt8Ty(plainTextVal->getContext());
-        PointerType* bytePtrType = PointerType::get(byteType, 0);
-
-        bool isLoop = false;
-        int INCREMENT = 0;
-        PlainTextValIntType = dyn_cast<IntegerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
-        PlainTextValPtrType = dyn_cast<PointerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
-        if (PlainTextValIntType) {
-            if (PlainTextValIntType->getBitWidth() == 8) {
-                INCREMENT = 1;
-            } else if (PlainTextValIntType->getBitWidth() == 16) {
-                INCREMENT = 2;
-            } else if (PlainTextValIntType->getBitWidth() == 32) {
-                INCREMENT = 4;
-            } else if (PlainTextValIntType->getBitWidth() == 64) {
-                INCREMENT = 8;
-            }
-        } else if (PlainTextValPtrType) {
-            INCREMENT = 8; // Pointer always 64 bit
-        } else {
-            errs() << "Unknown type. Can't encrypt!\n";
-            assert(false);
-        }
-        std::vector<Value*> encryptArgList;
-        PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
-        IntegerType* stInstIntegerType = dyn_cast<IntegerType>(stInstPtrType->getPointerElementType());
-        PointerType* stInstPtrElemType = dyn_cast<PointerType>(stInstPtrType->getPointerElementType());
-        assert((stInstIntegerType != nullptr) || (stInstPtrElemType != nullptr));
-        Value* PtrOperand = nullptr;
-        Value* ValueOperand = nullptr;
-
-        if (stInstIntegerType && stInstIntegerType->getBitWidth() == 8) {
-            PtrOperand = stInstPtrOperand;
-        } else {
-            PtrOperand = Builder.CreateBitCast(stInstPtrOperand, bytePtrType);
-        }
-
-        if (stInstIntegerType) {
-            ValueOperand = stInstValueOperand;
-        } else {
-            // Check needed for NULL assignments
-            if (stInstValueOperand->getType()->isPointerTy()) {
-                // Convert the pointer to i64
-                ValueOperand = Builder.CreatePtrToInt(stInstValueOperand, IntegerType::get(stInstPtrOperand->getContext(), 64));
+            if (stInstIntegerType && stInstIntegerType->getBitWidth() == 8) {
+                PtrOperand = stInstPtrOperand;
             } else {
+                PtrOperand = Builder.CreateBitCast(stInstPtrOperand, bytePtrType);
+            }
+
+            if (stInstIntegerType) {
                 ValueOperand = stInstValueOperand;
+            } else {
+                // Check needed for NULL assignments
+                if (stInstValueOperand->getType()->isPointerTy()) {
+                    // Convert the pointer to i64
+                    ValueOperand = Builder.CreatePtrToInt(stInstValueOperand, IntegerType::get(stInstPtrOperand->getContext(), 64));
+                } else {
+                    ValueOperand = stInstValueOperand;
+                }
             }
+
+            // Adding call to dfsan_read_label. Since we added constant 1 as label, we check against 1; 
+            // depending on the compare result we create branch
+            CallInst* readLabel = nullptr;
+            ConstantInt* noOfByte = Builder.getInt64(1);
+            readLabel = Builder.CreateCall(this->DFSanReadLabelFn, {PtrOperand, noOfByte});
+            readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+            //errs()<< "Value of readlabel is :"<<*readLabel<<"\n";
+
+            Type *int32Ty;
+            int32Ty = Type::getInt32Ty(plainTextVal->getContext());
+
+
+            ConstantInt *One = Builder.getInt16(1);
+            Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+            Instruction* SplitBefore = cast<Instruction>(plainTextVal);
+
+            TerminatorInst *ThenTerm, *ElseTerm;
+            SplitBlockAndInsertIfThenElse(cmpInst, SplitBefore, &ThenTerm, &ElseTerm);
+
+            Builder.SetInsertPoint(ThenTerm);
+
+            encryptArgList.push_back(PtrOperand);
+            encryptArgList.push_back(ValueOperand);
+
+            Value* val = nullptr;
+            switch(INCREMENT) {
+                case 1:
+                    val = Builder.CreateCall(this->encryptLoopByteFunction, encryptArgList);
+                    break;
+                case 2:
+                    val = Builder.CreateCall(this->encryptLoopWordFunction, encryptArgList);
+                    break;
+                case 4:
+                    val = Builder.CreateCall(this->encryptLoopDWordFunction, encryptArgList);
+                    break;
+                case 8:
+                    val = Builder.CreateCall(this->encryptLoopQWordFunction, encryptArgList);
+                    break;
+            }
+
+            Builder.SetInsertPoint(ElseTerm);
+            auto originalStore = Builder.CreateStore(stInstValueOperand,stInstPtrOperand);
+
+            Builder.SetInsertPoint(SplitBefore);
+
+            return nullptr;
         }
 
-        // Adding call to dfsan_read_label. Since we added constant 1 as label, we check against 1; 
-        // depending on the compare result we create branch
-        CallInst* readLabel = nullptr;
-        ConstantInt* noOfByte = Builder.getInt64(1);
-        readLabel = Builder.CreateCall(this->DFSanReadLabelFn, {PtrOperand, noOfByte});
-        readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
-        //errs()<< "Value of readlabel is :"<<*readLabel<<"\n";
 
-        Type *int32Ty;
-        int32Ty = Type::getInt32Ty(plainTextVal->getContext());
+        Value* AESCache::getDecryptedValueCached(LoadInst* encVal) {
+            Value* retVal = nullptr;
+            int byteOffset = 0;
+            Value* PointerVal = nullptr;
+            Type* EncValType = nullptr;
+            GetElementPtrInst* GEPVal;
+            IRBuilder<> Builder(encVal);
+            IntegerType* EncValIntType = nullptr;
+            PointerType* EncValPtrType = nullptr;
 
+            bool isLoop = false;
 
-        ConstantInt *One = Builder.getInt16(1);
-        Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
-        Instruction* SplitBefore = cast<Instruction>(plainTextVal);
+            LoadInst* ldInst = dyn_cast<LoadInst>(encVal);
+            Value* ldInstPtrOperand = ldInst->getPointerOperand();
 
-        TerminatorInst *ThenTerm, *ElseTerm;
-        SplitBlockAndInsertIfThenElse(cmpInst, SplitBefore, &ThenTerm, &ElseTerm);
+            /*errs()<<"Original Load "<<*ldInst<<"\n";
+              if (ldInstPtrOperand->getType()->getPointerElementType()->isPointerTy()) {
+              errs()<<" Pointer Type "<<*ldInstPtrOperand<<"\n";
+              auto* originalLoad = ldInst->clone();
+              originalLoad->insertBefore(ldInst);
+              errs()<<"Created Load "<<*originalLoad<<"\n";
+              return originalLoad;
+              }*/
 
-        Builder.SetInsertPoint(ThenTerm);
+            Type* byteType = Type::getInt8Ty(encVal->getContext());
+            PointerType* bytePtrType = PointerType::get(byteType, 0);
 
-        encryptArgList.push_back(PtrOperand);
-        encryptArgList.push_back(ValueOperand);
+            int INCREMENT = 0;
+            EncValIntType =  dyn_cast<IntegerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
+            EncValPtrType = dyn_cast<PointerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
 
-        Value* val = nullptr;
-        switch(INCREMENT) {
-            case 1:
-                val = Builder.CreateCall(this->encryptLoopByteFunction, encryptArgList);
-                break;
-            case 2:
-                val = Builder.CreateCall(this->encryptLoopWordFunction, encryptArgList);
-                break;
-            case 4:
-                val = Builder.CreateCall(this->encryptLoopDWordFunction, encryptArgList);
-                break;
-            case 8:
-                val = Builder.CreateCall(this->encryptLoopQWordFunction, encryptArgList);
-                break;
-        }
-
-        Builder.SetInsertPoint(ElseTerm);
-        auto originalStore = Builder.CreateStore(stInstValueOperand,stInstPtrOperand);
-
-        Builder.SetInsertPoint(SplitBefore);
-        
-        return nullptr;
-    }
-
-
-    Value* AESCache::getDecryptedValueCached(LoadInst* encVal) {
-        Value* retVal = nullptr;
-        int byteOffset = 0;
-        Value* PointerVal = nullptr;
-        Type* EncValType = nullptr;
-        GetElementPtrInst* GEPVal;
-        IRBuilder<> Builder(encVal);
-        IntegerType* EncValIntType = nullptr;
-        PointerType* EncValPtrType = nullptr;
-
-        bool isLoop = false;
-
-        LoadInst* ldInst = dyn_cast<LoadInst>(encVal);
-        Value* ldInstPtrOperand = ldInst->getPointerOperand();
-        errs()<<"Value of loadptr "<<*ldInstPtrOperand<<"\n";
-
-        Type* byteType = Type::getInt8Ty(encVal->getContext());
-        PointerType* bytePtrType = PointerType::get(byteType, 0);
-
-        int INCREMENT = 0;
-        EncValIntType =  dyn_cast<IntegerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
-        EncValPtrType = dyn_cast<PointerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
-
-        if (EncValIntType) {
-            if (EncValIntType->getBitWidth() == 8) {
-                INCREMENT = 1;
-            } else if (EncValIntType->getBitWidth() == 16) {
-                INCREMENT = 2;
-            } else if (EncValIntType->getBitWidth() == 32) {
-                INCREMENT = 4;
-            } else if (EncValIntType->getBitWidth() == 64) {
+            if (EncValIntType) {
+                if (EncValIntType->getBitWidth() == 8) {
+                    INCREMENT = 1;
+                } else if (EncValIntType->getBitWidth() == 16) {
+                    INCREMENT = 2;
+                } else if (EncValIntType->getBitWidth() == 32) {
+                    INCREMENT = 4;
+                } else if (EncValIntType->getBitWidth() == 64) {
+                    INCREMENT = 8;
+                }
+            } else if (EncValPtrType) {
                 INCREMENT = 8;
+            } else {
+                errs() << "Unknown type - can't encrypt!\n";
+                assert(false);
             }
-        } else if (EncValPtrType) {
-            INCREMENT = 8;
-        } else {
-            errs() << "Unknown type - can't encrypt!\n";
-            assert(false);
+
+            PointerType* ldInstPtrType = dyn_cast<PointerType>(ldInstPtrOperand->getType());
+            IntegerType* ldInstIntegerType = dyn_cast<IntegerType>(ldInstPtrType->getPointerElementType());
+            PointerType* ldInstPtrElemType = dyn_cast<PointerType>(ldInstPtrType->getPointerElementType());
+
+            assert((ldInstIntegerType != nullptr) || (ldInstPtrElemType != nullptr));
+            Value* PtrOperand = nullptr;
+            if (ldInstIntegerType && ldInstIntegerType->getBitWidth() == 8) {
+                PtrOperand = ldInstPtrOperand;
+            } else {
+                PtrOperand = Builder.CreateBitCast(ldInstPtrOperand, bytePtrType);
+            }
+
+            std::vector<Value*> decryptArgList;
+            decryptArgList.push_back(PtrOperand);
+
+            switch(INCREMENT) {
+                case 1:
+                    retVal = Builder.CreateCall(this->decryptLoopByteFunction, decryptArgList);
+                    break;
+                case 2:
+                    retVal = Builder.CreateCall(this->decryptLoopWordFunction, decryptArgList);
+                    break;
+                case 4:
+                    retVal = Builder.CreateCall(this->decryptLoopDWordFunction, decryptArgList);
+                    break;
+                case 8:
+                    retVal = Builder.CreateCall(this->decryptLoopQWordFunction, decryptArgList);
+                    break;
+            }
+
+            if (ldInstPtrElemType) {
+                // If it's a pointer type, then the return value must be cast to the correct type
+                // int to ptr
+                retVal = Builder.CreateIntToPtr(retVal, ldInst->getType());
+            }
+            return retVal;
+
         }
 
-        PointerType* ldInstPtrType = dyn_cast<PointerType>(ldInstPtrOperand->getType());
-        IntegerType* ldInstIntegerType = dyn_cast<IntegerType>(ldInstPtrType->getPointerElementType());
-        PointerType* ldInstPtrElemType = dyn_cast<PointerType>(ldInstPtrType->getPointerElementType());
+        Value* AESCache::getDecryptedValueCachedDfsan(LoadInst* encVal) {
+            Value* retVal = nullptr;
+            int byteOffset = 0;
+            Value* PointerVal = nullptr;
+            Type* EncValType = nullptr;
+            GetElementPtrInst* GEPVal;
+            IRBuilder<> Builder(encVal);
+            IntegerType* EncValIntType = nullptr;
+            PointerType* EncValPtrType = nullptr;
 
-        assert((ldInstIntegerType != nullptr) || (ldInstPtrElemType != nullptr));
-        Value* PtrOperand = nullptr;
-        if (ldInstIntegerType && ldInstIntegerType->getBitWidth() == 8) {
-            PtrOperand = ldInstPtrOperand;
-        } else {
-            PtrOperand = Builder.CreateBitCast(ldInstPtrOperand, bytePtrType);
-        }
+            bool isLoop = false;
 
-        std::vector<Value*> decryptArgList;
-        decryptArgList.push_back(PtrOperand);
+            LoadInst* ldInst = dyn_cast<LoadInst>(encVal);
+            Value* ldInstPtrOperand = ldInst->getPointerOperand();
+            //errs()<<"Value of loadptr check "<<*ldInstPtrOperand<<"\n";
 
-        switch(INCREMENT) {
-            case 1:
-                retVal = Builder.CreateCall(this->decryptLoopByteFunction, decryptArgList);
-                break;
-            case 2:
-                retVal = Builder.CreateCall(this->decryptLoopWordFunction, decryptArgList);
-                break;
-            case 4:
-                retVal = Builder.CreateCall(this->decryptLoopDWordFunction, decryptArgList);
-                break;
-            case 8:
-                retVal = Builder.CreateCall(this->decryptLoopQWordFunction, decryptArgList);
-                break;
-        }
 
-        if (ldInstPtrElemType) {
-            // If it's a pointer type, then the return value must be cast to the correct type
-            // int to ptr
-            retVal = Builder.CreateIntToPtr(retVal, ldInst->getType());
-        }
-        return retVal;
+            Type* byteType = Type::getInt8Ty(encVal->getContext());
+            PointerType* bytePtrType = PointerType::get(byteType, 0);
 
-    }
+            int INCREMENT = 0;
+            EncValIntType =  dyn_cast<IntegerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
+            EncValPtrType = dyn_cast<PointerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
 
-    Value* AESCache::getDecryptedValueCachedDfsan(LoadInst* encVal) {
-        Value* retVal = nullptr;
-        int byteOffset = 0;
-        Value* PointerVal = nullptr;
-        Type* EncValType = nullptr;
-        GetElementPtrInst* GEPVal;
-        IRBuilder<> Builder(encVal);
-        IntegerType* EncValIntType = nullptr;
-        PointerType* EncValPtrType = nullptr;
-
-        bool isLoop = false;
-
-        LoadInst* ldInst = dyn_cast<LoadInst>(encVal);
-        Value* ldInstPtrOperand = ldInst->getPointerOperand();
-        errs()<<"Value of loadptr check "<<*ldInstPtrOperand<<"\n";
-
-        Type* byteType = Type::getInt8Ty(encVal->getContext());
-        PointerType* bytePtrType = PointerType::get(byteType, 0);
-
-        int INCREMENT = 0;
-        EncValIntType =  dyn_cast<IntegerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
-        EncValPtrType = dyn_cast<PointerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
-
-        if (EncValIntType) {
-            if (EncValIntType->getBitWidth() == 8) {
-                INCREMENT = 1;
-            } else if (EncValIntType->getBitWidth() == 16) {
-                INCREMENT = 2;
-            } else if (EncValIntType->getBitWidth() == 32) {
-                INCREMENT = 4;
-            } else if (EncValIntType->getBitWidth() == 64) {
+            if (EncValIntType) {
+                if (EncValIntType->getBitWidth() == 8) {
+                    INCREMENT = 1;
+                } else if (EncValIntType->getBitWidth() == 16) {
+                    INCREMENT = 2;
+                } else if (EncValIntType->getBitWidth() == 32) {
+                    INCREMENT = 4;
+                } else if (EncValIntType->getBitWidth() == 64) {
+                    INCREMENT = 8;
+                }
+            } else if (EncValPtrType) {
                 INCREMENT = 8;
+            } else {
+                errs() << "Unknown type - can't encrypt!\n";
+                assert(false);
             }
-        } else if (EncValPtrType) {
-            INCREMENT = 8;
-        } else {
-            errs() << "Unknown type - can't encrypt!\n";
-            assert(false);
+
+            PointerType* ldInstPtrType = dyn_cast<PointerType>(ldInstPtrOperand->getType());
+            IntegerType* ldInstIntegerType = dyn_cast<IntegerType>(ldInstPtrType->getPointerElementType());
+            PointerType* ldInstPtrElemType = dyn_cast<PointerType>(ldInstPtrType->getPointerElementType());
+
+            assert((ldInstIntegerType != nullptr) || (ldInstPtrElemType != nullptr));
+            Value* PtrOperand = nullptr;
+            if (ldInstIntegerType && ldInstIntegerType->getBitWidth() == 8) {
+                PtrOperand = ldInstPtrOperand;
+            } else {
+                PtrOperand = Builder.CreateBitCast(ldInstPtrOperand, bytePtrType);
+            }
+
+            CallInst* readLabel = nullptr;
+            ConstantInt* noOfByte = Builder.getInt64(1);
+            readLabel = Builder.CreateCall(this->DFSanReadLabelFn, {PtrOperand, noOfByte});
+            readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+
+            Type *int32Ty;
+            int32Ty = Type::getInt32Ty(encVal->getContext());
+
+
+            ConstantInt *One = Builder.getInt16(1);
+            Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+            Instruction* SplitBefore = cast<Instruction>(encVal);
+
+            TerminatorInst *ThenTerm, *ElseTerm;
+            SplitBlockAndInsertIfThenElse(cmpInst, SplitBefore, &ThenTerm, &ElseTerm);
+
+            Builder.SetInsertPoint(ThenTerm);
+
+            std::vector<Value*> decryptArgList;
+            decryptArgList.push_back(PtrOperand);
+
+            switch(INCREMENT) {
+                case 1:
+                    retVal = Builder.CreateCall(this->decryptLoopByteFunction, decryptArgList);
+                    break;
+                case 2:
+                    retVal = Builder.CreateCall(this->decryptLoopWordFunction, decryptArgList);
+                    break;
+                case 4:
+                    retVal = Builder.CreateCall(this->decryptLoopDWordFunction, decryptArgList);
+                    break;
+                case 8:
+                    retVal = Builder.CreateCall(this->decryptLoopQWordFunction, decryptArgList);
+                    break;
+            }
+
+            if (ldInstPtrElemType) {
+                retVal = Builder.CreateIntToPtr(retVal, ldInst->getType());
+            }
+
+            Builder.SetInsertPoint(ElseTerm);
+            auto originalLoad = Builder.CreateLoad(ldInstPtrOperand);
+
+            Builder.SetInsertPoint(SplitBefore);
+
+            PHINode *phi = Builder.CreatePHI(retVal->getType(), 2);
+            phi->addIncoming(retVal, ThenTerm->getParent());
+            phi->addIncoming(originalLoad, ElseTerm->getParent());
+
+            return phi;
+
         }
 
-        PointerType* ldInstPtrType = dyn_cast<PointerType>(ldInstPtrOperand->getType());
-        IntegerType* ldInstIntegerType = dyn_cast<IntegerType>(ldInstPtrType->getPointerElementType());
-        PointerType* ldInstPtrElemType = dyn_cast<PointerType>(ldInstPtrType->getPointerElementType());
-
-        assert((ldInstIntegerType != nullptr) || (ldInstPtrElemType != nullptr));
-        Value* PtrOperand = nullptr;
-        if (ldInstIntegerType && ldInstIntegerType->getBitWidth() == 8) {
-            PtrOperand = ldInstPtrOperand;
-        } else {
-            PtrOperand = Builder.CreateBitCast(ldInstPtrOperand, bytePtrType);
+        void AESCache::writeback(Instruction* insertionPoint) {
+            IRBuilder<> Builder(insertionPoint);
+            std::vector<Value*> argList;
+            Builder.CreateCall(this->writebackFunction, argList);
         }
-
-        CallInst* readLabel = nullptr;
-        ConstantInt* noOfByte = Builder.getInt64(1);
-        readLabel = Builder.CreateCall(this->DFSanReadLabelFn, {PtrOperand, noOfByte});
-        readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
-
-        Type *int32Ty;
-        int32Ty = Type::getInt32Ty(encVal->getContext());
-
-
-        ConstantInt *One = Builder.getInt16(1);
-        Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
-        Instruction* SplitBefore = cast<Instruction>(encVal);
-
-        TerminatorInst *ThenTerm, *ElseTerm;
-        SplitBlockAndInsertIfThenElse(cmpInst, SplitBefore, &ThenTerm, &ElseTerm);
-
-        Builder.SetInsertPoint(ThenTerm);
-
-        std::vector<Value*> decryptArgList;
-        decryptArgList.push_back(PtrOperand);
-
-        switch(INCREMENT) {
-            case 1:
-                retVal = Builder.CreateCall(this->decryptLoopByteFunction, decryptArgList);
-                break;
-            case 2:
-                retVal = Builder.CreateCall(this->decryptLoopWordFunction, decryptArgList);
-                break;
-            case 4:
-                retVal = Builder.CreateCall(this->decryptLoopDWordFunction, decryptArgList);
-                break;
-            case 8:
-                retVal = Builder.CreateCall(this->decryptLoopQWordFunction, decryptArgList);
-                break;
-        }
-
-        if (ldInstPtrElemType) {
-            retVal = Builder.CreateIntToPtr(retVal, ldInst->getType());
-        }
-
-        Builder.SetInsertPoint(ElseTerm);
-        auto originalLoad = Builder.CreateLoad(ldInstPtrOperand);
-
-        Builder.SetInsertPoint(SplitBefore);
-
-        PHINode *phi = Builder.CreatePHI(retVal->getType(), 2);
-        phi->addIncoming(retVal, ThenTerm->getParent());
-        phi->addIncoming(originalLoad, ElseTerm->getParent());
-
-        return phi;
 
     }
-
-    void AESCache::writeback(Instruction* insertionPoint) {
-        IRBuilder<> Builder(insertionPoint);
-        std::vector<Value*> argList;
-        Builder.CreateCall(this->writebackFunction, argList);
-    }
-
-}
