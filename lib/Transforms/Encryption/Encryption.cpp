@@ -203,6 +203,9 @@ namespace {
                 AU.addRequired<WPAPass>();
                 //AU.setPreservesAll();
             }
+            inline void externalFuctionHandlerForPartitioning(Module& , CallInst*, Function*, Function*, Value*, std::vector<Value*>&);
+            inline void externalFuctionHandler(Module&, CallInst*, Function*, Function*, std::vector<Value*>&);
+
 
     };
 }
@@ -1769,7 +1772,7 @@ int EncryptionPass::getCompositeSzValue(Value* value, Module& M) {
     assert(false && "getCompositeSzValue called with a non-composite type!");
 }
 
-inline void externalFuctionHandlerForPartitioning(Module &M, CallInst* externalCallInst, Function* decryptFunction, Function* encryptFunction,
+inline void EncryptionPass::externalFuctionHandlerForPartitioning(Module &M, CallInst* externalCallInst, Function* decryptFunction, Function* encryptFunction,
         Value* addrForReadLabel, std::vector<Value*>& ArgList){
     IRBuilder<> Builder(externalCallInst);
     Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
@@ -1798,7 +1801,7 @@ inline void externalFuctionHandlerForPartitioning(Module &M, CallInst* externalC
 }
 
 
-inline void externalFuctionHandler(Module &M, CallInst* externalCallInst, Function* decryptFunction, Function* encryptFunction, std::vector<Value*>& ArgList){
+inline void EncryptionPass::externalFuctionHandler(Module &M, CallInst* externalCallInst, Function* decryptFunction, Function* encryptFunction, std::vector<Value*>& ArgList){
     
     IRBuilder<> Builder(externalCallInst);
     Builder.CreateCall(decryptFunction, ArgList); // Bug Fix - Need to do this for unaligned buffers
