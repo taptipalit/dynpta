@@ -3363,7 +3363,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     }
 
     for (CallInst* callInst: sensitiveMemAllocCalls) {
-        errs() << "Sensitive mem alloc function call: " << *callInst << "\n";
+        errs() << "Sensitive mem alloc function call: " << *callInst << " in function " << callInst->getParent()->getParent()->getName() << "\n";
     }
     /*
     collectGlobalSensitiveAnnotations(M);
@@ -3489,7 +3489,6 @@ bool EncryptionPass::runOnModule(Module &M) {
         // memory
         for (PAGNode* sensitivePtrNode: pointsFroms) {
             if (!sensitivePtrNode->hasValue()) {
-                errs() << "Dummy value has id: " << sensitivePtrNode->getId() << "\n";
                 continue;
             }
             Value* ptrVal = const_cast<Value*>(sensitivePtrNode->getValue());
