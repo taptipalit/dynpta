@@ -199,7 +199,7 @@ namespace {
             //void collectVoidDataObjects(Module&);
 
             void getAnalysisUsage(AnalysisUsage& AU) const {
-                //AU.addRequired<LibcTransformPass>();
+                AU.addRequired<SensitiveMemAllocTrackerPass>();
                 AU.addRequired<WPAPass>();
                 //AU.setPreservesAll();
             }
@@ -886,7 +886,7 @@ void EncryptionPass::collectLocalSensitiveAnnotations(Module &M) {
                             if (isa<CallInst>(Inst)) {
                                 CallInst* CInst = dyn_cast<CallInst>(Inst);
                                 // CallInst->getCalledValue() gives us a pointer to the Function
-                                if (CInst->getCalledValue()->getName().equals("llvm.var.annotation") || CInst->getCalledValue()->getName().startswith("llvm.ptr.annotation")) {
+                                if (CInst->getCalledValue()->getName().equals("llvm.var.annotation")) {
                                     Value* SV = CInst->getArgOperand(0);
                                     for (Value::use_iterator useItr = SV->use_begin(), useEnd = SV->use_end(); useItr != useEnd; useItr++) {
                                         Value* UseValue = dyn_cast<Value>(*useItr);
@@ -3328,6 +3328,13 @@ bool EncryptionPass::runOnModule(Module &M) {
         dbgs() << "Running Encryption pass\n";
     );
 
+    std::vector<llvm::CallInst*> sensitiveMemAllocCalls = 
+        getAnalysis<SensitiveMemAllocTrackerPass>().getSensitiveMemAllocCalls();
+
+    for (CallInst* callInst: sensitiveMemAllocCalls) {
+        errs() << "Sensitive mem alloc function call: " << *callInst << "\n";
+    }
+
     SensitiveObjSet = nullptr;
 
     DoAESEncCache = true;
@@ -3528,7 +3535,7 @@ bool EncryptionPass::runOnModule(Module &M) {
 }
 
 INITIALIZE_PASS_BEGIN(EncryptionPass, "encryption", "Identify and instrument sensitive variables", false, true)
-//INITIALIZE_PASS_DEPENDENCY(LibcTransformPass);
+INITIALIZE_PASS_DEPENDENCY(SensitiveMemAllocTrackerPass);
 INITIALIZE_PASS_DEPENDENCY(WPAPass);
 INITIALIZE_PASS_END(EncryptionPass, "encryption", "Identify and instrument sensitive variables", false, true)
 

@@ -87,6 +87,7 @@ add_llvm_library(LLVMAnalysis
   ValueTracking.cpp
   VectorUtils.cpp
   ContextSensitivityAnalysis.cpp
+  SensitiveMemAllocTracker.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/Analysis

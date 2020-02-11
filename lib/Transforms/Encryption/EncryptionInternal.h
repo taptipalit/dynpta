@@ -20,6 +20,7 @@
 
 #include "llvm/Analysis/AndersenAnalysis/AndersenAA.h"
 #include "llvm/Analysis/SVF/WPA/WPAPass.h"
+#include "llvm/Analysis/SensitiveMemAllocTrackerPass.h"
 #include "llvm/Transforms/LibcTransform.h"
 #include "llvm/Transforms/Encryption.h"
 #include "llvm/ADT/SmallVector.h"

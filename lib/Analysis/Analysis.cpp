@@ -84,6 +84,7 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeMemorySSAPrinterLegacyPassPass(Registry);
   initializeWPAPassPass(Registry);
   initializeContextSensitivityAnalysisPassPass(Registry);
+  initializeSensitiveMemAllocTrackerPassPass(Registry);
 }
 
 void LLVMInitializeAnalysis(LLVMPassRegistryRef R) {
