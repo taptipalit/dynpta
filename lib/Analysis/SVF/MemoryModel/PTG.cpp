@@ -655,7 +655,7 @@ SetID PTG::unify(SetID s1, SetID s2, bool forwardUnify, bool backwardUnify) {
     // Create a set with the unified bitvector
     SetID s3 = unifyBitVectors(s1, s2);
 
-    outs() << "Unified: " << s1 << " and " << s2 << " into " << s3 << "\n";
+    //outs() << "Unified: " << s1 << " and " << s2 << " into " << s3 << "\n";
     bool cycle = adjustPointsToRelationships(s1, s2, s3);
 
     // Now, we should unify forwards and backwards

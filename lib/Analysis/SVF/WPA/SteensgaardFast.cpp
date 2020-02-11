@@ -53,6 +53,7 @@ void SteensgaardFast::analyze(SVFModule svfModule) {
     initialize(svfModule);
     processAllAddr();
 
+    errs() << "Total number of nodes in PAG: " << pag->getTotalNodeNum() << "\n";
     // Now, initialize and build the initial points-to graph
     ptgraph = new PTG(pag, consCG, getPTDataTy());
 	double timeStart, timeEnd;

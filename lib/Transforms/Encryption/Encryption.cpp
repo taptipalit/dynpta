@@ -88,6 +88,8 @@ namespace {
             std::map<Value*, Value*> SensitivePtrValMap;
 
             std::vector<StoreInst*> SensitiveStoreList;
+            std::set<StoreInst*>* SensitiveStoreSet;
+
             std::vector<CallInst*> SensitiveExternalLibCallList;
 
             // Needed for source-sink data-flow analysis
@@ -1042,18 +1044,9 @@ void EncryptionPass::collectSensitivePointsToInfo(Module &M,
     std::set<PAGNode*>* diffSetPtr = nullptr;
     std::set<PAGNode*>* tmpPtr = nullptr;
     
-    // For Partitioning, we dont need to do the ptsFromMap analysis
-    if(Partitioning)
-        done = true;
-
     // For sanity, how many pointers point to this memory allocation site?
 
-    std::vector<PAGNode*> pointsFroms;
-    getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
-    errs() << "Points from size: " << pointsFroms.size() << "\n";
-    for (PAGNode* ptsFrom: pointsFroms) {
-        errs() << *ptsFrom << "\n";
-    }
+
     while (!done) {
         dbgs() << allocaSetPtr->size() << " New allocation sites found ... \n";
 
@@ -3172,6 +3165,8 @@ void EncryptionPass::buildSets(Module &M) {
     SensitiveLoadPtrCheckSet = new std::set<Value*>(SensitiveLoadPtrCheckList.begin(), SensitiveLoadPtrCheckList.end());
     SensitiveLoadCheckSet = new std::set<Value*>(SensitiveLoadCheckList.begin(), SensitiveLoadCheckList.end());
     SensitiveGEPPtrCheckSet = new std::set<Value*>(SensitiveGEPPtrCheckList.begin(), SensitiveGEPPtrCheckList.end());
+
+    SensitiveStoreSet = new std::set<StoreInst*>(SensitiveStoreList.begin(), SensitiveStoreList.end());
 }
 
 void EncryptionPass::unConstantifySensitiveAllocSites(Module &M) {
@@ -3342,7 +3337,6 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<CallInst*>& sen
 }
 
 bool EncryptionPass::runOnModule(Module &M) {
-
     //M.print(errs(), nullptr);
     LLVM_DEBUG (
         dbgs() << "Running Encryption pass\n";

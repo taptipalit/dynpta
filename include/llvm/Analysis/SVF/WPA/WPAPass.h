@@ -114,7 +114,7 @@ public:
 
     void performLayeredPointerAnalysis(SVFModule svfModule, llvm::Module*);
     void getPtsFrom(std::vector<PAGNode*>& sensitiveNodes,
-                    std::vector<PAGNode*>& pointsFrom);
+                    std::set<PAGNode*>& pointsFrom);
  
     /// PTA name
     virtual inline llvm::StringRef getPassName() const {
