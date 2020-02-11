@@ -403,6 +403,7 @@ void initializeWPAPassPass(PassRegistry&);
 void initializeEncryptionPassPass(PassRegistry&);
 void initializeContextSensitivityAnalysisPassPass(PassRegistry&);
 //void initializeAndersenAAWrapperPassPass(PassRegistry &);
+void initializeSensitiveMemAllocTrackerPassPass(PassRegistry&);
 
 } // end namespace llvm
 
