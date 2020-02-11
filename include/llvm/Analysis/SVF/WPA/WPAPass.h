@@ -113,7 +113,9 @@ public:
     void runOnModule(SVFModule svfModule);
 
     void performLayeredPointerAnalysis(SVFModule svfModule, llvm::Module*);
-
+    void getPtsFrom(std::vector<PAGNode*>& sensitiveNodes,
+                    std::vector<PAGNode*>& pointsFrom);
+ 
     /// PTA name
     virtual inline llvm::StringRef getPassName() const {
         return "WPAPass";

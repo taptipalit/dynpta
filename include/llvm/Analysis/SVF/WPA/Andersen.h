@@ -295,6 +295,11 @@ public:
         return ptgraph->getPts(nodeID);
     }
 
+    PointsTo& getPtsFrom(NodeID nodeID) {
+        assert(ptgraph != nullptr && "PTG is null and trying to get the points-to");
+        return ptgraph->getPtsFrom(nodeID);
+    }
+
     // Overloaded function, returns the new copy edges added
     // Updates the constraint graph with the new points-to edges discovered
     // Uses SteensgaardFast's getPts() overridden function to access the PTG

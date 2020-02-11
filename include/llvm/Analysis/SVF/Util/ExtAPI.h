@@ -62,6 +62,7 @@ public:
         //  arg0 points to; note that several fields may be
         //  copied at once if both point to structs.
         //  Returns arg0.
+        EFT_L_A0R,
         EFT_A1R_A0R,      //copies *arg0 into *arg1, with non-ptr return
         EFT_A3R_A1R_NS,   //copies *arg1 into *arg3 (non-struct copy only)
         EFT_A1R_A0,       //stores arg0 into *arg1

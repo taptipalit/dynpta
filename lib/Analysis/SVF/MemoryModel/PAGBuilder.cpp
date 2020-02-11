@@ -811,6 +811,13 @@ void PAGBuilder::handleExtCall(CallSite cs, const Function *callee) {
                 }
                 break;
             }
+            case ExtAPI::EFT_L_A0R: {
+                NodeID vnS= getValueNode(cs.getArgument(0));
+                NodeID vnD= getValueNode(inst);
+                if(vnD && vnS)
+                    pag->addLoadEdge(vnS,vnD);
+                break;
+            }
             case ExtAPI::EFT_A1R_A0R:
                 addComplexConsForExt(cs.getArgument(1), cs.getArgument(0));
                 break;

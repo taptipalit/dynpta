@@ -45,7 +45,6 @@ namespace {
             bool runOnModule(Module &M) override;
 
         private:
-            bool DoAESEncCache;
 
             external::ExtLibraryHandler ExtLibHandler;
             external::AESCache AESCache;
@@ -99,6 +98,8 @@ namespace {
             bool containsSet(llvm::Value*, std::set<llvm::Value*>&);
 
             bool contains(llvm::Value*, std::vector<llvm::Value*>&);
+
+            void addPAGNodesFromSensitiveObjects(std::vector<CallInst*>&);
 
             PAGNode* getPAGObjNodeFromValue(Value*);
             PAGNode* getPAGValNodeFromValue(Value*);
@@ -1044,6 +1045,15 @@ void EncryptionPass::collectSensitivePointsToInfo(Module &M,
     // For Partitioning, we dont need to do the ptsFromMap analysis
     if(Partitioning)
         done = true;
+
+    // For sanity, how many pointers point to this memory allocation site?
+
+    std::vector<PAGNode*> pointsFroms;
+    getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
+    errs() << "Points from size: " << pointsFroms.size() << "\n";
+    for (PAGNode* ptsFrom: pointsFroms) {
+        errs() << *ptsFrom << "\n";
+    }
     while (!done) {
         dbgs() << allocaSetPtr->size() << " New allocation sites found ... \n";
 
@@ -1850,9 +1860,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         int numArgs = externalCallInst->getNumArgOperands();
 
         // In case of AES cache encryption, write back the cache
-        if (DoAESEncCache) {
-            AESCache.writeback(externalCallInst);
-        }
+        AESCache.writeback(externalCallInst);
 
         if (externalFunction->getName() == "select") {
             // TODO - Handle all arguments
@@ -3321,6 +3329,18 @@ void EncryptionPass::fixupSizeOfOperators(Module& M) {
     }
 }
 
+void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<CallInst*>& sensitiveMemAllocCalls) {
+    PAG* pag = getAnalysis<WPAPass>().getPAG();
+    for (CallInst* sensitiveAlloc: sensitiveMemAllocCalls) {
+        SensitiveObjList.push_back(pag->getPAGNode(
+                    pag->getObjectNode(sensitiveAlloc)
+                    ));
+        SensitiveObjList.push_back(pag->getPAGNode(
+                    pag->getValueNode(sensitiveAlloc)
+                    ));
+    }
+}
+
 bool EncryptionPass::runOnModule(Module &M) {
 
     //M.print(errs(), nullptr);
@@ -3328,25 +3348,33 @@ bool EncryptionPass::runOnModule(Module &M) {
         dbgs() << "Running Encryption pass\n";
     );
 
-    std::vector<llvm::CallInst*> sensitiveMemAllocCalls = 
-        getAnalysis<SensitiveMemAllocTrackerPass>().getSensitiveMemAllocCalls();
-
-    for (CallInst* callInst: sensitiveMemAllocCalls) {
-        errs() << "Sensitive mem alloc function call: " << *callInst << "\n";
-    }
+    std::vector<llvm::CallInst*> sensitiveMemAllocCalls;
 
     SensitiveObjSet = nullptr;
 
-    DoAESEncCache = true;
     // Do Alias Analysis for pointers
-    getAnalysis<WPAPass>().buildResultMaps();
+    
+    if (!Partitioning) {
+        getAnalysis<WPAPass>().buildResultMaps();
+    }
     std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
     std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
 
     dbgs() << "Performed Pointer Analysis\n";
 
+    // The SensitiveMemAllocTracker has
+    // identified the sensitive memory allocations
+    for (CallInst* callInst: getAnalysis<SensitiveMemAllocTrackerPass>().getSensitiveMemAllocCalls()) {
+        sensitiveMemAllocCalls.push_back(callInst);
+    }
+
+    for (CallInst* callInst: sensitiveMemAllocCalls) {
+        errs() << "Sensitive mem alloc function call: " << *callInst << "\n";
+    }
+    /*
     collectGlobalSensitiveAnnotations(M);
     collectLocalSensitiveAnnotations(M);
+    */
 
     LLVM_DEBUG (
         dbgs() << "Collected sensitive annotations\n";
@@ -3359,6 +3387,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     // Remove the annotation instruction because it causes a lot of headache later on
     removeAnnotateInstruction(M);
     /* For Test Purpose*/
+    /*
     PAG* pag = getAnalysis<WPAPass>().getPAG();
     for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
         if (auto *F = dyn_cast<Function>(MIterator)) {
@@ -3389,6 +3418,7 @@ bool EncryptionPass::runOnModule(Module &M) {
             }
         }
     }
+    */
     //preprocessSensitiveAnnotatedPointers(M);
 
     /*if(!Partitioning){
@@ -3396,14 +3426,8 @@ bool EncryptionPass::runOnModule(Module &M) {
     }*/
 
 
-    //errs() << "After nested points-to analysis:\n";
-    for (PAGNode* senPAGNode: SensitiveObjList) {
-        //errs() << *senPAGNode << "\n";
-        if (GepObjPN* gepNode = dyn_cast<GepObjPN>(senPAGNode)) {
-            //errs() << "Location: " << gepNode->getLocationSet().getOffset() << "\n";
-        }
-    }
-
+    addPAGNodesFromSensitiveObjects(sensitiveMemAllocCalls);
+    
     /* 
     if (!SkipVFA) {
         performSourceSinkAnalysis(M);
@@ -3418,13 +3442,6 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     errs() << "After preprocessSensitiveAnnotatedPointers " << SensitiveObjList.size() << " memory objects found\n";
     errs() << "End: Perform dataflow analysis: " << SensitiveObjList.size() << " memory objects found\n";
-
-    // Populate the sensitive data types now
-    
-    for (PAGNode* senPAGNode: SensitiveObjList) {
-        errs() << *senPAGNode << "\n";
-    }
-
 
     if(!Partitioning){
         collectSensitivePointsToInfo(M, ptsToMap, ptsFromMap);
@@ -3446,16 +3463,13 @@ bool EncryptionPass::runOnModule(Module &M) {
         }
     }*/
 
-    if (DoAESEncCache) {
-        AESCache.initializeAes(M);
-        AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
-        if(Partitioning){
-            //Set Labels for Sensitive objects
-            AESCache.setLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
-        }
-        //AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
-        dbgs() << "Initialized AES, widened buffers to multiples of 128 bits\n";
+    AESCache.initializeAes(M);
+    AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
+    if(Partitioning){
+        //Set Labels for Sensitive objects
+        AESCache.setLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
     }
+    dbgs() << "Initialized AES, widened buffers to multiples of 128 bits\n";
 
     unConstantifySensitiveAllocSites(M);
 

@@ -58,8 +58,12 @@ void PTG::dumpMaps() {
         outs() << "\n";
     }
 
-    /*
-    outs() << "The values in each set\n";
+    outs() << "The sets for each element\n";
+    for(PtdRevMapTyIt iter = ptdRevMap.begin(), eiter = ptdRevMap.end(); iter != eiter; iter++) {
+        NodeID nodeId = iter->first;
+        outs() << "Node ID : " << nodeId << " : " << iter->second << "\n";
+    }
+
     for (PtdMapTyIt iter = ptdMap.begin(), eiter = ptdMap.end(); iter != eiter; iter++) {
         SetID setId = iter->first;
         outs() << "Set ID : " << setId << " : " << "\n";
@@ -73,7 +77,6 @@ void PTG::dumpMaps() {
         }
         outs() << "\n";
     }
-    */
 
 
     outs() << "The pts-to relationships among sets:\n";
@@ -293,6 +296,16 @@ PointsTo& PTG::getPts(NodeID nodeID) {
     SetID ptsToSetID = getPtsToSetMap(parentSetID);
     // Return the members of that set
     return *(ptdMap[ptsToSetID]);
+}
+
+PointsTo& PTG::getPtsFrom(NodeID nodeID) {
+    // Find the setID for the nodeID belongs to
+    SetID parentSetID = ptdRevMap[nodeID];
+    // Find the setID for the points-to set for the above setID
+    SetID ptsToSetID = getPtsFromSetMap(parentSetID);
+    // Return the members of that set
+    return *(ptdMap[ptsToSetID]);
+ //
 }
 
 // Which pts-to set does NodeID BELONG to
@@ -642,6 +655,7 @@ SetID PTG::unify(SetID s1, SetID s2, bool forwardUnify, bool backwardUnify) {
     // Create a set with the unified bitvector
     SetID s3 = unifyBitVectors(s1, s2);
 
+    outs() << "Unified: " << s1 << " and " << s2 << " into " << s3 << "\n";
     bool cycle = adjustPointsToRelationships(s1, s2, s3);
 
     // Now, we should unify forwards and backwards

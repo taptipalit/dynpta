@@ -207,6 +207,8 @@ public:
 
     virtual PointsTo& getPts(NodeID);
 
+    virtual PointsTo& getPtsFrom(NodeID);
+
     void dumpMaps();
 
     PtdMapTy& getPtdMap() {
@@ -238,7 +240,7 @@ public:
 
     inline SetID getPtsFromSetMap(SetID setId) {
         PtsFromSetMapTyIt iter = ptsFromSetMap.find(setId);
-        if (iter != ptsFromSetMap.end()) {
+        if (iter == ptsFromSetMap.end()) {
             return EMPTYSET;
         }
         return iter->second;

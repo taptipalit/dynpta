@@ -655,6 +655,23 @@ llvm::AliasResult WPAPass::alias(const Value* V1, const Value* V2) {
 }
 
 
+void WPAPass::getPtsFrom(std::vector<PAGNode*>& sensitiveNodes,
+                    std::vector<PAGNode*>& pointsFrom) {
+    PAG* pag = _pta->getPAG();
+
+    SteensgaardFast* steens = dyn_cast<SteensgaardFast>(_pta);
+    assert(steens && "getPtsFrom works only on Steensgaard");
+    
+
+    for (PAGNode* sensitiveNode: sensitiveNodes) {
+        PointsTo ptsFrom = steens->getPtsFrom(sensitiveNode->getId());
+        for (NodeBS::iterator ptIt = ptsFrom.begin(), ptEit = ptsFrom.end(); ptIt != ptEit; ++ptIt) {
+            PAGNode* ptNode = pag->getPAGNode(*ptIt);
+            pointsFrom.push_back(ptNode);
+        }
+    }
+}
+
 void WPAPass::buildResultMaps(void) {
     PAG* pag = _pta->getPAG();
     for (PAG::iterator it = pag->begin(), eit = pag->end(); it != eit; it++) {

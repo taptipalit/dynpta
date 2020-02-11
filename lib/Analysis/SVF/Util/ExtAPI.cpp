@@ -734,6 +734,7 @@ static const ei_pair ei_pairs[]= {
     {"memccpy", ExtAPI::EFT_L_A0__A0R_A1R},
     {"memcpy", ExtAPI::EFT_L_A0__A0R_A1R},
     {"memmove", ExtAPI::EFT_L_A0__A0R_A1R},
+    {"llvm.ptr", ExtAPI::EFT_L_A0R},
     {"bcopy", ExtAPI::EFT_A1R_A0R},
     {"iconv", ExtAPI::EFT_A3R_A1R_NS},
     {"strtod", ExtAPI::EFT_A1R_A0},
