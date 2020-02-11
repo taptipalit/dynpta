@@ -3479,67 +3479,139 @@ bool EncryptionPass::runOnModule(Module &M) {
      */
 
     initializeSensitiveGlobalVariables(M);
-    buildSets(M);
+    if (Partitioning) {
+        // Track all Load and Store instructions where the pointer 
+        //
+        std::set<PAGNode*> pointsFroms;
+        getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
+        errs() << "Points from size: " << pointsFroms.size() << "\n";
+        /*
+        for (PAGNode* ptsFrom: pointsFroms) {
+            errs() << *ptsFrom << "\n";
+        }
+        */
 
-    collectSensitiveGEPInstructions(M, ptsToMap);
-    dbgs() << "Collected sensitive GEP instructions\n";
+        // Check for the LoadInsts and StoreInsts that use the sensitive
+        // memory
+        for (PAGNode* sensitivePtrNode: pointsFroms) {
+            if (!sensitivePtrNode->hasValue()) {
+                errs() << "Dummy value has id: " << sensitivePtrNode->getId() << "\n";
+                continue;
+            }
+            Value* ptrVal = const_cast<Value*>(sensitivePtrNode->getValue());
+            for (User* user: ptrVal->users()) {
+                if (user == ptrVal) 
+                    continue;
+                if (LoadInst* ldInst = dyn_cast<LoadInst>(user)) {
+                    if (ldInst->getPointerOperand() == ptrVal) {
+                        SensitiveLoadList.push_back(ldInst);
+                    }
+                } else if (StoreInst* stInst = dyn_cast<StoreInst>(user)) {
+                    if (stInst->getPointerOperand() == ptrVal) {
+                        SensitiveStoreList.push_back(stInst);
+                    }
+                }
+            }
+        }
+        buildSets(M);
 
-    SensitiveGEPPtrSet = new std::set<Value*>(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
-    errs() << "After collectSensitiveGEPInstructions: " << SensitiveGEPPtrSet->size() << " sensitive GEP instructions found\n";
+        // Just do track them
+        for (Value* LdVal: *SensitiveLoadSet) {
+            LoadInst* LdInst = dyn_cast<LoadInst>(LdVal);
+            LLVMContext& C = LdInst->getContext();
+            MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+            LdInst->setMetadata("SENSITIVE", N);
 
-    SensitiveGEPPtrCheckSet = new std::set<Value*>(SensitiveGEPPtrCheckList.begin(), SensitiveGEPPtrCheckList.end());
-    errs() << "After collectSensitiveGEPInstructions: " << SensitiveGEPPtrCheckSet->size() << " sensitive GEPCheck instructions found\n";
+            // Find the next instruction
+            Instruction* NextInstruction = LdInst->getNextNode();
+            InstructionReplacement* Replacement = new InstructionReplacement();
+            Replacement->OldInstruction = LdInst;
+            Replacement->NextInstruction = NextInstruction;
+            Replacement->Type = LOAD;
+            ReplacementCheckList.push_back(Replacement);
+        }
 
-    /*errs()<<" Sensitive GEP ptr set :\n"; 
-    for (Value*  sensitiveGEPPtrInst: *SensitiveGEPPtrSet) {
-        errs() <<  *sensitiveGEPPtrInst << "\n";
-    }*/
-    //buildSets(M);
+        for (StoreInst* StInst: *SensitiveStoreSet) {
 
-    collectSensitiveLoadInstructions(M, ptsToMap);
+            LLVMContext& C = StInst->getContext();
+            MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+            StInst->setMetadata("SENSITIVE", N);
 
-    collectSensitiveGEPInstructionsFromLoad(M, ptsToMap);
+            InstructionReplacement* Replacement = new InstructionReplacement();
+            Replacement->OldInstruction = StInst;
+            Replacement->NextInstruction = nullptr; // Don't care about the next, the decryption happens before the store
+            Replacement->Type = STORE;
+            ReplacementCheckList.push_back(Replacement);
 
-    SensitiveLoadPtrSet = new std::set<Value*>(SensitiveLoadPtrList.begin(), SensitiveLoadPtrList.end()); // Any pointer that points to sensitive location
-    SensitiveLoadSet = new std::set<Value*>(SensitiveLoadList.begin(), SensitiveLoadList.end());
+        }
 
-    SensitiveLoadPtrCheckSet = new std::set<Value*>(SensitiveLoadPtrCheckList.begin(), SensitiveLoadPtrCheckList.end());
-    SensitiveLoadCheckSet = new std::set<Value*>(SensitiveLoadCheckList.begin(), SensitiveLoadCheckList.end());
- 
-    if (SensitiveGEPPtrSet) {
-        delete(SensitiveGEPPtrSet);
+        performInstrumentation(M, ptsToMap);
+        instrumentExternalFunctionCall(M, ptsToMap);
+
+    } else {
+
+        buildSets(M);
+
+        collectSensitiveGEPInstructions(M, ptsToMap);
+        dbgs() << "Collected sensitive GEP instructions\n";
+
+        SensitiveGEPPtrSet = new std::set<Value*>(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
+        errs() << "After collectSensitiveGEPInstructions: " << SensitiveGEPPtrSet->size() << " sensitive GEP instructions found\n";
+
+        SensitiveGEPPtrCheckSet = new std::set<Value*>(SensitiveGEPPtrCheckList.begin(), SensitiveGEPPtrCheckList.end());
+        errs() << "After collectSensitiveGEPInstructions: " << SensitiveGEPPtrCheckSet->size() << " sensitive GEPCheck instructions found\n";
+
+        /*errs()<<" Sensitive GEP ptr set :\n"; 
+          for (Value*  sensitiveGEPPtrInst: *SensitiveGEPPtrSet) {
+          errs() <<  *sensitiveGEPPtrInst << "\n";
+          }*/
+        //buildSets(M);
+
+        collectSensitiveLoadInstructions(M, ptsToMap);
+
+        collectSensitiveGEPInstructionsFromLoad(M, ptsToMap);
+
+        SensitiveLoadPtrSet = new std::set<Value*>(SensitiveLoadPtrList.begin(), SensitiveLoadPtrList.end()); // Any pointer that points to sensitive location
+        SensitiveLoadSet = new std::set<Value*>(SensitiveLoadList.begin(), SensitiveLoadList.end());
+
+        SensitiveLoadPtrCheckSet = new std::set<Value*>(SensitiveLoadPtrCheckList.begin(), SensitiveLoadPtrCheckList.end());
+        SensitiveLoadCheckSet = new std::set<Value*>(SensitiveLoadCheckList.begin(), SensitiveLoadCheckList.end());
+
+        if (SensitiveGEPPtrSet) {
+            delete(SensitiveGEPPtrSet);
+        }
+        if (SensitiveGEPPtrCheckSet) {
+            delete(SensitiveGEPPtrCheckSet);
+        }
+        SensitiveGEPPtrSet = new std::set<Value*>(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
+        SensitiveGEPPtrCheckSet = new std::set<Value*>(SensitiveGEPPtrCheckList.begin(), SensitiveGEPPtrCheckList.end());
+
+        //collectSensitiveAsmInstructions(M, ptsToMap);
+        dbgs() << "Collected sensitive load instructions\n";
+
+        collectSensitiveExternalLibraryCalls(M, ptsToMap);
+
+        dbgs() << "Collected sensitive External Library calls\n";
+
+        //buildSets(M);
+
+
+        ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall
+        ExtLibHandler.addAESCacheExtFuncHandler(M);
+
+
+        LLVM_DEBUG (
+                dbgs() << "Instrumented external function calls\n";
+                );
+
+        instrumentAndAnnotateInst(M, ptsToMap);
+        LLVM_DEBUG (
+                dbgs() << "Instrumented and annotated sensitive Load and Store instructions\n";
+                );
+
+
+        fixupSizeOfOperators(M);
     }
-    if (SensitiveGEPPtrCheckSet) {
-        delete(SensitiveGEPPtrCheckSet);
-    }
-    SensitiveGEPPtrSet = new std::set<Value*>(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
-    SensitiveGEPPtrCheckSet = new std::set<Value*>(SensitiveGEPPtrCheckList.begin(), SensitiveGEPPtrCheckList.end());
-
-    //collectSensitiveAsmInstructions(M, ptsToMap);
-    dbgs() << "Collected sensitive load instructions\n";
-
-    collectSensitiveExternalLibraryCalls(M, ptsToMap);
-
-    dbgs() << "Collected sensitive External Library calls\n";
-
-    //buildSets(M);
-
-
-    ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall
-    ExtLibHandler.addAESCacheExtFuncHandler(M);
-
-
-    LLVM_DEBUG (
-        dbgs() << "Instrumented external function calls\n";
-    );
-
-    instrumentAndAnnotateInst(M, ptsToMap);
-    LLVM_DEBUG (
-        dbgs() << "Instrumented and annotated sensitive Load and Store instructions\n";
-    );
-
-
-    fixupSizeOfOperators(M);
 
     dbgs () << "Inserted " << decryptionCount << " calls to decryption routines.\n";
     dbgs () << "Inserted " << encryptionCount << " calls to encryption routines.\n";
