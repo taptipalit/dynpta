@@ -45,6 +45,7 @@ private:
 
     std::set<llvm::Function*> mallocRoutines;
 
+    std::vector<llvm::AllocaInst*> sensitiveAllocaPtrs;
     std::vector<llvm::GetElementPtrInst*> sensitiveGepPtrs;
 
     std::vector<llvm::StoreInst*> storesAtSensitivePtrs;

@@ -75,6 +75,20 @@ void SensitiveMemAllocTrackerPass::collectLocalSensitiveAnnotations(Module &M) {
                                 findAllSensitiveGepPtrs(bitCastInst->getOperand(0));
                             }
                         }
+                    } else if (CInst->getCalledValue()->getName().startswith("llvm.var.annotation")) {
+                        Value* SV = CInst->getArgOperand(0);
+                        for (Value::use_iterator useItr = SV->use_begin(), useEnd = SV->use_end(); useItr != useEnd; useItr++) {
+                            Value* annotationArg = dyn_cast<Value>(*useItr);
+                            // If this is a direct gep, then yay!
+                            if (AllocaInst* allocaInst = dyn_cast<AllocaInst>(annotationArg)) {
+                                sensitiveAllocaPtrs.push_back(allocaInst);
+                            } else if (BitCastInst* bitCastInst = dyn_cast<BitCastInst>(annotationArg)) {
+                                // Get the first operand, if it is an alloca
+                                if (AllocaInst* allocaInst = dyn_cast<AllocaInst>(bitCastInst->getOperand(0))) {
+                                    sensitiveAllocaPtrs.push_back(allocaInst);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -151,6 +165,9 @@ void SensitiveMemAllocTrackerPass::findMemAllocsReachingSensitivePtrs() {
 
 void SensitiveMemAllocTrackerPass::findStoresAtSensitivePtrs() {
     std::vector<Value*> workList;
+    for (AllocaInst* allocInst: sensitiveAllocaPtrs) {
+        workList.push_back(allocInst);
+    }
     for (GetElementPtrInst* gepInst: sensitiveGepPtrs) {
         workList.push_back(gepInst);
     }
