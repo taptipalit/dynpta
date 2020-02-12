@@ -40,6 +40,9 @@ public:
         return sensitiveMemAllocCalls;
     }
 
+    std::vector<llvm::AllocaInst*>& getSensitiveAllocaInsts() {
+        return sensitiveAllocaPtrs;
+    }
 
 private:
 

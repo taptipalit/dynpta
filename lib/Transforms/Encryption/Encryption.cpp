@@ -59,6 +59,7 @@ namespace {
             std::vector<InstructionReplacement*> ReplacementCheckList;
 
             std::vector<PAGNode*> SensitiveObjList; // We maintain the PAGNodes here to record field sensitivity
+            std::vector<NodeID> SensitiveNodeIDList;
 
             std::vector<Value*> SensitiveLoadPtrList; // Any pointer that points to sensitive location
             std::vector<Value*> SensitiveLoadList;
@@ -101,7 +102,7 @@ namespace {
 
             bool contains(llvm::Value*, std::vector<llvm::Value*>&);
 
-            void addPAGNodesFromSensitiveObjects(std::vector<CallInst*>&);
+            void addPAGNodesFromSensitiveObjects(std::vector<Value*>&);
 
             PAGNode* getPAGObjNodeFromValue(Value*);
             PAGNode* getPAGValNodeFromValue(Value*);
@@ -1751,12 +1752,16 @@ bool EncryptionPass::isSensitiveArg(Value* arg,  std::map<PAGNode*, std::set<PAG
 
     // If this arg points to sensitive stuff, then it is sensitive
     PAGNode* argNode = getPAGValNodeFromValue(arg);
-    for (PAGNode* pointedToNode: ptsToMap[argNode]) {
-        if (isSensitiveObjSet(pointedToNode)) {
-            return true;
+    if (Partitioning) {
+        return getAnalysis<WPAPass>().isPointsToNodes(argNode->getId(), SensitiveNodeIDList); 
+    } else {
+        for (PAGNode* pointedToNode: ptsToMap[argNode]) {
+            if (isSensitiveObjSet(pointedToNode)) {
+                return true;
+            }
         }
+        return false;
     }
-    return false;
 }
 
 Type* EncryptionPass::findBaseType(Type* type) {
@@ -1825,6 +1830,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         Function* externalFunction = externalCallInst->getCalledFunction();
         if (!externalFunction) {
             // Was a function pointer.
+            assert(false && "We don't handle function pointers for now!");
             std::vector<Function*> possibleFuns;
             PAGNode* fptrNode = getPAGValNodeFromValue(externalCallInst->getCalledValue());
             for (PAGNode* fNode : ptsToMap[fptrNode]) {
@@ -2372,7 +2378,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             Value* destBufferPtr = externalCallInst->getArgOperand(0);
             Value* srcBufferPtr = externalCallInst->getArgOperand(1);
 
-            //Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+            Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
             Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
 
             if (isSensitiveArg(srcBufferPtr, ptsToMap)) {
@@ -3324,15 +3330,18 @@ void EncryptionPass::fixupSizeOfOperators(Module& M) {
     }
 }
 
-void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<CallInst*>& sensitiveMemAllocCalls) {
+void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensitiveMemAllocCalls) {
     PAG* pag = getAnalysis<WPAPass>().getPAG();
-    for (CallInst* sensitiveAlloc: sensitiveMemAllocCalls) {
+    for (Value* sensitiveAlloc: sensitiveMemAllocCalls) {
         SensitiveObjList.push_back(pag->getPAGNode(
                     pag->getObjectNode(sensitiveAlloc)
                     ));
         SensitiveObjList.push_back(pag->getPAGNode(
                     pag->getValueNode(sensitiveAlloc)
                     ));
+
+        SensitiveNodeIDList.push_back(pag->getObjectNode(sensitiveAlloc));
+        SensitiveNodeIDList.push_back(pag->getValueNode(sensitiveAlloc));
     }
 }
 
@@ -3342,7 +3351,7 @@ bool EncryptionPass::runOnModule(Module &M) {
         dbgs() << "Running Encryption pass\n";
     );
 
-    std::vector<llvm::CallInst*> sensitiveMemAllocCalls;
+    std::vector<llvm::Value*> sensitiveMemAllocCalls;
 
     SensitiveObjSet = nullptr;
 
@@ -3362,8 +3371,16 @@ bool EncryptionPass::runOnModule(Module &M) {
         sensitiveMemAllocCalls.push_back(callInst);
     }
 
-    for (CallInst* callInst: sensitiveMemAllocCalls) {
-        errs() << "Sensitive mem alloc function call: " << *callInst << " in function " << callInst->getParent()->getParent()->getName() << "\n";
+    for (AllocaInst* allocaInst: getAnalysis<SensitiveMemAllocTrackerPass>().getSensitiveAllocaInsts()) {
+        if (!isaCPointer(allocaInst)) {
+            sensitiveMemAllocCalls.push_back(allocaInst);
+        }
+    }
+
+    for (Value* val: sensitiveMemAllocCalls) {
+        if (Instruction* inst = dyn_cast<Instruction>(val)) {
+            errs() << "Sensitive mem alloc function call: " << *inst << " in function " << inst->getParent()->getParent()->getName() << "\n";
+        }
     }
     /*
     collectGlobalSensitiveAnnotations(M);
@@ -3538,8 +3555,17 @@ bool EncryptionPass::runOnModule(Module &M) {
 
         }
 
+        collectSensitiveExternalLibraryCalls(M, ptsToMap);
+
+        dbgs() << "Collected sensitive External Library calls\n";
+
+        ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall
+        ExtLibHandler.addAESCacheExtFuncHandler(M);
+
+
         performInstrumentation(M, ptsToMap);
         instrumentExternalFunctionCall(M, ptsToMap);
+        fixupSizeOfOperators(M);
 
     } else {
 

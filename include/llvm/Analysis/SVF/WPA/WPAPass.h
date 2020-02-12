@@ -113,6 +113,8 @@ public:
     void runOnModule(SVFModule svfModule);
 
     void performLayeredPointerAnalysis(SVFModule svfModule, llvm::Module*);
+
+    bool isPointsToNodes(NodeID, std::vector<NodeID>&);
     void getPtsFrom(std::vector<PAGNode*>& sensitiveNodes,
                     std::set<PAGNode*>& pointsFrom);
  
