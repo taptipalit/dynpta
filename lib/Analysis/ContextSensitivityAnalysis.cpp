@@ -27,7 +27,7 @@ static cl::opt<int> iterations("csa-iter", cl::desc("How many iterations of csa 
 
 static cl::opt<bool> skipContextSensitivity("skip-csa", cl::desc("Skip context-sensitivity"), cl::value_desc("skip-csa"), cl::init(false));
 
-static cl::opt<int> callsiteThreshold("callsite-threshold", cl::desc("How many callsites should the malloc wrappers be called from to be treated as context-sensitive"), cl::value_desc("callsite-threshold"), cl::init(50));
+static cl::opt<int> callsiteThreshold("callsite-threshold", cl::desc("How many callsites should the malloc wrappers be called from to be treated as context-sensitive"), cl::value_desc("callsite-threshold"), cl::init(3));
 
 static cl::opt<int> calldepthThreshold("calldepth-threshold", cl::desc("How many other functions can a malloc wrapper call, and still be treated as context-sensitive"), cl::value_desc("calldepth-threshold"), cl::init(4));
 
@@ -249,7 +249,6 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
     }
 
 }
-
 /*!
  * We start from here
  */

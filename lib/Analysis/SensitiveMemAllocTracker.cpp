@@ -137,7 +137,6 @@ void SensitiveMemAllocTrackerPass::findMemAllocsReachingSensitivePtrs() {
     while (!workList.empty()) {
         Value* value = workList.back();
         workList.pop_back();
-
         if (CallInst* callInst = dyn_cast<CallInst>(value)) {
             if (Function* calledFunction = callInst->getCalledFunction()) {
                 if (std::find(mallocRoutines.begin(), mallocRoutines.end(), calledFunction)
