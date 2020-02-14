@@ -23,7 +23,7 @@ using namespace llvm;
 
 char ContextSensitivityAnalysisPass::ID = 0;
 
-static cl::opt<int> iterations("csa-iter", cl::desc("How many iterations of csa should be done"), cl::value_desc("csa-iter"), cl::init(3));
+static cl::opt<int> iterations("csa-iter", cl::desc("How many iterations of csa should be done"), cl::value_desc("csa-iter"), cl::init(50));
 
 static cl::opt<bool> skipContextSensitivity("skip-csa", cl::desc("Skip context-sensitivity"), cl::value_desc("skip-csa"), cl::init(false));
 
