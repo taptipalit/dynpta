@@ -8,6 +8,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/InstIterator.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Analysis/ContextSensitivityAnalysis.h>
 #include <vector>
 #include <set>
 #include <map>
@@ -31,6 +32,7 @@ public:
     virtual inline void getAnalysisUsage(llvm::AnalysisUsage &au) const {
         // declare your dependencies here.
         /// do not intend to change the IR in this pass,
+        au.addRequired<ContextSensitivityAnalysisPass>();
         au.setPreservesAll();
     }
 

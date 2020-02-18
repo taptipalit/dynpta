@@ -59,7 +59,6 @@ namespace {
             std::vector<InstructionReplacement*> ReplacementCheckList;
 
             std::vector<PAGNode*> SensitiveObjList; // We maintain the PAGNodes here to record field sensitivity
-            std::vector<PAGNode*> SensitiveObjListForContextSensitiveMalloc;
             std::vector<NodeID> SensitiveNodeIDList;
 
             std::vector<Value*> SensitiveLoadPtrList; // Any pointer that points to sensitive location
@@ -70,7 +69,6 @@ namespace {
 
             /* The set equivalents */
             std::set<PAGNode*>* SensitiveObjSet; // PAGNodes to record field sensitivity
-            std::set<PAGNode*>* SensitiveObjSetForContextSensitiveMalloc;
 
             std::set<Value*>* SensitiveLoadPtrSet; // Any pointer that points to sensitive location
             std::set<Value*>* SensitiveLoadSet;
@@ -3446,35 +3444,6 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     dbgs() << "Performed Pointer Analysis\n";
 
-    errs()<<"Critical Functions in Encryption Pass are:\n";
-
-    PAG* pag = getAnalysis<WPAPass>().getPAG();
-    for (Function* criticalFunctions : getAnalysis<ContextSensitivityAnalysisPass>().getCriticalFunctions()){
-        errs()<<"Function name is: " << criticalFunctions->getName() << "\n";
-        for (Function::iterator FIterator = criticalFunctions->begin(); FIterator != criticalFunctions->end(); FIterator++) {
-            if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
-                for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-                    if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-                        if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
-                            Function* function = callInst->getCalledFunction();
-                            if (function) {
-                                StringRef callocStr("calloc");
-                                StringRef mallocStr("malloc");
-                                if (callocStr.equals(function->getName()) || mallocStr.equals(function->getName())) {
-                                    Value* obj = dyn_cast<Value>(callInst);
-                                    if (pag->hasObjectNode(obj)) {
-                                        NodeID objID = pag->getObjectNode(obj);
-                                        PAGNode* objNode = pag->getPAGNode(objID);
-                                        SensitiveObjListForContextSensitiveMalloc.push_back(objNode);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
     // The SensitiveMemAllocTracker has
     // identified the sensitive memory allocations
     for (CallInst* callInst: getAnalysis<SensitiveMemAllocTrackerPass>().getSensitiveMemAllocCalls()) {
@@ -3578,11 +3547,6 @@ bool EncryptionPass::runOnModule(Module &M) {
     errs() << "After collectSensitivePointsToInfo: " << SensitiveObjList.size() << " memory objects found\n";
 
 
-    SensitiveObjSetForContextSensitiveMalloc= new std::set<PAGNode*>(SensitiveObjListForContextSensitiveMalloc.begin(), SensitiveObjListForContextSensitiveMalloc.end());
-    errs() << "Total sensitive allocation sites for Context Sensitive Analysis: " << SensitiveObjSetForContextSensitiveMalloc->size() << "\n";
-    SensitiveObjListForContextSensitiveMalloc.clear();
-    std::copy(SensitiveObjSetForContextSensitiveMalloc->begin(), SensitiveObjSetForContextSensitiveMalloc->end(), std::back_inserter(SensitiveObjListForContextSensitiveMalloc));
-
     /*for (PAGNode* sensitivePAGNode: *SensitiveObjSet) {
         errs() <<  *sensitivePAGNode << "\n";
         if (GepObjPN* senGep = dyn_cast<GepObjPN>(sensitivePAGNode)) {
@@ -3595,7 +3559,6 @@ bool EncryptionPass::runOnModule(Module &M) {
     if(Partitioning){
         //Set Labels for Sensitive objects
         AESCache.setLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
-        AESCache.setLabelsForSensitiveObjects(M, SensitiveObjSetForContextSensitiveMalloc, ptsToMap, ptsFromMap);
     }
     dbgs() << "Initialized AES, widened buffers to multiples of 128 bits\n";
 
@@ -3613,11 +3576,11 @@ bool EncryptionPass::runOnModule(Module &M) {
         std::set<PAGNode*> pointsFroms;
         getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
         errs() << "Points from size: " << pointsFroms.size() << "\n";
-        /*
+        /* 
         for (PAGNode* ptsFrom: pointsFroms) {
             errs() << *ptsFrom << "\n";
-        }*/
-        
+        }
+        */
 
         // Check for the LoadInsts and StoreInsts that use the sensitive
         // memory

@@ -676,6 +676,12 @@ void decryptArrayForLibCall(char* ptr, int numBytes) {
     }
 }
 
+void setLabelForContextSensitiveCalls(void* ptr){
+    //printf( "Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
+    size_t noOfByte = malloc_usable_size(ptr);
+    dfsan_set_label(1, ptr, noOfByte);
+}
+
 void aes_free(void* ptr) {
     //printf( "Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
     size_t noOfByte = malloc_usable_size(ptr);

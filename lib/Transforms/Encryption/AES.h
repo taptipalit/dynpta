@@ -80,6 +80,7 @@ namespace external{
             llvm::Function* decryptLoopDWordFunction;
             llvm::Function* decryptLoopQWordFunction;
             llvm::Function* DFSanSetLabelFn;
+            llvm::Function* setLabelForContextSensitiveCallsFn;
             llvm::Function* DFSanReadLabelFn;
 
             llvm::Function* aesMallocFunction;
