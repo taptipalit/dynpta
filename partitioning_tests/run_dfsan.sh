@@ -19,10 +19,12 @@ ln -s $LLVM_CUSTOM_SRC/lib/Transforms/Encryption/aes_helper.c_ aes_helper.c
 ln -s $LLVM_CUSTOM_SRC/lib/Transforms/LibcTransform/internal_libc.c_ internal_libc.c
 
 GGDB=-ggdb 
-#$LLVMROOT/clang -O0 -c $GGDB -emit-llvm $file.c -o $file.bc
-if [ $? -ne 0 ]
-then
-    exit 1
+if [ -f $file.c ]; then
+    $LLVMROOT/clang -O0 -c $GGDB -emit-llvm $file.c -o $file.bc
+    if [ $? -ne 0 ]
+    then
+        exit 1
+    fi
 fi
 
 $LLVMROOT/clang -c $GGDB -emit-llvm internal_libc.c -o internal_libc.bc
