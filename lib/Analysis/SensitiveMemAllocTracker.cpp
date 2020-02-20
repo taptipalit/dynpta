@@ -111,7 +111,13 @@ bool SensitiveMemAllocTrackerPass::runOnModule(Module& M) {
         mallocRoutines.insert(callocFunction);
     if (reallocFunction)
         mallocRoutines.insert(reallocFunction);
-    
+
+    errs()<<"Critical Functions in MallocTracker Pass are:\n";
+    for (Function* criticalFunctions : getAnalysis<ContextSensitivityAnalysisPass>().getCriticalFunctions()){
+        errs()<<"Function name is: " << criticalFunctions->getName() << "\n";
+        mallocRoutines.insert(criticalFunctions);
+    }
+
     collectLocalSensitiveAnnotations(M);
 
     // Find if there are any stores going in to these pointers
@@ -137,7 +143,6 @@ void SensitiveMemAllocTrackerPass::findMemAllocsReachingSensitivePtrs() {
     while (!workList.empty()) {
         Value* value = workList.back();
         workList.pop_back();
-
         if (CallInst* callInst = dyn_cast<CallInst>(value)) {
             if (Function* calledFunction = callInst->getCalledFunction()) {
                 if (std::find(mallocRoutines.begin(), mallocRoutines.end(), calledFunction)
@@ -195,4 +200,5 @@ ModulePass* llvm::createSensitiveMemAllocTrackerPass() {
 }
 
 INITIALIZE_PASS_BEGIN(SensitiveMemAllocTrackerPass, "smat", "Sensitive Memory Alloc Tracker Pass", true, true);
+INITIALIZE_PASS_DEPENDENCY(ContextSensitivityAnalysisPass);
 INITIALIZE_PASS_END(SensitiveMemAllocTrackerPass, "smat", "Sensitive Memory Alloc Tracker", true, true);

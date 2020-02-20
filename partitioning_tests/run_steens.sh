@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm *.png *.dot
+#rm *.png *.dot
 file="$1"
 fileinst=$file"_inst"
 filedfsan=$fileinst"_dfs"
@@ -19,12 +19,10 @@ ln -s $LLVM_CUSTOM_SRC/lib/Transforms/Encryption/aes_helper.c_ aes_helper.c
 ln -s $LLVM_CUSTOM_SRC/lib/Transforms/LibcTransform/internal_libc.c_ internal_libc.c
 
 GGDB=-ggdb 
-if [ -f $file.c ]; then
-    $LLVMROOT/clang -O0 -c $GGDB -emit-llvm $file.c -o $file.bc
-    if [ $? -ne 0 ]
-    then
-        exit 1
-    fi
+$LLVMROOT/clang -O0 -c $GGDB -emit-llvm $file.c -o $file.bc
+if [ $? -ne 0 ]
+then
+    exit 1
 fi
 
 $LLVMROOT/clang -c $GGDB -emit-llvm internal_libc.c -o internal_libc.bc
@@ -44,7 +42,7 @@ fi
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $file.bc 
-$LLVMROOT/opt -encryption -steens-fast -optimized-check=false -partitioning=true  $file.bc -o $fileinst.bc 
+$LLVMROOT/opt -encryption -callsite-threshold=3 -skip-csa=false -optimized-check=true -steens-fast -partitioning=true $file.bc -o $fileinst.bc 
 $LLVMROOT/opt --dfsan $fileinst.bc -o $filedfsan.bc
 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 

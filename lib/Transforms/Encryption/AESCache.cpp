@@ -68,6 +68,7 @@ namespace external {
         FunctionType* FTypeDecLoopDWord = FunctionType::get(dwordType, loopDecTypeArray, false);
         FunctionType* FTypeDecLoopQWord = FunctionType::get(qwordType, loopDecTypeArray, false);
         FunctionType* FTypeSetLabel = FunctionType::get(Type::getVoidTy(*Ctx), DFSanSetLabelArgs, false);
+        FunctionType* FTypeSetLabelForContextSensitiveCalls = FunctionType::get(Type::getVoidTy(*Ctx), Type::getInt8PtrTy(*Ctx), false);
         FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
 
         // All versions
@@ -81,6 +82,9 @@ namespace external {
         if (Function *F = dyn_cast<Function>(DFSanSetLabelFn)) {
             F->addParamAttr(0, Attribute::ZExt);
         }
+
+        this->setLabelForContextSensitiveCallsFn = Function::Create(FTypeSetLabelForContextSensitiveCalls, Function::ExternalLinkage, "setLabelForContextSensitiveCalls", &M);
+
         this->DFSanReadLabelFn = Function::Create(FTypeReadLabel, Function::ExternalLinkage, "dfsan_read_label", &M);
         //adding zeroext for return type
         if (Function *F = dyn_cast<Function>(DFSanReadLabelFn)) {
@@ -484,6 +488,9 @@ namespace external {
                                 //errs()<<"Argument1 of Calloc is "<<*argument1OfCalloc<<" and Argument 2 of Calloc is "<<*argument2OfCalloc<<"\n";
                                 size = Builder.CreateMul(argument1OfCalloc, argument2OfCalloc);
                                 //errs()<<"Size of Calloc is "<<*size<<"\n";
+                            } else {
+                                Builder.CreateCall(this->setLabelForContextSensitiveCallsFn, {callInst});
+                                continue;
                             }
                             size = Builder.CreateMul(size, dyn_cast<Value>(multiplier));
                         }

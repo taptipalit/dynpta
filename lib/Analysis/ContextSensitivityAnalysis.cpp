@@ -249,7 +249,6 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
     }
 
 }
-
 /*!
  * We start from here
  */
