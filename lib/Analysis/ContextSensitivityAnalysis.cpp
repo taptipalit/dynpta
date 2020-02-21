@@ -37,11 +37,9 @@ static cl::opt<int> calldepthThreshold("calldepth-threshold", cl::desc("How many
  */
 bool ContextSensitivityAnalysisPass::returnsAllocedMemory(Function* F) {
     // The function should return a pointer 
-    /*
-    if (F->getName() == "ngx_alloc") {
+    if (F->getName() == "bn_expand_internal") {
         errs() << "Yes!\n";
     }
-    */
     Type* retType = F->getFunctionType()->getReturnType();
     if (!retType->isPointerTy()) {
         return false;
@@ -54,40 +52,43 @@ bool ContextSensitivityAnalysisPass::returnsAllocedMemory(Function* F) {
 
     for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
         if (CallInst* callInst = dyn_cast<CallInst>(&*I)) {
-            if (F->getName() == "CRYPTO_malloc") {
-                errs() << "Yes!\n";
-            }
             // Direct call
             if (Function* func = callInst->getCalledFunction()) {
                 if (std::find(mallocWrappers.begin(), mallocWrappers.end(), func) != mallocWrappers.end()) {
                     // Track where this is stored
-                    Value* sink = findSink(callInst);
+                    std::vector<Value*> sinkVec;
+                    findSinks(callInst, sinkVec);
                     // If sink isn't in the function, then it's passed to
                     // another function call as argument. Then it's definitely
                     // not a malloc wrapper
-                    if (!sink) return false;
-                    if (ReturnInst* retInst = dyn_cast<ReturnInst>(sink)) {
-                        // Then just mark this function as returning malloced
-                        // memory
-                        return true;
-                    } else {
-                        mallockedPtrs.push_back(sink);
+                    if (sinkVec.size() == 0) return false;
+                    for (Value* sink: sinkVec) {
+                        if (ReturnInst* retInst = dyn_cast<ReturnInst>(sink)) {
+                            // Then just mark this function as returning malloced
+                            // memory
+                            return true;
+                        } else {
+                            mallockedPtrs.push_back(sink);
+                        }
                     }
                 }
             } /*Indirect Call */ else if (Value* funcValue = callInst->getCalledValue()) {
                 // Find if the function pointer is a global pointer to malloc
                 if (LoadInst* loadedFrom = dyn_cast<LoadInst>(funcValue)) {
                     if (std::find(globalMallocWrapperPtrs.begin(), globalMallocWrapperPtrs.end(), loadedFrom->getPointerOperand()) != globalMallocWrapperPtrs.end()) {
-                        Value* sink = findSink(callInst);
+                        std::vector<Value*> sinkVec;
+                        findSinks(callInst, sinkVec);
                         // If sink not found, then not a malloc wrapper (see
                         // above)
-                        if (!sink) return false;
-                        if (ReturnInst* retInst = dyn_cast<ReturnInst>(sink)) {
-                            // Then this function clearly returns mallocked
-                            // memory
-                            return true;
-                        } else {
-                            mallockedPtrs.push_back(sink);
+                        if (sinkVec.size() == 0) return false;
+                        for (Value* sink: sinkVec) {
+                            if (ReturnInst* retInst = dyn_cast<ReturnInst>(sink)) {
+                                // Then just mark this function as returning malloced
+                                // memory
+                                return true;
+                            } else {
+                                mallockedPtrs.push_back(sink);
+                            }
                         }
                     }
                 }
@@ -157,16 +158,16 @@ bool ContextSensitivityAnalysisPass::isReturningMallockedPtr(ReturnInst* retInst
     return false;
 }
 
-Value* ContextSensitivityAnalysisPass::findSink(Value* mallockedPtr) {
+void ContextSensitivityAnalysisPass::findSinks(Value* mallockedPtr, std::vector<Value*>& sinkVec) {
     std::vector<Value*> workList;
     workList.push_back(mallockedPtr);
     while(!workList.empty()) {
         Value* work = workList.back();
         workList.pop_back();
         if (StoreInst* storeInst = dyn_cast<StoreInst>(work)) {
-            return storeInst->getPointerOperand(); 
+            sinkVec.push_back(storeInst->getPointerOperand());
         } else if (ReturnInst* retInst = dyn_cast<ReturnInst>(work)) {
-            return retInst;
+            sinkVec.push_back(retInst);
         }
         for (User* user: work->users()) {
             if (user != work) {
@@ -174,10 +175,6 @@ Value* ContextSensitivityAnalysisPass::findSink(Value* mallockedPtr) {
             }
         }
     }
-    //assert(false && "Mallocked pointer isn't stored anywhere or returned!");
-    //at more complex cases, it just sends that to another function as
-    //argument. Then it's clearly not a wrapper
-    return nullptr;
 }
 
 void ContextSensitivityAnalysisPass::handleGlobalFunctionPointers(llvm::Module& M) {
@@ -273,7 +270,6 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
     for (int num = 0; num < iterations; num++) {
         // Handle Global Function pointers
         handleGlobalFunctionPointers(M);
-
         for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
             if (auto *F = dyn_cast<Function>(MIterator)) {
                 if (returnsAllocedMemory(F)) {
@@ -292,8 +288,6 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
     // Profile the module
     profileFuncCalls(M);
 
-    
-   
     return false;
 }
 

@@ -128,12 +128,20 @@ bool SensitiveMemAllocTrackerPass::runOnModule(Module& M) {
     // Then we return these as the sensitive calls
     findMemAllocsReachingSensitivePtrs();
 
+    
+    for (CallInst* callInst: sensitiveMemAllocCalls) {
+        errs() << "Sensitive memory alloc: " << callInst << " in function: " 
+            << callInst->getParent()->getParent()->getName() << "\n";
+    }
+
     return false;
 }
 
 void SensitiveMemAllocTrackerPass::findMemAllocsReachingSensitivePtrs() {
     // Go over each store to a sensitive gep ptr
     std::vector<Value*> workList;
+    std::vector<Value*> seenList;
+
     for (StoreInst* sensitiveStore: storesAtSensitivePtrs) {
         // Get the value operands and check if they're coming from a
         // malloc/calloc 
@@ -142,6 +150,7 @@ void SensitiveMemAllocTrackerPass::findMemAllocsReachingSensitivePtrs() {
 
     while (!workList.empty()) {
         Value* value = workList.back();
+        seenList.push_back(value);
         workList.pop_back();
         if (CallInst* callInst = dyn_cast<CallInst>(value)) {
             if (Function* calledFunction = callInst->getCalledFunction()) {
@@ -157,12 +166,18 @@ void SensitiveMemAllocTrackerPass::findMemAllocsReachingSensitivePtrs() {
                 for (User* user: allocInst->users()) {
                     if (StoreInst* sensitiveStore = dyn_cast<StoreInst>(user)) {
                         if (sensitiveStore->getPointerOperand() == allocInst) {
-                            workList.push_back(sensitiveStore->getValueOperand());
+                            if (std::find(seenList.begin(), seenList.end(), sensitiveStore->getValueOperand()) 
+                                    == seenList.end()) {
+                                workList.push_back(sensitiveStore->getValueOperand());
+                            }
                         }
                     }
                 }
             } else {
-                workList.push_back(inst->getOperand(0));  // hail mary?
+                if (std::find(seenList.begin(), seenList.end(), inst->getOperand(0))
+                        == seenList.end()) {
+                    workList.push_back(inst->getOperand(0));  // hail mary?
+                }
             }
         }
     }
@@ -180,6 +195,8 @@ void SensitiveMemAllocTrackerPass::findStoresAtSensitivePtrs() {
         Value* val = workList.back();
         workList.pop_back();
         for (User* user: val->users()) {
+            if (user == val)
+                continue;
             if (StoreInst* storeInst = dyn_cast<StoreInst>(user)) {
                 storesAtSensitivePtrs.push_back(storeInst);
             } else if (CastInst* castInst = dyn_cast<CastInst>(user)) {

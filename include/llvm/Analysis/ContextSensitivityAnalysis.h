@@ -59,7 +59,7 @@ private:
     void handleGlobalFunctionPointers(llvm::Module&);
     bool returnsAllocedMemory(llvm::Function*);
     bool isReturningMallockedPtr(llvm::ReturnInst*, std::vector<llvm::Value*>&);
-    llvm::Value* findSink(llvm::Value*);
+    void findSinks(llvm::Value*, std::vector<llvm::Value*>&);
 
     bool findNumFuncRooted(llvm::Function*, int&);
 };
