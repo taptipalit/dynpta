@@ -36,6 +36,8 @@ public:
 
     virtual bool runOnModule(llvm::Module& module);
 
+    bool recompute(llvm::Module&, int, int); 
+
     std::vector<llvm::Function*>& getCriticalFunctions() {
         return criticalFunctions;
     }

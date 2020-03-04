@@ -489,7 +489,20 @@ namespace external {
                                 size = Builder.CreateMul(argument1OfCalloc, argument2OfCalloc);
                                 //errs()<<"Size of Calloc is "<<*size<<"\n";
                             } else {
-                                Builder.CreateCall(this->setLabelForContextSensitiveCallsFn, {callInst});
+                                if (PointerType* ptrType = dyn_cast<PointerType>(callInst->getType())) {
+                                    if (IntegerType* intType = dyn_cast<IntegerType>(ptrType->getPointerElementType())) {
+                                        if (intType->getBitWidth() != 8) {
+                                            // Cast it to the type
+                                            IntegerType* voidType = IntegerType::get(callInst->getContext(), 8);
+                                            PointerType* voidPtrType = PointerType::get(voidType, 0);
+                                            // The bitcast
+                                            Value* bcVal = Builder.CreateBitCast(callInst, voidPtrType);
+                                            Builder.CreateCall(this->setLabelForContextSensitiveCallsFn, {bcVal});
+                                        }
+                                    } else {
+                                        Builder.CreateCall(this->setLabelForContextSensitiveCallsFn, {callInst});
+                                    }
+                                }
                                 continue;
                             }
                             size = Builder.CreateMul(size, dyn_cast<Value>(multiplier));

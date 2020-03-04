@@ -30,4 +30,7 @@
 #include <map>
 #include <cstring>
 #include <cmath>
+
+#include <iostream>
+#include <fstream>
 #endif

@@ -600,6 +600,8 @@ void WPAPass::runPointerAnalysis(SVFModule svfModule, u32_t kind)
         return;
     }
 
+   Module* M = svfModule.getModule(0);
+   contextSensitivityPass->recompute(*M, 50, 4);
     _pta->setContextCriticalFunctions(contextSensitivityPass->getTop10CriticalFunctions());
     ptaVector.push_back(_pta);
     _pta->analyze(svfModule);

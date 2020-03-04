@@ -3617,6 +3617,12 @@ bool EncryptionPass::runOnModule(Module &M) {
         // Just do track them
         for (Value* LdVal: *SensitiveLoadSet) {
             LoadInst* LdInst = dyn_cast<LoadInst>(LdVal);
+            // Temporarily ignore anything that's not an integer
+            if (!LdInst->getType()->isIntegerTy())
+                continue;
+            IntegerType* intType = dyn_cast<IntegerType>(LdInst->getType());
+            if (intType->getBitWidth() > 8)
+                continue;
             LLVMContext& C = LdInst->getContext();
             MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
             LdInst->setMetadata("SENSITIVE", N);
@@ -3634,6 +3640,12 @@ bool EncryptionPass::runOnModule(Module &M) {
 
             LLVMContext& C = StInst->getContext();
             MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+            // Temporarily ignore anythign that's not an Integer
+            if (!StInst->getValueOperand()->getType()->isIntegerTy())
+                continue;
+            IntegerType* intType = dyn_cast<IntegerType>(StInst->getValueOperand()->getType());
+            if (intType->getBitWidth() > 8)
+                continue;
             StInst->setMetadata("SENSITIVE", N);
 
             InstructionReplacement* Replacement = new InstructionReplacement();

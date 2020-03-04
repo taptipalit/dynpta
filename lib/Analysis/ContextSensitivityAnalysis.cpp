@@ -23,13 +23,21 @@ using namespace llvm;
 
 char ContextSensitivityAnalysisPass::ID = 0;
 
-static cl::opt<int> iterations("csa-iter", cl::desc("How many iterations of csa should be done"), cl::value_desc("csa-iter"), cl::init(3));
+static cl::opt<int> iterations("csa-iter", cl::desc("How many iterations of csa should be done"), cl::value_desc("csa-iter"), cl::init(5));
 
 static cl::opt<bool> skipContextSensitivity("skip-csa", cl::desc("Skip context-sensitivity"), cl::value_desc("skip-csa"), cl::init(false));
 
-static cl::opt<int> callsiteThreshold("callsite-threshold", cl::desc("How many callsites should the malloc wrappers be called from to be treated as context-sensitive"), cl::value_desc("callsite-threshold"), cl::init(50));
+static cl::opt<int> callsiteThreshold("callsite-threshold", cl::desc("How many callsites should the malloc wrappers be called from to be treated as context-sensitive"), cl::value_desc("callsite-threshold"), cl::init(1));
 
-static cl::opt<int> calldepthThreshold("calldepth-threshold", cl::desc("How many other functions can a malloc wrapper call, and still be treated as context-sensitive"), cl::value_desc("calldepth-threshold"), cl::init(4));
+static cl::opt<int> calldepthThreshold("calldepth-threshold", cl::desc("How many other functions can a malloc wrapper call, and still be treated as context-sensitive"), cl::value_desc("calldepth-threshold"), cl::init(20));
+
+/* 
+ * Some values:
+ * For SensitiveMemAllocTracker: -callsite-threshold=1 -calldepth-threshold=20 -csa-iter=5
+ *          The low callsite-threshold, and high calldepth-threshold, is because we are tracking all possible
+ *          memory allocations
+ * To identify nginx + openssl: -callsite-threshold=50 -calldepth-threshold=4 -csa-iter=5
+ */
 
 /**
  * A function is a memory allocation wrapper if it allocates memory using
@@ -246,6 +254,13 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
     }
 
 }
+
+bool ContextSensitivityAnalysisPass::recompute(Module& M, int callsiteThres, int calldepthThres) {
+    callsiteThreshold = callsiteThres;
+    calldepthThreshold = calldepthThres;
+    return runOnModule(M);
+}
+
 /*!
  * We start from here
  */
