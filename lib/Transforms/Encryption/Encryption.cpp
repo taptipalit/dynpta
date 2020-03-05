@@ -1746,7 +1746,6 @@ bool EncryptionPass::isSensitiveArg(Value* arg,  std::map<PAGNode*, std::set<PAG
 
     if (std::find(ExtraSensitivePtrs.begin(), ExtraSensitivePtrs.end(), arg) != ExtraSensitivePtrs.end()) {
         return true;
-        errs()<<"Returned true from here \n";
     }
 
     if (!pag->hasValueNode(arg)) {
@@ -2986,7 +2985,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
             }
-        } else if (externalFunction->getName() == "atoi" ) {
+        /*}else if (externalFunction->getName() == "atoi" ) {
             Value* str = externalCallInst->getArgOperand(0);
             Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
             Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
@@ -3000,7 +2999,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-            }
+            }*/
         } else if (externalFunction->getName() == "fopen64") {
             Value* string1 = externalCallInst->getArgOperand(0);
             Value* string2 = externalCallInst->getArgOperand(1);
@@ -3031,7 +3030,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         } else {
             UnsupportedCallSet.insert(externalCallInst);
         }
-    }
+        }
     errs() << "Unsupported Sensitive External Function: \n";
     std::set<Function*> unsupFns;
     for (Value* unsupportedCall: UnsupportedCallSet) {
@@ -3478,20 +3477,17 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensit
 bool EncryptionPass::runOnModule(Module &M) {
     //M.print(errs(), nullptr);
     LLVM_DEBUG (
-        dbgs() << "Running Encryption pass\n";
-    );
+            dbgs() << "Running Encryption pass\n";
+            );
 
     std::vector<llvm::Value*> sensitiveMemAllocCalls;
 
     SensitiveObjSet = nullptr;
 
     // Do Alias Analysis for pointers
-    
-    /*if (!Partitioning) {
-        getAnalysis<WPAPass>().buildResultMaps();
-    }*/
     std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
     std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
+
 
     dbgs() << "Performed Pointer Analysis\n";
 
@@ -3512,85 +3508,30 @@ bool EncryptionPass::runOnModule(Module &M) {
             errs() << "Sensitive mem alloc function call: " << *inst << " in function " << inst->getParent()->getParent()->getName() << "\n";
         }
     }
-    /*
-    collectGlobalSensitiveAnnotations(M);
-    collectLocalSensitiveAnnotations(M);
-    */
 
     LLVM_DEBUG (
-        dbgs() << "Collected sensitive annotations\n";
-        for (PAGNode* valNode: SensitiveObjList) {
+            dbgs() << "Collected sensitive annotations\n";
+            for (PAGNode* valNode: SensitiveObjList) {
             assert(valNode->hasValue() && "PAG Node made it so far must have value");
             valNode->getValue()->dump();
-        }	
-    );
+            }	
+            );
 
     // Remove the annotation instruction because it causes a lot of headache later on
     removeAnnotateInstruction(M);
-    /* For Test Purpose*/
-    /*
-    PAG* pag = getAnalysis<WPAPass>().getPAG();
-    for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
-        if (auto *F = dyn_cast<Function>(MIterator)) {
-            if ( F->getName() == "mbedtls_mpi_grow"){
-                for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
-                    if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
-                        for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-                            if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-                                if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
-                                    Function* function = callInst->getCalledFunction();
-                                    if (function) {
-                                        StringRef callocStr("calloc");
-                                        if (callocStr.equals(function->getName())) {
-                                            Value* obj = dyn_cast<Value>(callInst);
-                                            errs()<<"Calloc obj is "<<*obj<<"\n";
-                                            if (pag->hasObjectNode(obj)) {
-                                                NodeID objID = pag->getObjectNode(obj);
-                                                PAGNode* objNode = pag->getPAGNode(objID);
-                                                SensitiveObjList.push_back(objNode);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    */
-    //preprocessSensitiveAnnotatedPointers(M);
-
-    /*if(!Partitioning){
-        preprocessSensitiveAnnotatedPointers(M);
-    }*/
-
 
     addPAGNodesFromSensitiveObjects(sensitiveMemAllocCalls);
-    
+
     /* 
-    if (!SkipVFA) {
-        performSourceSinkAnalysis(M);
-    }*/
-    
+       if (!SkipVFA) {
+       performSourceSinkAnalysis(M);
+       }*/
 
-    //errs() << "End: Perform dataflow analysis: " << SensitiveObjList.size() << " memory objects found\n";
-    // Remove duplicates and copy back to SensitiveObjList
-    /*SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
-    SensitiveObjList.clear();
-    std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
-
-    errs() << "After preprocessSensitiveAnnotatedPointers " << SensitiveObjList.size() << " memory objects found\n";
-    errs() << "End: Perform dataflow analysis: " << SensitiveObjList.size() << " memory objects found\n";
-    */
-    /*if(!Partitioning){
-        collectSensitivePointsToInfo(M, ptsToMap, ptsFromMap);
-    }*/
 
     if (SensitiveObjSet) {
         delete(SensitiveObjSet);
     }
+
     SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
     errs() << "Total sensitive allocation sites: " << SensitiveObjSet->size() << "\n";
     SensitiveObjList.clear();
@@ -3598,163 +3539,29 @@ bool EncryptionPass::runOnModule(Module &M) {
     errs() << "After collectSensitivePointsToInfo: " << SensitiveObjList.size() << " memory objects found\n";
 
 
-    /*for (PAGNode* sensitivePAGNode: *SensitiveObjSet) {
-        errs() <<  *sensitivePAGNode << "\n";
-        if (GepObjPN* senGep = dyn_cast<GepObjPN>(sensitivePAGNode)) {
-            errs() << "Gep offset: " << senGep->getLocationSet().getOffset() << "\n";
+
+    std::set<PAGNode*> pointsFroms;
+    getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
+    errs() << "Points from size: " << pointsFroms.size() << "\n";
+
+    // Check for the LoadInsts and StoreInsts that use the sensitive
+    // memory
+    for (PAGNode* sensitivePtrNode: pointsFroms) {
+        if (!sensitivePtrNode->hasValue()) {
+            continue;
         }
-    }*/
+        Value* ptrVal = const_cast<Value*>(sensitivePtrNode->getValue());
+        //errs()<<"ptrVal "<<*ptrVal<<"\n";
 
-    AESCache.initializeAes(M);
-    AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
-    if(Partitioning){
-        //Set Labels for Sensitive objects
-        AESCache.setLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
-    }
-    dbgs() << "Initialized AES, widened buffers to multiples of 128 bits\n";
-
-    //unConstantifySensitiveAllocSites(M);
-
-    /*
-     * For Partitioning, we will keep separate lists and sets for SensitiveGEPPtr, SensitiveLoadPtr and SensitiveLoad so that 
-     * checks don't get added where senstive objects are accesed directly or all of the targets of a pointer are sensitive
-     */
-
-    //initializeSensitiveGlobalVariables(M);
-    if (Partitioning) {
-        // Track all Load and Store instructions where the pointer 
-        unConstantifySensitiveAllocSites(M);
-        initializeSensitiveGlobalVariables(M);
-
-        std::set<PAGNode*> pointsFroms;
-        getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
-        errs() << "Points from size: " << pointsFroms.size() << "\n";
-        /* 
-        for (PAGNode* ptsFrom: pointsFroms) {
-            errs() << *ptsFrom << "\n";
-        }
-        */
-
-        // Check for the LoadInsts and StoreInsts that use the sensitive
-        // memory
-        for (PAGNode* sensitivePtrNode: pointsFroms) {
-            if (!sensitivePtrNode->hasValue()) {
-                continue;
-            }
-            Value* ptrVal = const_cast<Value*>(sensitivePtrNode->getValue());
-            //errs()<<"ptrVal "<<*ptrVal<<"\n";
-
-            if(OptimizedCheck){
-                if(AllocaInst* allocaInst = dyn_cast<AllocaInst>(ptrVal)){
-                    if (isaCPointer(allocaInst)) {
-                        continue;
-                    }
-                }
-            }
-
-            for (User* user: ptrVal->users()) {
-                if (user == ptrVal) 
+        if(OptimizedCheck){
+            if(AllocaInst* allocaInst = dyn_cast<AllocaInst>(ptrVal)){
+                if (isaCPointer(allocaInst)) {
                     continue;
-                if (LoadInst* ldInst = dyn_cast<LoadInst>(user)) {
-                    if (ldInst->getPointerOperand() == ptrVal) {
-                        //errs()<<"LdInst "<<*ldInst<<"\n";
-                        SensitiveLoadList.push_back(ldInst);
-                    }
-                } else if (StoreInst* stInst = dyn_cast<StoreInst>(user)) {
-                    if (stInst->getPointerOperand() == ptrVal) {
-                        //errs()<<"StoreInst "<<*stInst<<"\n";
-                        SensitiveStoreList.push_back(stInst);
-                    }
                 }
             }
         }
-        buildSets(M);
 
-        // Just do track them
-        for (Value* LdVal: *SensitiveLoadSet) {
-            LoadInst* LdInst = dyn_cast<LoadInst>(LdVal);
-            // Temporarily ignore anything that's not an integer
-            if (!LdInst->getType()->isIntegerTy())
-                continue;
-            IntegerType* intType = dyn_cast<IntegerType>(LdInst->getType());
-            if (intType->getBitWidth() > 8)
-                continue;
-            LLVMContext& C = LdInst->getContext();
-            MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
-            LdInst->setMetadata("SENSITIVE", N);
-
-            // Find the next instruction
-            Instruction* NextInstruction = LdInst->getNextNode();
-            InstructionReplacement* Replacement = new InstructionReplacement();
-            Replacement->OldInstruction = LdInst;
-            Replacement->NextInstruction = NextInstruction;
-            Replacement->Type = LOAD;
-            ReplacementCheckList.push_back(Replacement);
-        }
-
-        for (StoreInst* StInst: *SensitiveStoreSet) {
-
-            LLVMContext& C = StInst->getContext();
-            MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
-            // Temporarily ignore anythign that's not an Integer
-            if (!StInst->getValueOperand()->getType()->isIntegerTy())
-                continue;
-            IntegerType* intType = dyn_cast<IntegerType>(StInst->getValueOperand()->getType());
-            if (intType->getBitWidth() > 8)
-                continue;
-            StInst->setMetadata("SENSITIVE", N);
-
-            InstructionReplacement* Replacement = new InstructionReplacement();
-            Replacement->OldInstruction = StInst;
-            Replacement->NextInstruction = nullptr; // Don't care about the next, the decryption happens before the store
-            Replacement->Type = STORE;
-            ReplacementCheckList.push_back(Replacement);
-
-        }
-
-        collectSensitiveExternalLibraryCalls(M, ptsToMap);
-        dbgs() << "Collected sensitive External Library calls\n";
-
-        errs() << "External Library Call List Size: " << SensitiveExternalLibCallList.size() << "\n";
-
-        for (CallInst* sensitivePAGNode: SensitiveExternalLibCallList) {
-            errs() <<  *sensitivePAGNode << "\n";
-        }
-
-        ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall
-        ExtLibHandler.addAESCacheExtFuncHandler(M);
-
-
-        performInstrumentation(M, ptsToMap);
-        instrumentExternalFunctionCall(M, ptsToMap);
-        fixupSizeOfOperators(M);
-
-    } else {
-        std::set<PAGNode*> pointsFroms;
-        getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
-        errs() << "Points from size: " << pointsFroms.size() << "\n";
-
-        /*for (PAGNode* ptsFrom: pointsFroms) {
-          errs() << *ptsFrom << "\n";
-          }*/
-
-
-        // Check for the LoadInsts and StoreInsts that use the sensitive
-        // memory
-        for (PAGNode* sensitivePtrNode: pointsFroms) {
-            if (!sensitivePtrNode->hasValue()) {
-                continue;
-            }
-            Value* ptrVal = const_cast<Value*>(sensitivePtrNode->getValue());
-
-            if(OptimizedCheck){
-                if(AllocaInst* allocaInst = dyn_cast<AllocaInst>(ptrVal)){
-                    if (isaCPointer(allocaInst)) {
-                        continue;
-                    }
-                }
-            }
-
+        if(!Partitioning){
             PAG* pag = getAnalysis<WPAPass>().getPAG();
             if (isa<GlobalVariable>(ptrVal)){
                 if (ptrVal->getName().str().find("stdout") != std::string::npos) {
@@ -3768,183 +3575,105 @@ bool EncryptionPass::runOnModule(Module &M) {
                 SensitiveObjList.push_back(objNode);
                 SensitiveNodeIDList.push_back(pag->getObjectNode(ptrVal));
             }
-            //if (getAnalysis<WPAPass>().isPointsToNodes(sensitivePtrNode->getId(), SensitiveNodeIDList)){
-            /*if(AllocaInst* allocaInst = dyn_cast<AllocaInst>(ptrVal)){
-              if (pag->hasObjectNode(ptrVal)) {
-              NodeID objID = pag->getObjectNode(ptrVal);
-              PAGNode* objNode = pag->getPAGNode(objID);
-              SensitiveObjList.push_back(objNode);
-              SensitiveNodeIDList.push_back(pag->getObjectNode(ptrVal));
-              }
+        }
 
-              } else if (CallInst* callInst = dyn_cast<CallInst>(ptrVal)) {
-              Function* function = callInst->getCalledFunction();
-              if (function) {
-              StringRef callocStr("aes_calloc");
-              StringRef mallocStr("aes_malloc");
-              if (callocStr.equals(function->getName()) || mallocStr.equals(function->getName())) {
-              if (pag->hasObjectNode(ptrVal)) {
-              NodeID objID = pag->getObjectNode(ptrVal);
-              PAGNode* objNode = pag->getPAGNode(objID);
-              SensitiveObjList.push_back(objNode);
-              SensitiveNodeIDList.push_back(pag->getObjectNode(ptrVal));
-              }
-              }
-
-              }
-              } else {
-              if (pag->hasObjectNode(ptrVal)) {
-              NodeID objID = pag->getObjectNode(ptrVal);
-              PAGNode* objNode = pag->getPAGNode(objID);
-              SensitiveObjList.push_back(objNode);
-              SensitiveNodeIDList.push_back(pag->getObjectNode(ptrVal));
-              }
-              }*/
-            //}
-            for (User* user: ptrVal->users()) {
-                if (user == ptrVal) 
-                    continue;
-                if (LoadInst* ldInst = dyn_cast<LoadInst>(user)) {
-                    if (ldInst->getPointerOperand() == ptrVal) {
-                        SensitiveLoadList.push_back(ldInst);
-                    }
-                } else if (StoreInst* stInst = dyn_cast<StoreInst>(user)) {
-                    if (stInst->getPointerOperand() == ptrVal) {
-                        SensitiveStoreList.push_back(stInst);
-                    }
+        for (User* user: ptrVal->users()) {
+            if (user == ptrVal) 
+                continue;
+            if (LoadInst* ldInst = dyn_cast<LoadInst>(user)) {
+                if (ldInst->getPointerOperand() == ptrVal) {
+                    //errs()<<"LdInst "<<*ldInst<<"\n";
+                    SensitiveLoadList.push_back(ldInst);
                 }
-
+            } else if (StoreInst* stInst = dyn_cast<StoreInst>(user)) {
+                if (stInst->getPointerOperand() == ptrVal) {
+                    //errs()<<"StoreInst "<<*stInst<<"\n";
+                    SensitiveStoreList.push_back(stInst);
+                }
             }
         }
-
-        if (SensitiveObjSet) {
-            delete(SensitiveObjSet);
-        }
-        SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
-        errs() << "Total sensitive allocation sites after pointsFromSet: " << SensitiveObjSet->size() << "\n";
-        SensitiveObjList.clear();
-        std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
-        errs() << "After adding sensitive objects from PointsFromSet: " << SensitiveObjList.size() << " memory objects found\n";
-
-
-        AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
-
-        /*for (PAGNode* sensitivePAGNode: *SensitiveObjSet) {
-          errs() <<  *sensitivePAGNode << "\n";
-          }*/
-
-        buildSets(M);
-        // Just do track them
-        for (Value* LdVal: *SensitiveLoadSet) {
-            LoadInst* LdInst = dyn_cast<LoadInst>(LdVal);
-            LLVMContext& C = LdInst->getContext();
-            MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
-            LdInst->setMetadata("SENSITIVE", N);
-
-            // Find the next instruction
-            Instruction* NextInstruction = LdInst->getNextNode();
-            InstructionReplacement* Replacement = new InstructionReplacement();
-            Replacement->OldInstruction = LdInst;
-            Replacement->NextInstruction = NextInstruction;
-            Replacement->Type = LOAD;
-            ReplacementList.push_back(Replacement);
-        }
-
-        for (StoreInst* StInst: *SensitiveStoreSet) {
-
-            LLVMContext& C = StInst->getContext();
-            MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
-            StInst->setMetadata("SENSITIVE", N);
-
-            InstructionReplacement* Replacement = new InstructionReplacement();
-            Replacement->OldInstruction = StInst;
-            Replacement->NextInstruction = nullptr; // Don't care about the next, the decryption happens before the store
-            Replacement->Type = STORE;
-            ReplacementList.push_back(Replacement);
-
-        }
-
-        unConstantifySensitiveAllocSites(M);
-        initializeSensitiveGlobalVariables(M);
-
-        collectSensitiveExternalLibraryCalls(M, ptsToMap);
-
-        dbgs() << "Collected sensitive External Library calls\n";
-        errs() << "External Library Call List Size: " << SensitiveExternalLibCallList.size() << "\n";
-
-        /*for (CallInst* sensitivePAGNode: SensitiveExternalLibCallList) {
-          errs() <<  *sensitivePAGNode << "\n";
-          }*/
-        ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall
-        ExtLibHandler.addAESCacheExtFuncHandler(M);
-
-
-        performInstrumentation(M, ptsToMap);
-        instrumentExternalFunctionCall(M, ptsToMap);
-        fixupSizeOfOperators(M);
-        /*buildSets(M);
-+
-        collectSensitiveGEPInstructions(M, ptsToMap);
-        dbgs() << "Collected sensitive GEP instructions\n";
-
-        SensitiveGEPPtrSet = new std::set<Value*>(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
-        errs() << "After collectSensitiveGEPInstructions: " << SensitiveGEPPtrSet->size() << " sensitive GEP instructions found\n";
-
-        SensitiveGEPPtrCheckSet = new std::set<Value*>(SensitiveGEPPtrCheckList.begin(), SensitiveGEPPtrCheckList.end());
-        errs() << "After collectSensitiveGEPInstructions: " << SensitiveGEPPtrCheckSet->size() << " sensitive GEPCheck instructions found\n";
-
-          errs()<<" Sensitive GEP ptr set :\n"; 
-
-          for (Value*  sensitiveGEPPtrInst: *SensitiveGEPPtrSet) {
-          errs() <<  *sensitiveGEPPtrInst << "\n";
-          }
-        //buildSets(M);
-
-        collectSensitiveLoadInstructions(M, ptsToMap);
-
-        collectSensitiveGEPInstructionsFromLoad(M, ptsToMap);
-
-        SensitiveLoadPtrSet = new std::set<Value*>(SensitiveLoadPtrList.begin(), SensitiveLoadPtrList.end()); // Any pointer that points to sensitive location
-        SensitiveLoadSet = new std::set<Value*>(SensitiveLoadList.begin(), SensitiveLoadList.end());
-
-        SensitiveLoadPtrCheckSet = new std::set<Value*>(SensitiveLoadPtrCheckList.begin(), SensitiveLoadPtrCheckList.end());
-        SensitiveLoadCheckSet = new std::set<Value*>(SensitiveLoadCheckList.begin(), SensitiveLoadCheckList.end());
-
-        if (SensitiveGEPPtrSet) {
-            delete(SensitiveGEPPtrSet);
-        }
-        if (SensitiveGEPPtrCheckSet) {
-            delete(SensitiveGEPPtrCheckSet);
-        }
-        SensitiveGEPPtrSet = new std::set<Value*>(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
-        SensitiveGEPPtrCheckSet = new std::set<Value*>(SensitiveGEPPtrCheckList.begin(), SensitiveGEPPtrCheckList.end());
-
-        //collectSensitiveAsmInstructions(M, ptsToMap);
-        dbgs() << "Collected sensitive load instructions\n";
-
-        collectSensitiveExternalLibraryCalls(M, ptsToMap);
-
-        dbgs() << "Collected sensitive External Library calls\n";
-
-        //buildSets(M);
-
-
-        ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall
-        ExtLibHandler.addAESCacheExtFuncHandler(M);
-
-
-        LLVM_DEBUG (
-                dbgs() << "Instrumented external function calls\n";
-                );
-
-        instrumentAndAnnotateInst(M, ptsToMap);
-        LLVM_DEBUG (
-                dbgs() << "Instrumented and annotated sensitive Load and Store instructions\n";
-                );
-
-
-        fixupSizeOfOperators(M);*/
     }
+
+
+    if (SensitiveObjSet) {
+        delete(SensitiveObjSet);
+    }
+    SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
+    errs() << "Total sensitive allocation sites after pointsFromSet: " << SensitiveObjSet->size() << "\n";
+    SensitiveObjList.clear();
+    std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
+    errs() << "After adding sensitive objects from PointsFromSet: " << SensitiveObjList.size() << " memory objects found\n";
+
+
+    AESCache.initializeAes(M);
+    AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
+    if(Partitioning){
+        //Set Labels for Sensitive objects
+        AESCache.setLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
+    }
+    dbgs() << "Initialized AES, widened buffers to multiples of 128 bits\n";
+
+    buildSets(M);
+
+    // Just do track them
+    for (Value* LdVal: *SensitiveLoadSet) {
+        LoadInst* LdInst = dyn_cast<LoadInst>(LdVal);
+        LLVMContext& C = LdInst->getContext();
+        MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+        LdInst->setMetadata("SENSITIVE", N);
+
+        // Find the next instruction
+        Instruction* NextInstruction = LdInst->getNextNode();
+        InstructionReplacement* Replacement = new InstructionReplacement();
+        Replacement->OldInstruction = LdInst;
+        Replacement->NextInstruction = NextInstruction;
+        Replacement->Type = LOAD;
+        if(Partitioning){
+            ReplacementCheckList.push_back(Replacement);
+        } else {
+            ReplacementList.push_back(Replacement);
+        }
+    }
+
+    for (StoreInst* StInst: *SensitiveStoreSet) {
+
+        LLVMContext& C = StInst->getContext();
+        MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+        StInst->setMetadata("SENSITIVE", N);
+
+        InstructionReplacement* Replacement = new InstructionReplacement();
+        Replacement->OldInstruction = StInst;
+        Replacement->NextInstruction = nullptr; // Don't care about the next, the decryption happens before the store
+        Replacement->Type = STORE;
+        if(Partitioning){
+            ReplacementCheckList.push_back(Replacement);
+        } else {
+            ReplacementList.push_back(Replacement);
+        }
+
+    }
+
+    unConstantifySensitiveAllocSites(M);
+    initializeSensitiveGlobalVariables(M);
+
+    collectSensitiveExternalLibraryCalls(M, ptsToMap);
+
+    dbgs() << "Collected sensitive External Library calls\n";
+    errs() << "External Library Call List Size: " << SensitiveExternalLibCallList.size() << "\n";
+
+    /*for (CallInst* sensitivePAGNode: SensitiveExternalLibCallList) {
+      errs() <<  *sensitivePAGNode << "\n";
+      }
+      */
+
+    ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall
+    ExtLibHandler.addAESCacheExtFuncHandler(M);
+
+
+    performInstrumentation(M, ptsToMap);
+    instrumentExternalFunctionCall(M, ptsToMap);
+    fixupSizeOfOperators(M);
+
 
     dbgs () << "Inserted " << decryptionCount << " calls to decryption routines.\n";
     dbgs () << "Inserted " << encryptionCount << " calls to encryption routines.\n";
