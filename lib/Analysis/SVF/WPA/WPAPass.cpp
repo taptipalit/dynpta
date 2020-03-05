@@ -669,6 +669,19 @@ bool WPAPass::isPointsToNodes(NodeID ptrNodeId, std::vector<NodeID>& sensitiveNo
     return false;
 }
 
+
+std::vector<PAGNode*> WPAPass::pointsToSet(NodeID ptrNodeId) {
+    SteensgaardFast* steens = dyn_cast<SteensgaardFast>(_pta);
+    assert(steens && "getPtsFrom works only on Steensgaard");
+    
+    PAG* pag = _pta->getPAG();
+    std::vector<PAGNode*> sensitiveNodeIdForPointsToSet;
+    for (NodeID ptsId: steens->getPts(ptrNodeId)) {
+            sensitiveNodeIdForPointsToSet.push_back(pag->getPAGNode(ptsId));
+   }
+    return sensitiveNodeIdForPointsToSet;
+}
+
 void WPAPass::getPtsFrom(std::vector<PAGNode*>& sensitiveNodes,
                     std::set<PAGNode*>& pointsFrom) {
     PAG* pag = _pta->getPAG();

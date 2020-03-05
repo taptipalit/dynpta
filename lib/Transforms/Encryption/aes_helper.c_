@@ -50,7 +50,7 @@ void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
 
             encrypt_cache((void*)lastAddr);
 
-            printf("Encryption %ld\n",enc++);        
+            //printf("Encryption %ld\n",enc++);        
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -503,6 +503,7 @@ uint64_t getDecryptedValueQWord(void* ptr) {
 
 void encrypt_globals(char* ptr, long numBytes) {
     long numBlocks = (numBytes + (16 - 1)) / 16;
+    //printf("address is %p and number of blocks is %d\n",(void*)ptr,numBlocks);
     for (int i = 0; i < numBlocks; i++) {
         encrypt_memory(ptr+(i*16));
     }
