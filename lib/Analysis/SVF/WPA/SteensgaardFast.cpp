@@ -36,6 +36,10 @@
 using namespace llvm;
 using namespace analysisUtil;
 
+cl::opt<bool> skipAnalysis("skip-analysis", cl::init(false),
+                        cl::desc("Skip WPA calculation, must load from file"));
+
+
 /*!
  * Process address edges. Same as Andersen's, but doesn't push anything into a
  * worklist
@@ -51,6 +55,9 @@ void SteensgaardFast::analyze(SVFModule svfModule) {
     double steensAnalysisTime;
 
     initialize(svfModule);
+    if (skipAnalysis) 
+        return;
+
     processAllAddr();
 
     errs() << "Total number of nodes in PAG: " << pag->getTotalNodeNum() << "\n";

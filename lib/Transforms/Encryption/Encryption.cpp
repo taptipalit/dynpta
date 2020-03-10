@@ -110,6 +110,8 @@ namespace {
             void findGepInstFromGepNode(GepObjPN*, std::vector<GetElementPtrInst*>&);
             GepObjPN* getGepOrFINodeFromGEPInst(GetElementPtrInst*);
 
+
+            std::set<PAGNode*> pointsFroms;
             bool isSensitiveLoad(Value*);
             bool isSensitiveLoadPtr(Value*);
             bool isSensitiveGEPPtr(Value*);
@@ -221,6 +223,8 @@ char EncryptionPass::ID = 0;
 cl::opt<bool> AesEncCache("aes-enc-cache", cl::desc("AES Encryption - Cache"), cl::init(false), cl::Hidden);
 cl::opt<bool> Partitioning("partitioning", cl::desc("Partitioning"), cl::init(false), cl::Hidden);
 cl::opt<bool> OptimizedCheck("optimized-check", cl::desc("Reduce no of Checks needed"), cl::init(false), cl::Hidden);
+cl::opt<bool> ReadFromFile("read-from-file", cl::desc("Read from file"), cl::init(false), cl::Hidden);
+cl::opt<bool> WriteToFile("write-from-file", cl::desc("Write to file"), cl::init(false), cl::Hidden);
 //cl::opt<bool> SkipVFA("skip-vfa-enc", cl::desc("Skip VFA"), cl::init(false), cl::Hidden);
 
 
@@ -1456,32 +1460,36 @@ void EncryptionPass::collectSensitiveExternalLibraryCalls(Module& M,  std::map<P
                                 } else {
                                     // Function pointer
                                     PAGNode* calledValueNode = getPAGValNodeFromValue(CInst->getCalledValue());
-                                    for (PAGNode* possibleFunNode: /*ptsToMap[calledValueNode]*/getAnalysis<WPAPass>().pointsToSet(calledValueNode->getId())) {
-                                        if (possibleFunNode->hasValue()) {
-                                            Value* possibleFun = const_cast<Value*>(possibleFunNode->getValue());
-                                            if (Function* function = dyn_cast<Function>(possibleFun)) {
-                                                if (!containsSet(function, AllFunctions)) {
+                                    if (!ReadFromFile) {
+                                        for (PAGNode* possibleFunNode: /*ptsToMap[calledValueNode]*/getAnalysis<WPAPass>().pointsToSet(calledValueNode->getId())) {
+                                            if (possibleFunNode->hasValue()) {
+                                                Value* possibleFun = const_cast<Value*>(possibleFunNode->getValue());
+                                                if (Function* function = dyn_cast<Function>(possibleFun)) {
+                                                    if (!containsSet(function, AllFunctions)) {
 
-                                                    // Get the arguments, check if any of them is sensitive 
-                                                    // and then put code to decrypt them in memory
-                                                    int numArgs = CInst->getNumArgOperands();
-                                                    bool isSensitiveCall = false;
-                                                    for (int i = 0; i < numArgs; i++) {
-                                                        Value* value = CInst->getArgOperand(i);
-                                                        if (isSensitiveArg(value, ptsToMap)) {
-                                                            LLVM_DEBUG (
-                                                                    dbgs() << "Sensitive external library call found: ";
-                                                                    value->dump();
-                                                                    );
-                                                            isSensitiveCall = true;
+                                                        // Get the arguments, check if any of them is sensitive 
+                                                        // and then put code to decrypt them in memory
+                                                        int numArgs = CInst->getNumArgOperands();
+                                                        bool isSensitiveCall = false;
+                                                        for (int i = 0; i < numArgs; i++) {
+                                                            Value* value = CInst->getArgOperand(i);
+                                                            if (isSensitiveArg(value, ptsToMap)) {
+                                                                LLVM_DEBUG (
+                                                                        dbgs() << "Sensitive external library call found: ";
+                                                                        value->dump();
+                                                                        );
+                                                                isSensitiveCall = true;
+                                                            }
                                                         }
-                                                    }
-                                                    if (isSensitiveCall) {
-                                                        SensitiveExternalLibCallList.push_back(CInst);
+                                                        if (isSensitiveCall) {
+                                                            SensitiveExternalLibCallList.push_back(CInst);
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
+                                    } else {
+                                        errs() << "Will skip indirect external function calls in ReadFromFile mode\n";
                                     }
                                 }
                             }
@@ -1759,7 +1767,8 @@ bool EncryptionPass::isSensitiveArg(Value* arg,  std::map<PAGNode*, std::set<PAG
 
     // If this arg points to sensitive stuff, then it is sensitive
     PAGNode* argNode = getPAGValNodeFromValue(arg);
-    return getAnalysis<WPAPass>().isPointsToNodes(argNode->getId(), SensitiveNodeIDList);
+    return (std::find(pointsFroms.begin(), pointsFroms.end(), argNode) != pointsFroms.end());
+    //getAnalysis<WPAPass>().isPointsToNodes(argNode->getId(), SensitiveNodeIDList);
 
     /*if (Partitioning) {
         return getAnalysis<WPAPass>().isPointsToNodes(argNode->getId(), SensitiveNodeIDList); 
@@ -2201,6 +2210,8 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             for (int i = 0; i < argNum; i++) {
                 // has varargs
                 Value* arg = externalCallInst->getArgOperand(i);
+				if (!arg->getType()->isPointerTy())
+					continue;
 
                 IRBuilder<> InstBuilder(externalCallInst);
                 if (arg->getType() != voidPtrType) {
@@ -3438,7 +3449,9 @@ void EncryptionPass::fixupSizeOfOperators(Module& M) {
                                     if (!sizeOfType) {
                                         sizeOfType = structNameTypeMap["struct."+sizeOfTypeNameStr->getString().str()];
                                         if (!sizeOfType) {
-                                            assert(false && "Cannot find sizeof type");
+                                            //assert(false && "Cannot find sizeof type");
+                                            errs() << "Couldn't find sizeof type for " << *CI << " in function: " << F->getName() << "\n";
+                                            continue;
                                         }
                                     }
 
@@ -3538,10 +3551,28 @@ bool EncryptionPass::runOnModule(Module &M) {
     std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
     errs() << "After collectSensitivePointsToInfo: " << SensitiveObjList.size() << " memory objects found\n";
 
-
-
-    std::set<PAGNode*> pointsFroms;
-    getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
+    if (!ReadFromFile) {
+        getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
+        if (WriteToFile) {
+            std::ofstream outFile;
+            outFile.open("pointsto.results");
+            for (PAGNode* pagNode: pointsFroms) {
+                outFile << pagNode->getId() << "\n";
+            }
+            outFile.close();
+        }
+    } else {
+        std::ifstream inFile;
+        NodeID sensitivePtrId;
+        inFile.open("pointsto.results");
+        if (!inFile) {
+            assert(false && "Can't open file to read from\n");
+        }
+        while (inFile >> sensitivePtrId) {
+            PAGNode* sensitiveNode = getAnalysis<WPAPass>().getPAG()->getPAGNode(sensitivePtrId);
+            pointsFroms.insert(sensitiveNode);
+        }
+    }
     errs() << "Points from size: " << pointsFroms.size() << "\n";
 
     // Check for the LoadInsts and StoreInsts that use the sensitive
@@ -3618,6 +3649,13 @@ bool EncryptionPass::runOnModule(Module &M) {
     // Just do track them
     for (Value* LdVal: *SensitiveLoadSet) {
         LoadInst* LdInst = dyn_cast<LoadInst>(LdVal);
+		// Temporarily ignore anything that's not an integer
+		if (!LdInst->getType()->isIntegerTy())
+			continue;
+		IntegerType* intType = dyn_cast<IntegerType>(LdInst->getType());
+		if (intType->getBitWidth() > 8)
+			continue;
+
         LLVMContext& C = LdInst->getContext();
         MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
         LdInst->setMetadata("SENSITIVE", N);
@@ -3638,7 +3676,13 @@ bool EncryptionPass::runOnModule(Module &M) {
     for (StoreInst* StInst: *SensitiveStoreSet) {
 
         LLVMContext& C = StInst->getContext();
-        MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+		MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+		if (!StInst->getValueOperand()->getType()->isIntegerTy())
+			continue;
+		IntegerType* intType = dyn_cast<IntegerType>(StInst->getValueOperand()->getType());
+		if (intType->getBitWidth() > 8)
+			continue;
+
         StInst->setMetadata("SENSITIVE", N);
 
         InstructionReplacement* Replacement = new InstructionReplacement();
