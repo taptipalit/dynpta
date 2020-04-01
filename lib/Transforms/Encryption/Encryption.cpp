@@ -1398,7 +1398,7 @@ void EncryptionPass::collectSensitiveExternalLibraryCalls(Module& M,  std::map<P
                                     if (isCallocLike(fNameStr)) {
                                         if (isSensitiveObjSet(getPAGObjNodeFromValue/*getPAGValNodeFromValue*/(CInst))) {
                                             SensitiveExternalLibCallList.push_back(CInst);
-                                            errs()<<"External Calloc:"<<*CInst<<"\n";
+                                            //errs()<<"External Calloc:"<<*CInst<<"\n";
                                         }
                                     } else {
                                         if (!containsSet(CInst->getCalledFunction(), AllFunctions)) {
@@ -1844,7 +1844,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
     /*IntegerType* longTy = IntegerType::get(M.getContext(), 64);*/
 
     for (CallInst* externalCallInst : SensitiveExternalLibCallList) {
-        errs()<<"CallInst "<<*externalCallInst<<"\n";
+        //errs()<<"CallInst "<<*externalCallInst<<"\n";
         Function* externalFunction = externalCallInst->getCalledFunction();
         if (!externalFunction) {
             // Was a function pointer.
@@ -2127,7 +2127,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     if (isSensitiveArg(arg, ptsToMap) ) {
                         std::vector<Value*> ArgList;
                         ArgList.push_back(arg);
-                        errs()<<"Arg is "<<*arg<<"\n";
+                        //errs()<<"Arg is "<<*arg<<"\n";
                         if (Partitioning){
                             externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, arg, ArgList);
                         } else {

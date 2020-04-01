@@ -50,7 +50,7 @@ void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
 
             encrypt_cache((void*)lastAddr);
 
-            printf("Encryption %ld\n",enc++);        
+            //printf("Encryption %ld\n",enc++);        
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -125,7 +125,7 @@ void setEncryptedValueWord(void* ptr, uint16_t word_arg) {
 
             encrypt_cache((void*)lastAddr);
 
-            printf("Encryption %ld\n",enc++);
+            //printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -179,7 +179,7 @@ void setEncryptedValueDWord(void* ptr, uint32_t dword_arg) {
 
             encrypt_cache((void*)lastAddr);
 
-            printf("Encryption %ld\n",enc++);
+            //printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -228,7 +228,7 @@ void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
         if (lastAddr > 0 && dirty) {
             encrypt_cache((void*)lastAddr);
 
-            printf("Encryption %ld\n",enc++);
+            //printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -277,12 +277,12 @@ uint8_t getDecryptedValueByte(void* ptr) {
 
             encrypt_cache((void*)lastAddr);
             dirty = 0;
-            printf("Encryption %ld\n",enc++);
+            //printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
 
         decrypt_cache((void*)aligned_ptr);
-        printf("Decryption %ld\n",dec++);
+        //printf("Decryption %ld\n",dec++);
     }
     switch(offset) {
         case 0:
@@ -354,12 +354,12 @@ uint16_t getDecryptedValueWord(void* ptr) {
         if (lastAddr > 0 && dirty) {
             encrypt_cache((void*)lastAddr);
             dirty = 0;
-            printf("Encryption %ld\n",enc++);
+            //printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
 
         decrypt_cache((void*)aligned_ptr);
-        printf("Decryption %ld\n",dec++);
+        //printf("Decryption %ld\n",dec++);
     }
     offset = offset/2;
     switch(offset) {
@@ -409,12 +409,12 @@ uint32_t getDecryptedValueDWord(void* ptr) {
 
             encrypt_cache((void*)lastAddr);
             dirty = 0;
-            printf("Encryption %ld\n",enc++);
+            //printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
 
         decrypt_cache((void*)aligned_ptr);
-        printf("Decryption %ld\n",dec++);
+        //printf("Decryption %ld\n",dec++);
     }
     offset = offset/4;
     switch(offset) {
@@ -461,12 +461,12 @@ uint64_t getDecryptedValueQWord(void* ptr) {
         if (lastAddr > 0 && dirty) {
             encrypt_cache((void*)lastAddr);
             dirty = 0;
-            printf("Encryption %ld\n",enc++);
+            //printf("Encryption %ld\n",enc++);
         }
         lastAddr = aligned_ptr;
 
         decrypt_cache((void*)aligned_ptr);
-        printf("Decryption %ld\n",dec++);
+        //printf("Decryption %ld\n",dec++);
     }
     offset = offset/8;
     switch(offset) {
