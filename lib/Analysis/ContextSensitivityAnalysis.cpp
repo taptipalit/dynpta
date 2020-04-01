@@ -267,10 +267,11 @@ bool ContextSensitivityAnalysisPass::recompute(Module& M, int callsiteThres, int
 bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
 
     /* Passthrough */
+    errs()<<"Skipeed CSA before \n";
     if (skipContextSensitivity) {
         return false;
     }
-
+    errs()<<"Skipeed CSA \n";
     Function* mallocFunction = M.getFunction("malloc");
     Function* callocFunction = M.getFunction("calloc");
     Function* reallocFunction = M.getFunction("realloc");
