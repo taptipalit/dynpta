@@ -43,13 +43,13 @@ fi
 #wpa -nander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
+$LLVMROOT/llvm-dis $file.bc -o $file.ll
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $file.bc 
-$LLVMROOT/opt -encryption -steens-fast -optimized-check=true -partitioning=true  $file.bc -o $fileinst.bc
+$LLVMROOT/opt -encryption -steens-fast -optimized-check=true -partitioning=true  $file.bc -o $fileinst.bc #-write-from-file   -skip-analysis -read-from-file 
 $LLVMROOT/opt --dfsan $fileinst.bc -o $filedfsan.bc
 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc
-$LLVMROOT/llvm-dis $file.bc -o $file.ll
 $LLVMROOT/llvm-dis $fileinst.bc -o $fileinst.ll
 $LLVMROOT/llvm-dis $filedfsan.bc -o $filedfsan.ll
 #exit 0

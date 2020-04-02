@@ -119,8 +119,8 @@ namespace external {
         ArrayRef<Type*> loopEncTypeQWordArray(loopEncTypeQWord);
 
         std::vector<Type*> loopEncTypeDouble;
-        loopEncTypeQWord.push_back(voidPtrType);
-        loopEncTypeQWord.push_back(doubleType);
+        loopEncTypeDouble.push_back(voidPtrType);
+        loopEncTypeDouble.push_back(doubleType);
         ArrayRef<Type*> loopEncTypeDoubleArray(loopEncTypeDouble);
 
         FunctionType* FTypeEncLoopByte = FunctionType::get(voidPtrType, loopEncTypeByteArray, false);
@@ -906,8 +906,7 @@ namespace external {
             } else if (PlainTextValPtrType) {
                 INCREMENT = 8; // Pointer always 64 bit
             } else {
-                errs() << "Unknown type. Can't encrypt!\n";
-                assert(false);
+                assert(PlainTextValDoubleType && "Unknown Type!");
             }
             std::vector<Value*> encryptArgList;
             PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
@@ -1001,8 +1000,7 @@ namespace external {
             } else if (PlainTextValPtrType) {
                 INCREMENT = 8; // Pointer always 64 bit
             } else {
-                errs() << "Unknown type. Can't encrypt!\n";
-                assert(false);
+                assert(PlainTextValDoubleType && "Unknown Type!");
             }
             std::vector<Value*> encryptArgList;
             PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
@@ -1135,8 +1133,7 @@ namespace external {
             } else if (EncValPtrType) {
                 INCREMENT = 8;
             } else {
-                errs() << "Unknown type - can't encrypt!\n";
-                assert(false);
+                assert(EncValDoubleType && "Unknown type!");
             }
 
             PointerType* ldInstPtrType = dyn_cast<PointerType>(ldInstPtrOperand->getType());
@@ -1226,8 +1223,7 @@ namespace external {
             } else if (EncValPtrType) {
                 INCREMENT = 8;
             } else {
-                errs() << "Unknown type - can't encrypt!\n";
-                assert(false);
+                assert(EncValDoubleType && "Unknown type!");
             }
 
             PointerType* ldInstPtrType = dyn_cast<PointerType>(ldInstPtrOperand->getType());
