@@ -155,6 +155,14 @@ namespace external {
         this->aesCallocFunction = Function::Create(FTypeCalloc, Function::ExternalLinkage, "aes_calloc", &M);
 
         
+        // The instrumented strdup function
+        std::vector<Type*> strdupVec;
+        strdupVec.push_back(voidPtrType);
+        ArrayRef<Type*> strdupArrRef(strdupVec);
+        FunctionType* FTypeStrdup = FunctionType::get(voidPtrType, strdupArrRef, false);
+
+        this->aesStrdupFunction = Function::Create(FTypeStrdup, Function::ExternalLinkage, "aes_strdup", &M);
+
         // The instrumented free function
         std::vector<Type*> freeVec;
         freeVec.push_back(voidPtrType);
@@ -590,12 +598,15 @@ namespace external {
                                         if (function) {
                                             StringRef mallocStr("malloc");
                                             StringRef callocStr("calloc");
+                                            StringRef strdupStr("strdup");
                                             if (mallocStr.equals(function->getName())) {
                                                 // Change the called function to inst_malloc
                                                 //need to check changing malloc and calloc for DFSan
                                                 callInst->setCalledFunction(aesMallocFunction);
                                             } else if (callocStr.equals(function->getName())) {
                                                 callInst->setCalledFunction(aesCallocFunction);
+                                            } else if (strdupStr.equals(function->getName())) {
+                                                callInst->setCalledFunction(aesStrdupFunction);
                                             } else if (freeStr.equals(function->getName())) {
                                                 //callInst->setCalledFunction(aesFreeFunction);
                                                 std::vector<Value*> argList;

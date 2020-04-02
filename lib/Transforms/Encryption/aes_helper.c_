@@ -707,6 +707,8 @@ void* aes_malloc(long size) {
     } else {
         roundedSize = size + 16;
     }
+    
+    //printf("AES_malloc size %ld\n",roundedSize);
     void* Ptr = aligned_alloc(16, roundedSize);
     //printf( "Malloc ptr = %p for size = %d bytes.\n", Ptr, roundedSize);
     return Ptr;
@@ -721,6 +723,7 @@ void* aes_calloc(long nmem, long elem_size) {
     } else {
         roundedSize = size + 16;
     }
+    //printf("AES_calloc size %ld\n",roundedSize);
     void* Ptr = aligned_alloc(16, roundedSize);
     memset(Ptr, 0, roundedSize);
     //fprintf(stderr, "Calloc ptr = %p\n", Ptr);
