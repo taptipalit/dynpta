@@ -2596,7 +2596,7 @@ public:
   bool isMutable() const { return Mutable; }
 
   /// Determines whether this field is a bitfield.
-  bool isBitField() const { return BitField; }
+  bool isBitField() const { return false/*BitField*/; }
 
   /// Determines whether this is an unnamed bitfield.
   bool isUnnamedBitfield() const { return isBitField() && !getDeclName(); }

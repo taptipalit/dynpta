@@ -1461,7 +1461,7 @@ void EncryptionPass::collectSensitiveExternalLibraryCalls(Module& M,  std::map<P
                                     // Function pointer
                                     PAGNode* calledValueNode = getPAGValNodeFromValue(CInst->getCalledValue());
                                     if (!ReadFromFile) {
-                                        for (PAGNode* possibleFunNode: /*ptsToMap[calledValueNode]*/getAnalysis<WPAPass>().pointsToSet(calledValueNode->getId())) {
+                                        for (PAGNode* possibleFunNode: getAnalysis<WPAPass>().pointsToSet(calledValueNode->getId())) {
                                             if (possibleFunNode->hasValue()) {
                                                 Value* possibleFun = const_cast<Value*>(possibleFunNode->getValue());
                                                 if (Function* function = dyn_cast<Function>(possibleFun)) {
@@ -1850,16 +1850,22 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         Function* externalFunction = externalCallInst->getCalledFunction();
         if (!externalFunction) {
             // Was a function pointer.
-            assert(false && "We don't handle function pointers for now!");
             std::vector<Function*> possibleFuns;
             PAGNode* fptrNode = getPAGValNodeFromValue(externalCallInst->getCalledValue());
-            for (PAGNode* fNode : ptsToMap[fptrNode]) {
+            for (PAGNode* fNode : getAnalysis<WPAPass>().pointsToSet(fptrNode->getId())) {
+                if (!fNode->hasValue())
+                    continue;
                 Value* fn = const_cast<Value*>(fNode->getValue());
                 if (Function* realFn = dyn_cast<Function>(fn)) {
                     possibleFuns.push_back(realFn);
                 }
             }
             if (possibleFuns.size() != 1) {
+                for (Function* possibleFun: possibleFuns) {
+                    if (std::find(AllFunctions.begin(), AllFunctions.end(), possibleFun) == AllFunctions.end()) {
+                        errs() << "External function: " << possibleFun->getName() << "\n";
+                    }
+                }
                 errs() << "For call instruction: " << *externalCallInst << " in function " << externalCallInst->getParent()->getParent()->getName() << " found " << possibleFuns.size() << " functions\n";
             }
             assert(possibleFuns.size() == 1 && "Found more than one external function pointer targets. Don't know what to do here.\n");
@@ -3492,7 +3498,8 @@ bool EncryptionPass::runOnModule(Module &M) {
     LLVM_DEBUG (
             dbgs() << "Running Encryption pass\n";
             );
-
+    // Store the struct types here, because later things get hairy when we add
+    // the AES functions with 128 bit integer arguments
     std::vector<llvm::Value*> sensitiveMemAllocCalls;
 
     SensitiveObjSet = nullptr;
@@ -3650,11 +3657,13 @@ bool EncryptionPass::runOnModule(Module &M) {
     for (Value* LdVal: *SensitiveLoadSet) {
         LoadInst* LdInst = dyn_cast<LoadInst>(LdVal);
 		// Temporarily ignore anything that's not an integer
+        /*
 		if (!LdInst->getType()->isIntegerTy())
 			continue;
 		IntegerType* intType = dyn_cast<IntegerType>(LdInst->getType());
 		if (intType->getBitWidth() > 8)
 			continue;
+            */
 
         LLVMContext& C = LdInst->getContext();
         MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
@@ -3677,11 +3686,13 @@ bool EncryptionPass::runOnModule(Module &M) {
 
         LLVMContext& C = StInst->getContext();
 		MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
+        /*
 		if (!StInst->getValueOperand()->getType()->isIntegerTy())
 			continue;
 		IntegerType* intType = dyn_cast<IntegerType>(StInst->getValueOperand()->getType());
 		if (intType->getBitWidth() > 8)
 			continue;
+            */
 
         StInst->setMetadata("SENSITIVE", N);
 

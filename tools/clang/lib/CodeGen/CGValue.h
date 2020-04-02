@@ -251,7 +251,7 @@ private:
 public:
   bool isSimple() const { return LVType == Simple; }
   bool isVectorElt() const { return LVType == VectorElt; }
-  bool isBitField() const { return LVType == BitField; }
+  bool isBitField() const { return false/*LVType == BitField*/; }
   bool isExtVectorElt() const { return LVType == ExtVectorElt; }
   bool isGlobalReg() const { return LVType == GlobalReg; }
 
