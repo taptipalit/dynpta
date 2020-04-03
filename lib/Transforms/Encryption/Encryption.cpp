@@ -1375,7 +1375,6 @@ void EncryptionPass::collectSensitiveExternalLibraryCalls(Module& M,  std::map<P
     std::set<Value*> SensitiveGEPPtrSet(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
     std::set<Value*> SensitiveLoadPtrSet(SensitiveLoadPtrList.begin(), SensitiveLoadPtrList.end());
 
-    std::set<Value*> AllFunctions;
     // Populate list of all functions
     for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
         if (auto *F = dyn_cast<Function>(MIterator)) {
