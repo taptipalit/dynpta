@@ -1957,8 +1957,35 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 Function* encryptFunction = M.getFunction("encryptStringPtrAfterLibCall");
                 std::vector<Value*> ArgList;
                 ArgList.push_back(stringPtr);
-                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
-                encCInst->insertAfter(externalCallInst);
+
+                if (Partitioning){
+
+                    IRBuilder<> Builder(externalCallInst);
+                    Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
+
+                    CallInst* readLabel = nullptr;
+                    ConstantInt* noOfByte = Builder.getInt64(1);
+                    ConstantInt *One = Builder.getInt16(1);
+                    errs()<<"StringPtr "<<*stringPtr<<"\n";
+
+                    IntegerType* voidType = IntegerType::get(externalCallInst->getContext(), 8);
+                    PointerType* voidPtrType = PointerType::get(voidType, 0);
+                    // The bitcast
+                    Value* bcVal = Builder.CreateBitCast(stringPtr, voidPtrType);
+                    readLabel = Builder.CreateCall(DFSanReadLabelFn,{bcVal , noOfByte});
+                    readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+
+                    Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+                    Instruction* SplitBeforeNew = cast<Instruction>(externalCallInst->getNextNode());
+                    TerminatorInst* ThenTerm  = SplitBlockAndInsertIfThen(cmpInst, SplitBeforeNew, false);
+                    Builder.SetInsertPoint(ThenTerm);
+
+                    CallInst* enecryptArray = Builder.CreateCall(encryptFunction, ArgList);
+                    Builder.SetInsertPoint(SplitBeforeNew);
+                } else {
+                    CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                    encCInst->insertAfter(externalCallInst);
+                }
             }
             for (int i = 1; i < numArgs; i++) {
                 Value* value = externalCallInst->getArgOperand(i);
@@ -1979,7 +2006,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     } else {
                         externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                     }
-                    //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
             }
         } else if (externalFunction->getName() == "posix_memalign") {
@@ -2053,7 +2079,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-                //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
         } else if (externalFunction->getName() == "fgets") {
             Value* buffer = externalCallInst->getArgOperand(0);
@@ -2063,26 +2088,49 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             Value* fileStream = InstBuilder.CreateBitCast(fileStream0, voidPtrType);
 
             if (isSensitiveArg(buffer, ptsToMap)) {
-                //Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+                Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
                 std::vector<Value*> ArgList;
                 ArgList.push_back(buffer);
                 //InstBuilder.CreateCall(decryptFunction, ArgList);
                 // Encrypt it back
                 Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
-                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
-                encCInst->insertAfter(externalCallInst);
+
+                if (Partitioning){
+
+                    IRBuilder<> Builder(externalCallInst);
+                    Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
+
+                    CallInst* readLabel = nullptr;
+                    ConstantInt* noOfByte = Builder.getInt64(1);
+                    ConstantInt *One = Builder.getInt16(1);
+
+                    readLabel = Builder.CreateCall(DFSanReadLabelFn,{buffer , noOfByte});
+                    readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+
+                    Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+                    Instruction* SplitBeforeNew = cast<Instruction>(externalCallInst->getNextNode());
+                    TerminatorInst* ThenTerm  = SplitBlockAndInsertIfThen(cmpInst, SplitBeforeNew, false);
+                    Builder.SetInsertPoint(ThenTerm);
+
+                    CallInst* enecryptArray = Builder.CreateCall(encryptFunction, ArgList);
+                    Builder.SetInsertPoint(SplitBeforeNew);
+                } else {
+                    CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                    encCInst->insertAfter(externalCallInst);
+                }
 
             }
             if (isSensitiveArg(fileStream, ptsToMap)) {
                 Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
                 std::vector<Value*> ArgList;
                 ArgList.push_back(fileStream);
-                /*CallInst* CInst = */
-                InstBuilder.CreateCall(decryptFunction, ArgList);
-                // Encrypt it back
                 Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
-                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
-                encCInst->insertAfter(externalCallInst);
+
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, fileStream, ArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
+                }
 
             }
         } else if (externalFunction->getName() == "fopen" || externalFunction->getName() == "open") {
@@ -2127,19 +2175,17 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     if (isSensitiveArg(arg, ptsToMap) ) {
                         std::vector<Value*> ArgList;
                         ArgList.push_back(arg);
-                        //errs()<<"Arg is "<<*arg<<"\n";
                         if (Partitioning){
                             externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, arg, ArgList);
                         } else {
                             externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                         }
-                        //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                     }
                 }
             }
         } else if (externalFunction->getName() == "vsnprintf") {
             // vsnprintf(char* str, size_t size, const char *format, va_list ap);
-            int argNum = externalCallInst->getNumArgOperands();
+            /*int argNum = externalCallInst->getNumArgOperands();
             PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
             IntegerType* longType = IntegerType::get(M.getContext(), 64);
 
@@ -2152,7 +2198,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     arg = InstBuilder.CreateBitCast(arg, voidPtrType);
                 }
                 ArgList.push_back(arg);
-                /*CallInst* CInst = */
                 //InstBuilder.CreateCall(decryptFunction, ArgList);
                 // Encrypt it back
                 Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
@@ -2170,7 +2215,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     arg = InstBuilder.CreateBitCast(arg, voidPtrType);
                 }
                 ArgList.push_back(arg);
-                /*CallInst* CInst = */
                 InstBuilder.CreateCall(decryptFunction, ArgList);
                 // Encrypt it back
                 Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
@@ -2205,7 +2249,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 Function* encryptFunction = M.getFunction("encryptVaArgListAfterLibCall");
                 CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
                 encCInst->insertAfter(vaStartCInst);
-            }
+            }*/
         } else if (externalFunction->getName() == "vprintf") {
             PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
             IntegerType* longType = IntegerType::get(M.getContext(), 64);
@@ -2335,7 +2379,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     encCInst->insertAfter(externalCallInst);
                 }
             }
-        } else if (externalFunction->getName() == "memcmp") {
+        } else if (externalFunction->getName() == "memcmp" || externalFunction->getName() == "crypto_sign_verify_detached") {
             Value* firstBuff = externalCallInst->getArgOperand(0);
             Value* secondBuff = externalCallInst->getArgOperand(1);
             Value* numBytes = externalCallInst->getArgOperand(2);
@@ -2363,6 +2407,83 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, secondBuff, secondArgList);
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, secondArgList);
+                }
+            }
+
+        } else if (externalFunction->getName() == "crypto_generichash_update" || externalFunction->getName() == "crypto_generichash_final") {
+            Value* firstBuff = externalCallInst->getArgOperand(1);
+            Value* numBytes = externalCallInst->getArgOperand(2);
+
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+            std::vector<Value*> firstArgList;
+            firstArgList.push_back(firstBuff);
+            firstArgList.push_back(numBytes);
+
+
+            if (isSensitiveArg(firstBuff, ptsToMap)) {
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, firstBuff, firstArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, firstArgList);
+                }
+            }
+
+        } else if (externalFunction->getName() == "randombytes_buf") {
+            Value* firstBuff = externalCallInst->getArgOperand(0);
+            Value* numBytes = externalCallInst->getArgOperand(1);
+
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+            std::vector<Value*> firstArgList;
+            firstArgList.push_back(firstBuff);
+            firstArgList.push_back(numBytes);
+
+
+            if (isSensitiveArg(firstBuff, ptsToMap)) {
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, firstBuff, firstArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, firstArgList);
+                }
+            }
+        } else if (externalFunction->getName() == "crypto_pwhash_scryptsalsa208sha256" ) {
+            Value* arg = externalCallInst->getArgOperand(4);
+
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+            IRBuilder<> Builder(externalCallInst);
+            std::vector<Value*> ArgList;
+            ArgList.push_back(arg);
+            ArgList.push_back(Builder.getInt64(32));
+
+            if (isSensitiveArg(arg, ptsToMap)) {
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, arg, ArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
+                }
+            }
+
+        } else if (externalFunction->getName() == "crypto_sign_detached") {
+            Value* arg = externalCallInst->getArgOperand(4);
+
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+            
+            IRBuilder<> Builder(externalCallInst); 
+            std::vector<Value*> ArgList;
+            ArgList.push_back(arg);
+            ArgList.push_back(Builder.getInt64(64));
+
+            if (isSensitiveArg(arg, ptsToMap)) {
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, arg, ArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
             }
         } else if (externalFunction->getName().find("llvm.memmove") != StringRef::npos) {
@@ -2423,7 +2544,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-                //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
             if (isSensitiveArg(statBuf, ptsToMap)) {
                 Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
@@ -2437,7 +2557,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-                //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
         } else if (externalFunction->getName() == "fread") {
             Value* bufferPtr = externalCallInst->getArgOperand(0);
@@ -2562,7 +2681,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-                //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
             if (isSensitiveArg(destBufferPtr, ptsToMap)) {
                 std::vector<Value*> ArgList;
@@ -2573,7 +2691,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-                //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
         } else if (externalFunction->getName() == "strlen" || externalFunction->getName() == "strrchr") {
             Value* string1 = externalCallInst->getArgOperand(0);
@@ -2604,7 +2721,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-                //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
             // It allocates and returns memory, is that sensitive?
             if (isSensitiveObjSet(getPAGObjNodeFromValue(externalCallInst))) {
@@ -2659,7 +2775,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-                //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
             if (isSensitiveArg(string2, ptsToMap)) {
                 std::vector<Value*> ArgList;
@@ -2670,7 +2785,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-                //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
 
         } else if (externalFunction->getName() == "cwd") {
@@ -2691,7 +2805,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-                //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
         } else if (externalFunction->getName() == "syscall") {
             // Only support syscall getRandom at the moment. On current machine it is 318
@@ -2720,7 +2833,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                         } else {
                             externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                         }
-                        //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                     }
                 } else {
                     errs() << "Unsupported syscall found!\n";
@@ -2746,7 +2858,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-                //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
         } else if (externalFunction->getName().find("llvm.memcpy") != StringRef::npos) {
             Value* destBufferPtr = externalCallInst->getArgOperand(0);
@@ -2795,7 +2906,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-                //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
         } else if (externalFunction->getName().find("memset") != StringRef::npos) {
             Value *bufferPtr = externalCallInst->getArgOperand(0);
@@ -2836,6 +2946,25 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         } else if (externalFunction->getName() == "read") {
             Value* bufferPtr = externalCallInst->getArgOperand(1);
             Value* numBytes = externalCallInst->getArgOperand(2);
+
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+            std::vector<Value*> ArgList;
+            ArgList.push_back(bufferPtr);
+            ArgList.push_back(numBytes);
+
+            if (isSensitiveArg(bufferPtr, ptsToMap)) {
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, bufferPtr, ArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
+                }
+            }
+
+        } else if (externalFunction->getName() == "sodium_memzero") {
+            Value* bufferPtr = externalCallInst->getArgOperand(0);
+            Value* numBytes = externalCallInst->getArgOperand(1);
 
             Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
             Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
@@ -3075,7 +3204,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 } else {
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
-                //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
             if (isSensitiveObjSet(getPAGObjNodeFromValue(externalCallInst))) {
                 int direntSize = getCompositeSzValue(externalCallInst, M);
@@ -3114,7 +3242,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             } else {
                 externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
-            //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
 
         } else if (externalFunction->getName() == "epoll_wait") {
             PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
@@ -3131,7 +3258,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             } else {
                 externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
-            //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
 
         } else if (externalFunction->getName() == "uname") {
             PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
@@ -3148,7 +3274,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             } else {
                 externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
-            //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
 
         } else if (externalFunction->getName() == "mk_string_build") {
             // Variable arg number
@@ -3189,7 +3314,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     } else {
                         externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                     }
-                    //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
             }
         /*}else if (externalFunction->getName() == "atoi" ) {

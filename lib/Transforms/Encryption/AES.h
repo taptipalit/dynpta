@@ -86,7 +86,9 @@ namespace external{
             llvm::Function* aesMallocFunction;
             llvm::Function* aesCallocFunction;
             llvm::Function* aesStrdupFunction;
+            llvm::Function* aesSodiumMallocFunction;
             llvm::Function* aesFreeFunction;
+            llvm::Function* aesSodiumFreeFunction;
             llvm::Function* aesFreeWithBitcastFunction;
             llvm::Function* memcpySensDstFunction;
             llvm::Function* memcpySensSrcFunction;
