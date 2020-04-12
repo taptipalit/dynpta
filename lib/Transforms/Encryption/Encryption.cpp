@@ -33,6 +33,7 @@ namespace {
             }
 
             std::set<Value*> ExtraSensitivePtrs;
+            std::vector<string> instrumentedExternalFunctions;
 
             // Statistics
             long decryptionCount;
@@ -1375,7 +1376,6 @@ void EncryptionPass::collectSensitiveExternalLibraryCalls(Module& M,  std::map<P
     std::set<Value*> SensitiveGEPPtrSet(SensitiveGEPPtrList.begin(), SensitiveGEPPtrList.end());
     std::set<Value*> SensitiveLoadPtrSet(SensitiveLoadPtrList.begin(), SensitiveLoadPtrList.end());
 
-    std::set<Value*> AllFunctions;
     // Populate list of all functions
     for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
         if (auto *F = dyn_cast<Function>(MIterator)) {
@@ -1459,7 +1459,7 @@ void EncryptionPass::collectSensitiveExternalLibraryCalls(Module& M,  std::map<P
                                     // Function pointer
                                     PAGNode* calledValueNode = getPAGValNodeFromValue(CInst->getCalledValue());
                                     if (!ReadFromFile) {
-                                        for (PAGNode* possibleFunNode: /*ptsToMap[calledValueNode]*/getAnalysis<WPAPass>().pointsToSet(calledValueNode->getId())) {
+                                        for (PAGNode* possibleFunNode: getAnalysis<WPAPass>().pointsToSet(calledValueNode->getId())) {
                                             if (possibleFunNode->hasValue()) {
                                                 Value* possibleFun = const_cast<Value*>(possibleFunNode->getValue());
                                                 if (Function* function = dyn_cast<Function>(possibleFun)) {
@@ -1800,11 +1800,43 @@ int EncryptionPass::getCompositeSzValue(Value* value, Module& M) {
 inline void EncryptionPass::externalFunctionHandlerForPartitioning(Module &M, CallInst* externalCallInst, Function* decryptFunction, Function* encryptFunction,
         Value* addrForReadLabel, std::vector<Value*>& ArgList){
     IRBuilder<> Builder(externalCallInst);
+
+
+    // Check that the ArgList has the correct types (void*)
+    // If not, type-cast it
+    Type* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+    std::vector<Value*> fixedArgList;
+
+    Value* argument = ArgList[0];
+    if (isa<PHINode>(argument))
+        return; // TODO: handle PHINode
+    if (argument->getType() != voidPtrType) {
+        fixedArgList.push_back(Builder.CreateBitCast(argument, voidPtrType));
+    } else {
+        fixedArgList.push_back(argument);
+    }
+
+    for (int i = 1; i < ArgList.size(); i++) {
+        fixedArgList.push_back(ArgList[i]);
+    }
+
     Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
 
     CallInst* readLabel = nullptr;
     ConstantInt* noOfByte = Builder.getInt64(1);
     ConstantInt *One = Builder.getInt16(1);
+
+    assert(DFSanReadLabelFn->getType()->isPointerTy() && "We shouldn't be dealing with virtual register values here");
+    /* If it's not a i8* cast it */
+
+    Type* readLabelPtrElemType = addrForReadLabel->getType()->getPointerElementType();
+    IntegerType* intType = dyn_cast<IntegerType>(readLabelPtrElemType);
+    if (!(intType && intType->getBitWidth() == 8)) {
+        // Create the cast
+        Type* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+        addrForReadLabel = Builder.CreateBitCast(addrForReadLabel, voidPtrType);
+    }
+
 
     readLabel = Builder.CreateCall(DFSanReadLabelFn,{addrForReadLabel , noOfByte});
     readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
@@ -1814,14 +1846,14 @@ inline void EncryptionPass::externalFunctionHandlerForPartitioning(Module &M, Ca
     TerminatorInst* ThenTerm = SplitBlockAndInsertIfThen(cmpInst, SplitBefore, false);
 
     Builder.SetInsertPoint(ThenTerm);
-    CallInst* decryptArray = Builder.CreateCall(decryptFunction, ArgList);
+    CallInst* decryptArray = Builder.CreateCall(decryptFunction, fixedArgList);
     
     Builder.SetInsertPoint(SplitBefore);
     Instruction* SplitBeforeNew = cast<Instruction>(externalCallInst->getNextNode());
     ThenTerm  = SplitBlockAndInsertIfThen(cmpInst, SplitBeforeNew, false);
     Builder.SetInsertPoint(ThenTerm);
 
-    CallInst* enecryptArray = Builder.CreateCall(encryptFunction, ArgList);
+    CallInst* enecryptArray = Builder.CreateCall(encryptFunction, fixedArgList);
     Builder.SetInsertPoint(SplitBeforeNew);
 }
 
@@ -1848,21 +1880,44 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         Function* externalFunction = externalCallInst->getCalledFunction();
         if (!externalFunction) {
             // Was a function pointer.
-            //continue;
-            assert(false && "We don't handle function pointers for now!");
-            std::vector<Function*> possibleFuns;
+            std::set<Function*> possibleFuns;
+            // Skip it, if the PAG node is missing. This can happen due to PHI
+            // nodes
+            PAG* pag = getAnalysis<WPAPass>().getPAG();
+            if(!pag->hasValueNode(externalCallInst->getCalledValue())) {
+                continue;
+            }
             PAGNode* fptrNode = getPAGValNodeFromValue(externalCallInst->getCalledValue());
-            for (PAGNode* fNode : ptsToMap[fptrNode]) {
+            for (PAGNode* fNode : getAnalysis<WPAPass>().pointsToSet(fptrNode->getId())) {
+                if (!fNode->hasValue())
+                    continue;
                 Value* fn = const_cast<Value*>(fNode->getValue());
                 if (Function* realFn = dyn_cast<Function>(fn)) {
-                    possibleFuns.push_back(realFn);
+                    // This is a hack -- if the target can be both an internal
+                    // and external function, then we don't know if we should
+                    // decrypt or not before the call.
+                    if (std::find(AllFunctions.begin(), AllFunctions.end(), realFn) == AllFunctions.end()) {
+                        // External function, but is this one that needs
+                        // special handling?
+                        if (std::find(instrumentedExternalFunctions.begin(), instrumentedExternalFunctions.end(), realFn->getName()) != instrumentedExternalFunctions.end()) {
+                            possibleFuns.insert(realFn);
+                        }
+                    }
                 }
             }
-            if (possibleFuns.size() != 1) {
+            if (possibleFuns.size() > 1) {
+                for (Function* possibleFun: possibleFuns) {
+                    if (std::find(AllFunctions.begin(), AllFunctions.end(), possibleFun) == AllFunctions.end()) {
+                        errs() << "External function: " << possibleFun->getName() << "\n";
+                    }
+                }
                 errs() << "For call instruction: " << *externalCallInst << " in function " << externalCallInst->getParent()->getParent()->getName() << " found " << possibleFuns.size() << " functions\n";
             }
-            assert(possibleFuns.size() == 1 && "Found more than one external function pointer targets. Don't know what to do here.\n");
-            externalFunction = possibleFuns[0];
+            assert(possibleFuns.size() <= 1 && "Found more than one external function pointer targets. Don't know what to do here.\n");
+            for (Function* possFun: possibleFuns) {
+                externalFunction = possFun;
+                break;
+            }
         }
         /*
            if (externalFunction->getName().equals("strlen")) {
@@ -1872,6 +1927,11 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         IRBuilder<> InstBuilder(externalCallInst);
 
         StringRef annotFn("llvm.var.annotation");
+        if (!externalFunction) {
+            // Can happen if the pointer isn't initialized anywhere (in case
+            // of libraries)
+            continue;
+        }
         if (annotFn.equals(externalFunction->getName())) {
             continue;
         }
@@ -2594,6 +2654,8 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 }
             }
         } else if (externalFunction->getName() == "strcmp" || externalFunction->getName() == "strncmp" || externalFunction->getName() == "strncasecmp") {
+            if (externalCallInst->getNumOperands() < 3) 
+                continue;
             Value* string1 = externalCallInst->getArgOperand(0);
             Value* string2 = externalCallInst->getArgOperand(1);
 
@@ -3102,7 +3164,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
             }
             //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
-        } else if (externalFunction->getName() == "pthread_mutex_lock") {
+        } else if (externalFunction->getName() == "pthread_mutex_unlock") {
             PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
             IntegerType* longType = IntegerType::get(M.getContext(), 64);
             Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
@@ -3808,11 +3870,92 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensit
 }
 
 bool EncryptionPass::runOnModule(Module &M) {
+    // Set up the external functions handled
+
+    instrumentedExternalFunctions.push_back("select");
+    instrumentedExternalFunctions.push_back("calloc");
+    instrumentedExternalFunctions.push_back("aes_calloc");
+    instrumentedExternalFunctions.push_back("printf");
+    instrumentedExternalFunctions.push_back("asprintf");
+    instrumentedExternalFunctions.push_back("asprintf128");
+
+    instrumentedExternalFunctions.push_back("posix_memalign");
+
+    instrumentedExternalFunctions.push_back("cloneenv");
+    instrumentedExternalFunctions.push_back("poll");
+
+    instrumentedExternalFunctions.push_back("puts");
+    instrumentedExternalFunctions.push_back("fgets");
+    instrumentedExternalFunctions.push_back("fopen");
+    instrumentedExternalFunctions.push_back("open");
+
+    instrumentedExternalFunctions.push_back("fprintf");
+    instrumentedExternalFunctions.push_back("vsnprintf");
+    instrumentedExternalFunctions.push_back("sprintf");
+    instrumentedExternalFunctions.push_back("snprintf");
+
+    instrumentedExternalFunctions.push_back("memcmp");
+    instrumentedExternalFunctions.push_back("opendir");
+    instrumentedExternalFunctions.push_back("memcmp");
+
+    instrumentedExternalFunctions.push_back("stat");
+    instrumentedExternalFunctions.push_back("lstat");
+    instrumentedExternalFunctions.push_back("fread");
+    
+    instrumentedExternalFunctions.push_back("strchr");
+    instrumentedExternalFunctions.push_back("strcmp");
+    instrumentedExternalFunctions.push_back("strncmp");
+    instrumentedExternalFunctions.push_back("strncasecmp");
+
+    instrumentedExternalFunctions.push_back("memchr");
+    instrumentedExternalFunctions.push_back("memrchr");
+
+    instrumentedExternalFunctions.push_back("strtol");
+    instrumentedExternalFunctions.push_back("strcpy");
+    instrumentedExternalFunctions.push_back("strncpy");
+    instrumentedExternalFunctions.push_back("strcasecmp");
+    instrumentedExternalFunctions.push_back("strlen");
+    instrumentedExternalFunctions.push_back("strrchr");
+    instrumentedExternalFunctions.push_back("aes_strdup");
+    instrumentedExternalFunctions.push_back("strstr");
+    instrumentedExternalFunctions.push_back("strcasestr");
+
+    instrumentedExternalFunctions.push_back("crypt");
+    instrumentedExternalFunctions.push_back("cwd");
+    instrumentedExternalFunctions.push_back("syscall");
+
+    instrumentedExternalFunctions.push_back("fwrite");
+    instrumentedExternalFunctions.push_back("llvm.memcpy");
+    instrumentedExternalFunctions.push_back("bzero");
+    instrumentedExternalFunctions.push_back("llvm.memset");
+    instrumentedExternalFunctions.push_back("memset");
+
+    instrumentedExternalFunctions.push_back("read");
+    instrumentedExternalFunctions.push_back("write");
+    instrumentedExternalFunctions.push_back("bind");
+    instrumentedExternalFunctions.push_back("connect");
+    instrumentedExternalFunctions.push_back("getaddrinfo");
+
+    instrumentedExternalFunctions.push_back("pthread_mutex_lock");
+    instrumentedExternalFunctions.push_back("pthread_mutex_unlock");
+    instrumentedExternalFunctions.push_back("pthread_mutex_init");
+    instrumentedExternalFunctions.push_back("pthread_mutex_destroy");
+    instrumentedExternalFunctions.push_back("pthread_create");
+
+    instrumentedExternalFunctions.push_back("readdir");
+    instrumentedExternalFunctions.push_back("clonereaddir");
+    instrumentedExternalFunctions.push_back("epoll_ctl");
+    instrumentedExternalFunctions.push_back("epoll_wait");
+    instrumentedExternalFunctions.push_back("uname");
+    instrumentedExternalFunctions.push_back("mk_string_build");
+    instrumentedExternalFunctions.push_back("fopen64");
+
     //M.print(errs(), nullptr);
     LLVM_DEBUG (
             dbgs() << "Running Encryption pass\n";
             );
-
+    // Store the struct types here, because later things get hairy when we add
+    // the AES functions with 128 bit integer arguments
     std::vector<llvm::Value*> sensitiveMemAllocCalls;
 
     SensitiveObjSet = nullptr;
@@ -4012,12 +4155,14 @@ bool EncryptionPass::runOnModule(Module &M) {
     for (Value* LdVal: *SensitiveLoadSet) {
         LoadInst* LdInst = dyn_cast<LoadInst>(LdVal);
 		// Temporarily ignore anything that's not an integer
-		/*if (!LdInst->getType()->isIntegerTy())
+        /*
+		if (!LdInst->getType()->isIntegerTy())
 			continue;
 		IntegerType* intType = dyn_cast<IntegerType>(LdInst->getType());
 		if (intType->getBitWidth() > 8)
 			continue;
-        */
+            */
+
         LLVMContext& C = LdInst->getContext();
         MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
         LdInst->setMetadata("SENSITIVE", N);
@@ -4039,12 +4184,9 @@ bool EncryptionPass::runOnModule(Module &M) {
 
         LLVMContext& C = StInst->getContext();
 		MDNode* N = MDNode::get(C, MDString::get(C, "sensitive"));
-		/*if (!StInst->getValueOperand()->getType()->isIntegerTy())
-			continue;
-		IntegerType* intType = dyn_cast<IntegerType>(StInst->getValueOperand()->getType());
-		if (intType->getBitWidth() > 8)
-			continue;
-        */
+        /*
+		if (!StInst->getValueOperand()->getType()->isIntegerTy())
+		*/
         StInst->setMetadata("SENSITIVE", N);
 
         InstructionReplacement* Replacement = new InstructionReplacement();

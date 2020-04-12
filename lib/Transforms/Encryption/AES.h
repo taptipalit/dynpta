@@ -74,11 +74,14 @@ namespace external{
             llvm::Function* encryptLoopWordFunction;
             llvm::Function* encryptLoopDWordFunction;
             llvm::Function* encryptLoopQWordFunction;
+            llvm::Function* encryptLoopDoubleFunction;
 
             llvm::Function* decryptLoopByteFunction;
             llvm::Function* decryptLoopWordFunction;
             llvm::Function* decryptLoopDWordFunction;
             llvm::Function* decryptLoopQWordFunction;
+            llvm::Function* decryptLoopDoubleFunction;
+
             llvm::Function* DFSanSetLabelFn;
             llvm::Function* setLabelForContextSensitiveCallsFn;
             llvm::Function* DFSanReadLabelFn;
