@@ -11,7 +11,7 @@
 #include <vector>
 #include <set>
 #include <map>
-
+#include "llvm/Analysis/CFLSteensAliasAnalysis.h"
 
 class ContextSensitivityAnalysisPass: public llvm::ModulePass {
 
@@ -20,7 +20,7 @@ public:
     static char ID;
 
     /// Constructor needs TargetLibraryInfo to be passed to the AliasAnalysis
-    ContextSensitivityAnalysisPass() : llvm::ModulePass(ID) {
+    ContextSensitivityAnalysisPass() : llvm::ModulePass(ID), CFLAA(nullptr) {
 
     }
 
@@ -32,6 +32,7 @@ public:
         // declare your dependencies here.
         /// do not intend to change the IR in this pass,
         au.setPreservesAll();
+        au.addRequiredTransitive<llvm::CFLSteensAAWrapperPass>();
     }
 
     virtual bool runOnModule(llvm::Module& module);
@@ -57,11 +58,12 @@ private:
     std::vector<llvm::Function*> criticalFunctions;
     std::vector<llvm::Function*> top10CriticalFunctions;
 
+    llvm::CFLSteensAAResult* CFLAA;
     void profileFuncCalls(llvm::Module&);
     void handleGlobalFunctionPointers(llvm::Module&);
     bool returnsAllocedMemory(llvm::Function*);
-    bool isReturningMallockedPtr(llvm::ReturnInst*, std::vector<llvm::Value*>&);
-    void findSinks(llvm::Value*, std::vector<llvm::Value*>&);
+    bool isReturningUnwrittenMallockedPtr(llvm::ReturnInst*, std::vector<llvm::Value*>&);
+    //void findSinks(llvm::Value*, std::vector<llvm::Value*>&);
 
     bool findNumFuncRooted(llvm::Function*, int&);
 };

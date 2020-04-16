@@ -18,6 +18,7 @@
 //===-----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/ContextSensitivityAnalysis.h"
+#include "llvm/IR/InstIterator.h"
 
 using namespace llvm;
 
@@ -44,10 +45,6 @@ static cl::opt<int> calldepthThreshold("calldepth-threshold", cl::desc("How many
  * malloc / calloc, and returns the same pointer
  */
 bool ContextSensitivityAnalysisPass::returnsAllocedMemory(Function* F) {
-    // The function should return a pointer 
-    if (F->getName() == "bn_expand_internal") {
-        errs() << "Yes!\n";
-    }
     Type* retType = F->getFunctionType()->getReturnType();
     if (!retType->isPointerTy()) {
         return false;
@@ -63,41 +60,13 @@ bool ContextSensitivityAnalysisPass::returnsAllocedMemory(Function* F) {
             // Direct call
             if (Function* func = callInst->getCalledFunction()) {
                 if (std::find(mallocWrappers.begin(), mallocWrappers.end(), func) != mallocWrappers.end()) {
-                    // Track where this is stored
-                    std::vector<Value*> sinkVec;
-                    findSinks(callInst, sinkVec);
-                    // If sink isn't in the function, then it's passed to
-                    // another function call as argument. Then it's definitely
-                    // not a malloc wrapper
-                    if (sinkVec.size() == 0) return false;
-                    for (Value* sink: sinkVec) {
-                        if (ReturnInst* retInst = dyn_cast<ReturnInst>(sink)) {
-                            // Then just mark this function as returning malloced
-                            // memory
-                            return true;
-                        } else {
-                            mallockedPtrs.push_back(sink);
-                        }
-                    }
+                    mallockedPtrs.push_back(callInst);
                 }
             } /*Indirect Call */ else if (Value* funcValue = callInst->getCalledValue()) {
                 // Find if the function pointer is a global pointer to malloc
                 if (LoadInst* loadedFrom = dyn_cast<LoadInst>(funcValue)) {
                     if (std::find(globalMallocWrapperPtrs.begin(), globalMallocWrapperPtrs.end(), loadedFrom->getPointerOperand()) != globalMallocWrapperPtrs.end()) {
-                        std::vector<Value*> sinkVec;
-                        findSinks(callInst, sinkVec);
-                        // If sink not found, then not a malloc wrapper (see
-                        // above)
-                        if (sinkVec.size() == 0) return false;
-                        for (Value* sink: sinkVec) {
-                            if (ReturnInst* retInst = dyn_cast<ReturnInst>(sink)) {
-                                // Then just mark this function as returning malloced
-                                // memory
-                                return true;
-                            } else {
-                                mallockedPtrs.push_back(sink);
-                            }
-                        }
+                        mallockedPtrs.push_back(callInst);
                     }
                 }
             }
@@ -112,7 +81,7 @@ bool ContextSensitivityAnalysisPass::returnsAllocedMemory(Function* F) {
     }
     // For all the return insts, check that they are in the mallockedPtrs
     for (ReturnInst* retInst: retInsts) {
-        if (!isReturningMallockedPtr(retInst, mallockedPtrs)) {
+        if (!isReturningUnwrittenMallockedPtr(retInst, mallockedPtrs)) {
             return false;
         }
     }
@@ -134,54 +103,32 @@ bool ContextSensitivityAnalysisPass::findNumFuncRooted(llvm::Function* F, int& n
     return retVal;
 }
 
-bool ContextSensitivityAnalysisPass::isReturningMallockedPtr(ReturnInst* retInst, std::vector<Value*>& mallockedPtrs) {
-    // Where did this return inst come from a mallocked ptr?
-    Value* returnValue = retInst->getReturnValue();
-    // Is this a LoadInst?
-    if (LoadInst* loadInst = dyn_cast<LoadInst>(returnValue)) {
-        Value* potentialMallocPtr = loadInst->getPointerOperand();
-        for (Value* mallockedPtr: mallockedPtrs) {
-            if (potentialMallocPtr == mallockedPtr) {
-                return true;
-            }
+bool ContextSensitivityAnalysisPass::isReturningUnwrittenMallockedPtr(ReturnInst* retInst, std::vector<Value*>& mallockedPtrs){
+    Function* function = retInst->getParent()->getParent();
+    bool returnsMalloc = false;
+    bool writesToMalloc = false;
+    for (Value* mallockedObj: mallockedPtrs) {
+        if (CFLAA->query(MemoryLocation(retInst->getOperand(0)), MemoryLocation(mallockedObj)) == AliasResult::LikelyAlias) {
+            returnsMalloc = true;
         }
-        // Check another level of source sink, just to be safe
-        for (User* user: potentialMallocPtr->users()) {
-            // If stored into here
-            if (StoreInst* stInst = dyn_cast<StoreInst>(user)) {
-                if (stInst->getPointerOperand() == potentialMallocPtr) {
-                    // Then, the value being stored, is it a loadinst?
-                    if (LoadInst* innerLoadInst = dyn_cast<LoadInst>(stInst->getValueOperand())) {
-                        potentialMallocPtr = innerLoadInst->getPointerOperand();
-                        for (Value* mallockedPtr: mallockedPtrs) {
-                            if (potentialMallocPtr == mallockedPtr) {
-                                return true;
-                            }
-                        }
-                    }
+    }
+    if (!returnsMalloc) {
+        return false;
+    } else {
+        // Check if the returned malloc is the target of any write
+        for (inst_iterator I = inst_begin(function), E = inst_end(function); I != E; ++I) {
+            if (StoreInst* storeInst = dyn_cast<StoreInst>(&*I)) {
+                if (CFLAA->query(MemoryLocation(retInst->getOperand(0)), MemoryLocation(storeInst->getPointerOperand())) == AliasResult::LikelyAlias) {
+                    writesToMalloc = true;
                 }
             }
         }
     }
-    return false;
-}
 
-void ContextSensitivityAnalysisPass::findSinks(Value* mallockedPtr, std::vector<Value*>& sinkVec) {
-    std::vector<Value*> workList;
-    workList.push_back(mallockedPtr);
-    while(!workList.empty()) {
-        Value* work = workList.back();
-        workList.pop_back();
-        if (StoreInst* storeInst = dyn_cast<StoreInst>(work)) {
-            sinkVec.push_back(storeInst->getPointerOperand());
-        } else if (ReturnInst* retInst = dyn_cast<ReturnInst>(work)) {
-            sinkVec.push_back(retInst);
-        }
-        for (User* user: work->users()) {
-            if (user != work) {
-                workList.push_back(user);
-            }
-        }
+    if (returnsMalloc && !writesToMalloc) {
+        return true;
+    } else {
+        return false;
     }
 }
 
@@ -267,11 +214,9 @@ bool ContextSensitivityAnalysisPass::recompute(Module& M, int callsiteThres, int
 bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
 
     /* Passthrough */
-    errs()<<"Skipeed CSA before \n";
     if (skipContextSensitivity) {
         return false;
     }
-    errs()<<"Skipeed CSA \n";
     Function* mallocFunction = M.getFunction("malloc");
     Function* callocFunction = M.getFunction("calloc");
     Function* reallocFunction = M.getFunction("realloc");
@@ -291,6 +236,7 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
         handleGlobalFunctionPointers(M);
         for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
             if (auto *F = dyn_cast<Function>(MIterator)) {
+                CFLAA = &(getAnalysis<CFLSteensAAWrapperPass>().getResult());
                 if (returnsAllocedMemory(F)) {
                     mallocWrappers.insert(F);
                 }
@@ -315,4 +261,5 @@ ModulePass* llvm::createContextSensitivityAnalysisPass() {
 }
 
 INITIALIZE_PASS_BEGIN(ContextSensitivityAnalysisPass, "csa", "Context Sensitivity Analysis", true, true);
+INITIALIZE_PASS_DEPENDENCY(CFLSteensAAWrapperPass)
 INITIALIZE_PASS_END(ContextSensitivityAnalysisPass, "csa", "Context Sensitivity Analysis", true, true);

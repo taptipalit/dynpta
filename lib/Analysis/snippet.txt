@@ -1,0 +1,26 @@
+Snippet to test that CFLSteensAA is really intra-procedural, and fails 
+
+/*
+    Function* f1 = M.getFunction("f1");
+    Function* f2 = M.getFunction("f2");
+
+    Value* v1 = nullptr;
+    Value* v2 = nullptr;
+    for (inst_iterator I = inst_begin(f1), E = inst_end(f1); I != E; ++I) {
+        if (ReturnInst* retInst = dyn_cast<ReturnInst>(&*I)) {
+            v1 = retInst->getOperand(0);
+        }
+    }
+
+    for (inst_iterator I = inst_begin(f2), E = inst_end(f2); I != E; ++I) {
+        if (CallInst* callInst = dyn_cast<CallInst>(&*I)) {
+            if (callInst->getCalledFunction()->getName() == "malloc") {
+                v2 = callInst;
+            }
+        }
+    }
+
+    bool alias = CFLAA->query(MemoryLocation(v1), MemoryLocation(v2));
+    errs() << "Alias check: " << alias << "\n";
+    return 0;
+*/

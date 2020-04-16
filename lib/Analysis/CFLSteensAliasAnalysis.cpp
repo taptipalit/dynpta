@@ -319,7 +319,7 @@ AliasResult CFLSteensAAResult::query(const MemoryLocation &LocA,
   // - AttrEscaped do not alias globals/arguments, but they may alias
   // AttrUnknown values
   if (SetA.Index == SetB.Index)
-    return MayAlias;
+    return LikelyAlias;
   if (AttrsA.none() || AttrsB.none())
     return NoAlias;
   if (hasUnknownOrCallerAttr(AttrsA) || hasUnknownOrCallerAttr(AttrsB))
