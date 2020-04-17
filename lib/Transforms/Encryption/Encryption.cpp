@@ -3870,6 +3870,7 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensit
 }
 
 bool EncryptionPass::runOnModule(Module &M) {
+    PAG* pag = getAnalysis<WPAPass>().getPAG();
     // Set up the external functions handled
 
     instrumentedExternalFunctions.push_back("select");
@@ -3964,13 +3965,14 @@ bool EncryptionPass::runOnModule(Module &M) {
     std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
     std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
 
-
     dbgs() << "Performed Pointer Analysis\n";
 
     // The SensitiveMemAllocTracker has
     // identified the sensitive memory allocations
     for (CallInst* callInst: getAnalysis<SensitiveMemAllocTrackerPass>().getSensitiveMemAllocCalls()) {
-        sensitiveMemAllocCalls.push_back(callInst);
+        if (pag->isIncludedFunction(callInst->getParent()->getParent())) {
+            sensitiveMemAllocCalls.push_back(callInst);
+        }
     }
 
     for (AllocaInst* allocaInst: getAnalysis<SensitiveMemAllocTrackerPass>().getSensitiveAllocaInsts()) {
