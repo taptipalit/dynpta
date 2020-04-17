@@ -155,16 +155,6 @@ namespace external {
         this->aesCallocFunction = Function::Create(FTypeCalloc, Function::ExternalLinkage, "aes_calloc", &M);
 
 
-        // The instrumented sodium_malloc function
-        std::vector<Type*> sodiumMallocVec;
-        sodiumMallocVec.push_back(longType);
-        ArrayRef<Type*> sodiumMallocArrRef(sodiumMallocVec);
-        FunctionType* FTypeSodiumMalloc = FunctionType::get(voidPtrType, sodiumMallocArrRef, false);
-
-        this->aesSodiumMallocFunction = Function::Create(FTypeSodiumMalloc, Function::ExternalLinkage, "aes_sodiumMalloc", &M);
-
-
-        
         // The instrumented strdup function
         std::vector<Type*> strdupVec;
         strdupVec.push_back(voidPtrType);
@@ -182,14 +172,6 @@ namespace external {
         this->aesFreeFunction = Function::Create(FTypeFree, Function::ExternalLinkage, "aes_free", &M);
 
         
-        // The instrumented sodium_free function
-        std::vector<Type*> sodiumFreeVec;
-        sodiumFreeVec.push_back(voidPtrType);
-        ArrayRef<Type*> sodiumFreeArrRef(sodiumFreeVec);
-        FunctionType* FTypeSodiumFree = FunctionType::get(Type::getVoidTy(*Ctx), sodiumFreeArrRef, false);
-
-        this->aesSodiumFreeFunction = Function::Create(FTypeSodiumFree, Function::ExternalLinkage, "aes_sodiumFree", &M);
-
         // The instrumented free function
         std::vector<Type*> freeWithBitcastVec;
         freeWithBitcastVec.push_back(voidPtrType);
@@ -617,9 +599,9 @@ namespace external {
                                             StringRef mallocStr("malloc");
                                             StringRef callocStr("calloc");
                                             StringRef strdupStr("strdup");
-                                            StringRef sodiumFreeStr("sodium_free");
-                                            StringRef sodiumMallocStr("sodium_malloc");
-                                            if (mallocStr.equals(function->getName()) || sodiumMallocStr.equals(function->getName())) {
+                                            /*StringRef sodiumFreeStr("sodium_free");
+                                            StringRef sodiumMallocStr("sodium_malloc");*/
+                                            if (mallocStr.equals(function->getName()) /*|| sodiumMallocStr.equals(function->getName())*/) {
                                                 // Change the called function to inst_malloc
                                                 //need to check changing malloc and calloc for DFSan
                                                 callInst->setCalledFunction(aesMallocFunction);
@@ -627,22 +609,13 @@ namespace external {
                                                 callInst->setCalledFunction(aesCallocFunction);
                                             } else if (strdupStr.equals(function->getName())) {
                                                 callInst->setCalledFunction(aesStrdupFunction);
-                                            /*} else if (sodiumMallocStr.equals(function->getName())) {
-                                                callInst->setCalledFunction(aesSodiumMallocFunction);*/
-                                            } else if (freeStr.equals(function->getName()) || sodiumFreeStr.equals(function->getName())) {
+                                            } else if (freeStr.equals(function->getName()) /*|| sodiumFreeStr.equals(function->getName())*/) {
                                                 //callInst->setCalledFunction(aesFreeFunction);
                                                 std::vector<Value*> argList;
                                                 CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
                                                 writebackInst->insertAfter(callInst);
                                                 callInst->setCalledFunction(aesFreeFunction);
-                                             
-                                            } /*else if (sodiumFreeStr.equals(function->getName())) {
-                                                //callInst->setCalledFunction(aesFreeFunction);
-                                                std::vector<Value*> argList;
-                                                CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
-                                                writebackInst->insertAfter(callInst);
-                                                callInst->setCalledFunction(aesSodiumFreeFunction);
-                                            } */
+                                            }
                                         } else {
                                             if (BitCastOperator* castOp = dyn_cast<BitCastOperator>(callInst->getCalledValue())) {
                                                 for (int i = 0; i < castOp->getNumOperands(); i++) {
@@ -946,7 +919,12 @@ namespace external {
             } else if (PlainTextValPtrType) {
                 INCREMENT = 8; // Pointer always 64 bit
             } else {
-                assert(PlainTextValDoubleType && "Unknown Type!");
+                //assert(PlainTextValDoubleType && "Unknown Type!");
+
+                auto* originalStore = stInst->clone();
+                originalStore->insertBefore(plainTextVal);
+                return nullptr;
+
             }
             std::vector<Value*> encryptArgList;
             PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
@@ -1040,7 +1018,11 @@ namespace external {
             } else if (PlainTextValPtrType) {
                 INCREMENT = 8; // Pointer always 64 bit
             } else {
-                assert(PlainTextValDoubleType && "Unknown Type!");
+
+                auto* originalStore = stInst->clone();
+                originalStore->insertBefore(plainTextVal);
+                return nullptr;
+                //assert(PlainTextValDoubleType && "Unknown Type!");
             }
             std::vector<Value*> encryptArgList;
             PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
@@ -1176,7 +1158,11 @@ namespace external {
             } else if (EncValPtrType) {
                 INCREMENT = 8;
             } else {
-                assert(EncValDoubleType && "Unknown type!");
+                //assert(EncValDoubleType && "Unknown type!");
+
+                auto* originalLoad = ldInst->clone();
+                originalLoad->insertBefore(encVal);
+                return originalLoad;
             }
 
             PointerType* ldInstPtrType = dyn_cast<PointerType>(ldInstPtrOperand->getType());
@@ -1266,7 +1252,11 @@ namespace external {
             } else if (EncValPtrType) {
                 INCREMENT = 8;
             } else {
-                assert(EncValDoubleType && "Unknown type!");
+                //assert(EncValDoubleType && "Unknown type!");
+
+                auto* originalLoad = ldInst->clone();
+                originalLoad->insertBefore(encVal);
+                return originalLoad;
             }
 
             PointerType* ldInstPtrType = dyn_cast<PointerType>(ldInstPtrOperand->getType());

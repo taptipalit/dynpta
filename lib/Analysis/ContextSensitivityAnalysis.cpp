@@ -275,7 +275,6 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
     Function* mallocFunction = M.getFunction("malloc");
     Function* callocFunction = M.getFunction("calloc");
     Function* reallocFunction = M.getFunction("realloc");
-    Function* sodiumMallocFunction = M.getFunction("sodium_malloc");
 
     if (mallocFunction) 
         mallocWrappers.insert(mallocFunction);
@@ -283,8 +282,6 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
         mallocWrappers.insert(callocFunction);
     if (reallocFunction)
         mallocWrappers.insert(reallocFunction); 
-    if (sodiumMallocFunction)
-        mallocWrappers.insert(sodiumMallocFunction);
     
     for (int num = 0; num < iterations; num++) {
         // Handle Global Function pointers
