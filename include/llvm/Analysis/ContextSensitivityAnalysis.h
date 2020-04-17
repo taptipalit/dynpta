@@ -11,7 +11,7 @@
 #include <vector>
 #include <set>
 #include <map>
-
+#include "llvm/Analysis/CFLSteensAliasAnalysis.h"
 
 class ContextSensitivityAnalysisPass: public llvm::ModulePass {
 
@@ -20,7 +20,7 @@ public:
     static char ID;
 
     /// Constructor needs TargetLibraryInfo to be passed to the AliasAnalysis
-    ContextSensitivityAnalysisPass() : llvm::ModulePass(ID) {
+    ContextSensitivityAnalysisPass() : llvm::ModulePass(ID), CFLAA(nullptr) {
 
     }
 
@@ -32,6 +32,7 @@ public:
         // declare your dependencies here.
         /// do not intend to change the IR in this pass,
         au.setPreservesAll();
+        au.addRequiredTransitive<llvm::CFLSteensAAWrapperPass>();
     }
 
     virtual bool runOnModule(llvm::Module& module);
@@ -46,6 +47,15 @@ public:
         return top10CriticalFunctions;
     }
 
+    llvm::Value* getReturnedAllocation(llvm::Function* func) {
+        for (auto pair: funcRetPairList) {
+            if (pair.first == func) {
+                return pair.second;
+            }
+        }
+        return nullptr;
+    }
+
 private:
     std::map<llvm::Function*, int> funcCallNumMap; // A map between a function and how many times they're called
     std::vector<std::pair<llvm::Function*, int>> mallocWrapperCallNumMap;
@@ -57,11 +67,14 @@ private:
     std::vector<llvm::Function*> criticalFunctions;
     std::vector<llvm::Function*> top10CriticalFunctions;
 
+    std::vector<std::pair<llvm::Function*, llvm::Value*>> funcRetPairList;
+
+    llvm::CFLSteensAAResult* CFLAA;
     void profileFuncCalls(llvm::Module&);
     void handleGlobalFunctionPointers(llvm::Module&);
     bool returnsAllocedMemory(llvm::Function*);
-    bool isReturningMallockedPtr(llvm::ReturnInst*, std::vector<llvm::Value*>&);
-    void findSinks(llvm::Value*, std::vector<llvm::Value*>&);
+    bool isReturningUnwrittenMallockedPtr(llvm::ReturnInst*, std::vector<llvm::Value*>&);
+    //void findSinks(llvm::Value*, std::vector<llvm::Value*>&);
 
     bool findNumFuncRooted(llvm::Function*, int&);
 };

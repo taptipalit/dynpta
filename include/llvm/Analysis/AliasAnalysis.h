@@ -89,6 +89,8 @@ enum AliasResult : uint8_t {
   PartialAlias,
   /// The two locations precisely alias each other.
   MustAlias,
+  /// New value to indicate SteensgaardCFL change
+  LikelyAlias
 };
 
 /// Flags indicating whether a memory access modifies or references memory.

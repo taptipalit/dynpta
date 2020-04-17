@@ -130,8 +130,10 @@ bool SensitiveMemAllocTrackerPass::runOnModule(Module& M) {
 
     
     for (CallInst* callInst: sensitiveMemAllocCalls) {
-        errs() << "Sensitive memory alloc: " << callInst << " in function: " 
-            << callInst->getParent()->getParent()->getName() << "\n";
+        if (Function* calledFunction = callInst->getCalledFunction()) {
+            errs() << "Sensitive memory alloc: " << calledFunction->getName() << " in function: " 
+                << callInst->getParent()->getParent()->getName() << "\n";
+        }
     }
 
     return false;
@@ -157,6 +159,14 @@ void SensitiveMemAllocTrackerPass::findMemAllocsReachingSensitivePtrs() {
                 if (std::find(mallocRoutines.begin(), mallocRoutines.end(), calledFunction)
                         != mallocRoutines.end()) {
                     sensitiveMemAllocCalls.push_back(callInst);
+                }
+                Value* callVal = getAnalysis<ContextSensitivityAnalysisPass>().getReturnedAllocation(calledFunction);
+                if (callVal) {
+                    CallInst* allocCallInst = dyn_cast<CallInst>(callVal);
+                    assert(allocCallInst && "If context-sensitivity pass found something here, it should be a call-inst");
+                    if (allocCallInst) {
+                        sensitiveMemAllocCalls.push_back(allocCallInst);
+                    }
                 }
             }
         } else if (Instruction* inst = dyn_cast<Instruction>(value)) {
