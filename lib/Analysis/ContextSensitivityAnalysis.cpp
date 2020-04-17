@@ -211,6 +211,12 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
 bool ContextSensitivityAnalysisPass::recompute(Module& M, int callsiteThres, int calldepthThres) {
     callsiteThreshold = callsiteThres;
     calldepthThreshold = calldepthThres;
+    mallocWrappers.clear();
+    mallocWrapperCallNumMap.clear();
+    funcCallNumMap.clear();
+    globalMallocWrapperPtrs.clear();
+    criticalFunctions.clear();
+    top10CriticalFunctions.clear();
     return runOnModule(M);
 }
 
