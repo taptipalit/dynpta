@@ -110,6 +110,7 @@ bool ContextSensitivityAnalysisPass::isReturningUnwrittenMallockedPtr(ReturnInst
     for (Value* mallockedObj: mallockedPtrs) {
         if (CFLAA->query(MemoryLocation(retInst->getOperand(0)), MemoryLocation(mallockedObj)) == AliasResult::LikelyAlias) {
             returnsMalloc = true;
+            funcRetPairList.push_back(std::make_pair(function, mallockedObj));
         }
     }
     if (!returnsMalloc) {

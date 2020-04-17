@@ -47,6 +47,15 @@ public:
         return top10CriticalFunctions;
     }
 
+    llvm::Value* getReturnedAllocation(llvm::Function* func) {
+        for (auto pair: funcRetPairList) {
+            if (pair.first == func) {
+                return pair.second;
+            }
+        }
+        return nullptr;
+    }
+
 private:
     std::map<llvm::Function*, int> funcCallNumMap; // A map between a function and how many times they're called
     std::vector<std::pair<llvm::Function*, int>> mallocWrapperCallNumMap;
@@ -57,6 +66,8 @@ private:
 
     std::vector<llvm::Function*> criticalFunctions;
     std::vector<llvm::Function*> top10CriticalFunctions;
+
+    std::vector<std::pair<llvm::Function*, llvm::Value*>> funcRetPairList;
 
     llvm::CFLSteensAAResult* CFLAA;
     void profileFuncCalls(llvm::Module&);
