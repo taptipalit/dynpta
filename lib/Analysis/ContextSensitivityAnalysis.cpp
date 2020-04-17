@@ -28,9 +28,9 @@ static cl::opt<int> iterations("csa-iter", cl::desc("How many iterations of csa 
 
 static cl::opt<bool> skipContextSensitivity("skip-csa", cl::desc("Skip context-sensitivity"), cl::value_desc("skip-csa"), cl::init(false));
 
-static cl::opt<int> callsiteThreshold("callsite-threshold", cl::desc("How many callsites should the malloc wrappers be called from to be treated as context-sensitive"), cl::value_desc("callsite-threshold"), cl::init(1));
+static cl::opt<int> callsiteThreshold("callsite-threshold", cl::desc("How many callsites should the malloc wrappers be called from to be treated as context-sensitive"), cl::value_desc("callsite-threshold"), cl::init(5));
 
-static cl::opt<int> calldepthThreshold("calldepth-threshold", cl::desc("How many other functions can a malloc wrapper call, and still be treated as context-sensitive"), cl::value_desc("calldepth-threshold"), cl::init(20));
+static cl::opt<int> calldepthThreshold("calldepth-threshold", cl::desc("How many other functions can a malloc wrapper call, and still be treated as context-sensitive"), cl::value_desc("calldepth-threshold"), cl::init(2));
 
 /* 
  * Some values:
@@ -94,10 +94,14 @@ bool ContextSensitivityAnalysisPass::findNumFuncRooted(llvm::Function* F, int& n
     num = 0;
     for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
         if (CallInst* callInst = dyn_cast<CallInst>(&*I)) {
-            if (!callInst->getCalledFunction()) {
+            if (Function* calledFunction = callInst->getCalledFunction()) {
+                if (!calledFunction->isDeclaration()) {
+                    // We don't care about libc stuff
+                    num++;
+                }
+            } else {
                 retVal = true;
             }
-            num++;
         }
     }
     return retVal;
@@ -184,6 +188,7 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
     for (auto pair: mallocWrapperCallNumMap) {
         int numCallees = 0;
         findNumFuncRooted(pair.first, numCallees);
+        errs() << " Function: " << pair.first->getName() << " calls: " << numCallees << " other functions\n";
         if (numCallees <= calldepthThreshold && (pair.second >=callsiteThreshold || pair.second == 0)) {
             criticalFunctions.push_back(pair.first);
         }
@@ -197,7 +202,7 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
         }
     }
 
-    for(Function* critFunction: top10CriticalFunctions) {
+    for(Function* critFunction: criticalFunctions) {
         errs() << "Critical Function: " << critFunction->getName() << "\n";
     }
 
