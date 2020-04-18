@@ -92,6 +92,10 @@ private:
     /// this set of candidate pointers can change during pointer resolution (e.g. adding new object nodes)
     NodeSet candidatePointers;
 
+    // The functions that are present in the pag, this is important because
+    // some functions have only their summaries present
+    std::set<llvm::Function*> includedFunctions;
+
     /// Constructor
     PAG(bool buildFromFile) : fromFile(buildFromFile), curBB(NULL),curVal(NULL) {
         symInfo = SymbolTableInfo::Symbolnfo();
@@ -103,6 +107,13 @@ private:
     void destroy();
 
 public:
+    void addIncludedFun(llvm::Function* fun) {
+        includedFunctions.insert(fun);
+    }
+
+    bool isIncludedFunction(llvm::Function* fun) {
+        return (std::find(includedFunctions.begin(), includedFunctions.end(), fun) != includedFunctions.end());
+    }
     /// Return valid pointers
     inline NodeSet& getAllValidPtrs() {
         return candidatePointers;

@@ -88,6 +88,7 @@ PAG* PAGBuilder::build(SVFModule svfModule) {
         }
         if (analysisUtil::isTreatAsExtCall(&fun))
             continue;
+        pag->addIncludedFun(&fun);
         for (llvm::Function::iterator bit = fun.begin(), ebit = fun.end();
                 bit != ebit; ++bit) {
 
