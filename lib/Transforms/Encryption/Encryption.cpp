@@ -35,6 +35,15 @@ namespace {
             std::set<Value*> ExtraSensitivePtrs;
             std::vector<string> instrumentedExternalFunctions;
 
+            void doVFADirect(Value* work, std::vector<Value*>& sinkSites,
+                    std::vector<Value*>& workList, std::vector<Value*>& processedList);
+
+            void doVFAIndirect(Value* work, std::vector<Value*>& sinkSites,
+                    std::vector<Value*>& workList, std::vector<Value*>& processedList);
+
+
+            void handleSink(Value* storePtr, std::vector<Value*>& sinkSites,
+                    std::vector<Value*>& workList, std::vector<Value*>& processedList);
             // Statistics
             long decryptionCount;
             long encryptionCount;
@@ -134,6 +143,8 @@ namespace {
 
             Instruction* FindNextInstruction(Instruction*);
 
+            void getPtsTo(Value*, std::vector<Value*>&);
+            void getPtsFrom(Value*, std::vector<Value*>&);
 
             //void postProcessPointsToGraph(Module&, std::map<llvm::Value*, std::vector<llvm::Value*>>&, std::map<llvm::Value*, std::vector<llvm::Value*>>&);
             void removeAnnotateInstruction(Module& M);
@@ -219,7 +230,7 @@ namespace {
 char EncryptionPass::ID = 0;
 
 //cl::opt<bool> NullEnc("null-enc", cl::desc("XOR Encryption"), cl::init(false), cl::Hidden);
-cl::opt<bool> AesEncCache("aes-enc-cache", cl::desc("AES Encryption - Cache"), cl::init(false), cl::Hidden);
+cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl::init(false), cl::Hidden);
 cl::opt<bool> Partitioning("partitioning", cl::desc("Partitioning"), cl::init(false), cl::Hidden);
 cl::opt<bool> OptimizedCheck("optimized-check", cl::desc("Reduce no of Checks needed"), cl::init(false), cl::Hidden);
 cl::opt<bool> ReadFromFile("read-from-file", cl::desc("Read from file"), cl::init(false), cl::Hidden);
@@ -772,45 +783,124 @@ bool EncryptionPass::filterDataFlowPointersByType(Value* potentialIndirectFlowPo
     return true;
 }
 
-void EncryptionPass::performSourceSinkAnalysis(Module& M) {
+void EncryptionPass::doVFAIndirect(Value* work, std::vector<Value*>& sinkSites,
+        std::vector<Value*>& workList, std::vector<Value*>& processedList) {
+    for (User* user: work->users()) {
+        if (LoadInst* loadInst = dyn_cast<LoadInst>(user)) {
+            // The first load will load the address
+            for (User* loadUser: loadInst->users()) {
+                if (StoreInst* storeInst = dyn_cast<StoreInst>(loadUser)) {
+                    if (storeInst->getValueOperand() == loadInst) {
+                        Value* storeLocation = storeInst->getPointerOperand();
+                        handleSink(storeLocation, sinkSites, workList, processedList);
+                    }
+                }
+            }
+        }
+    }
+}
 
-    std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
+void EncryptionPass::doVFADirect(Value* work, std::vector<Value*>& sinkSites,
+        std::vector<Value*>& workList, std::vector<Value*>& processedList) {
+    for (User* user: work->users()) {
+        if (LoadInst* loadInst = dyn_cast<LoadInst>(user)) {
+            // If there's a direct store only then we care
+            for (User* loadUser: loadInst->users()) {
+                if (StoreInst* storeInst = dyn_cast<StoreInst>(loadUser)) {
+                    if (storeInst->getValueOperand() == loadInst) {
+                        // Handle different types of sinks
+                        Value* storeLocation = storeInst->getPointerOperand();
+                        handleSink(storeLocation, sinkSites, workList, processedList);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void EncryptionPass::handleSink(Value* storePtr, std::vector<Value*>& sinkSites,
+        std::vector<Value*>& workList, std::vector<Value*>& processedList) {
+    if (isa<AllocaInst>(storePtr) || isa<GlobalVariable>(storePtr) || isa<CallInst>(storePtr)) {
+        sinkSites.push_back(storePtr);
+        workList.push_back(storePtr);
+    }  else {
+        // Find what it can point to
+        std::vector<Value*> ptsToVec;
+        getPtsTo(storePtr, ptsToVec);
+        for (Value* ptd: ptsToVec) {
+            sinkSites.push_back(ptd);       
+            workList.push_back(ptd);
+        }
+    }
+}
+
+void EncryptionPass::getPtsFrom(Value* ptd, std::vector<Value*>& ptsFromVec) {
     PAG* pag = getAnalysis<WPAPass>().getPAG();
 
-    buildRetCallMap(M);
+    PAGNode* ptdNode = pag->getPAGNode(pag->getObjectNode(ptd));
 
-    std::vector<PAGNode*> sinkSites;
-    std::vector<PAGNode*> workList; // List of allocation sites for which we still need to perform source-sink analysis
-    std::vector<PAGNode*> analyzedList; // List of sites for which we have completed source-sink analysis (item as Source)
-    std::vector<PAGNode*> analyzedPtrList; // List of pointers for which we have completed source-sink analysis (item as Source)
-    std::set<PAGNode*> tempSinkSites; // Temporary list of sink-sites
+    std::vector<PAGNode*> pagPtrVec;
+
+    getAnalysis<WPAPass>().getPtsFrom(ptdNode->getId(), pagPtrVec);
+
+    for (PAGNode* possibleNode: pagPtrVec) {
+        ptsFromVec.push_back(const_cast<Value*>(possibleNode->getValue()));
+    }
+}
+
+void EncryptionPass::getPtsTo(Value* ptr, std::vector<Value*>& ptsToVec) {
+    PAG* pag = getAnalysis<WPAPass>().getPAG();
+
+    PAGNode* ptrNode = pag->getPAGNode(pag->getValueNode(ptr));
+
+    for (PAGNode* possibleNode: getAnalysis<WPAPass>().pointsToSet(ptrNode->getId())) {
+        ptsToVec.push_back(const_cast<Value*>(possibleNode->getValue()));
+    }
+}
+
+void EncryptionPass::performSourceSinkAnalysis(Module& M) {
+    PAG* pag = getAnalysis<WPAPass>().getPAG();
+
+    //std::vector<Type*> sensitiveTypes;
+    std::vector<Value*> workList; // List of allocation sites for which we still need to perform source-sink analysis
+    std::vector<Value*> sinkSites;
+    std::vector<Value*> processedList;
+    
     for (PAGNode* sensitiveObjNode: SensitiveObjList) {
-        workList.push_back(sensitiveObjNode);
+        workList.push_back(const_cast<Value*>(sensitiveObjNode->getValue()));
+        /*
+        Type* sensitiveType = sensitiveObjNode->getValue()->getType();
+        sensitiveTypes.push_back(sensitiveType);
+        if (PointerType* sensitivePtrType = dyn_cast<PointerType>(sensitiveType)) {
+            sensitiveTypes.push_back(sensitiveType->getPointerElementType);
+        }
+        if (StructType* stType = dyn_cast<StructType>(sensitiveType)) {
+            for (int i = 0; i < stType->getNumElements(); i++) {
+                sensitiveTypes.push_back(stType->getElementType(i));
+            }
+        }
+        */
     }
 
     while (!workList.empty()) {
-        PAGNode* work = workList.back();
+        Value* work = workList.back();
         workList.pop_back();
 
-        for (PAGNode* ptsFrom: ptsFromMap[work]) {
-            if (!(ptsFrom->vfaVisited)) {
-                findIndirectSinkSites(ptsFrom, tempSinkSites);
-                ptsFrom->vfaVisited = true;
-            }
+        processedList.push_back(work);
+        // Direct vfa
+        doVFADirect(work, sinkSites, workList, processedList);
+        std::vector<Value*> ptsFromVec;
+        getPtsFrom(work, ptsFromVec);
+        // Indirect vfa 
+        for (Value* ptr: ptsFromVec) {
+            doVFAIndirect(ptr, sinkSites, workList, processedList);
         }
-
-        findDirectSinkSites(work, tempSinkSites);
-
-        for (PAGNode* sinkSiteNode: tempSinkSites) {
-            SensitiveObjList.push_back(sinkSiteNode);
-            if (!(work->vfaVisited)) {
-                workList.push_back(sinkSiteNode); 
-            }
-        }
-        tempSinkSites.clear();
-        work->vfaVisited = true;
     }
 
+    // Put it back in PAG-world
+    for (Value* sinkVal: sinkSites) {
+        SensitiveObjList.push_back(pag->getPAGNode(pag->getObjectNode(sinkVal)));
+    }
 }
 
 
@@ -4000,11 +4090,9 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     addPAGNodesFromSensitiveObjects(sensitiveMemAllocCalls);
 
-    /* 
-       if (!SkipVFA) {
-       performSourceSinkAnalysis(M);
-       }*/
-
+    if (!skipVFA) {
+        performSourceSinkAnalysis(M);
+    }
 
     if (SensitiveObjSet) {
         delete(SensitiveObjSet);
@@ -4012,6 +4100,9 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
     errs() << "Total sensitive allocation sites: " << SensitiveObjSet->size() << "\n";
+    for (PAGNode* sensitiveNode: *SensitiveObjSet) {
+        errs() << "Sensitive node: " << *(sensitiveNode->getValue()) << "\n";
+    }
     SensitiveObjList.clear();
     std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
     errs() << "After collectSensitivePointsToInfo: " << SensitiveObjList.size() << " memory objects found\n";
@@ -4228,6 +4319,9 @@ bool EncryptionPass::runOnModule(Module &M) {
     dbgs () << "Inserted " << encryptionCount << " calls to encryption routines.\n";
 
     collectLoadStoreStats(M);
+    if (skipVFA) {
+        errs() << "************* ANALYZED WITH VALUE FLOW ANALYSIS SKIPPED! *********************\n";
+    }
     return true;
 }
 

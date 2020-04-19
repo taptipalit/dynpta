@@ -116,6 +116,7 @@ public:
 
     bool isPointsToNodes(NodeID, std::vector<NodeID>&);
     std::vector<PAGNode*> pointsToSet(NodeID);
+    void getPtsFrom(NodeID ptd, std::vector<PAGNode*>& pointsFrom);
     void getPtsFrom(std::vector<PAGNode*>& sensitiveNodes,
                     std::set<PAGNode*>& pointsFrom);
  
