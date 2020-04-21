@@ -1,6 +1,7 @@
 #include "EncryptionInternal.h"
 #include "ExtLibraryHandler.h"
 #include "AES.h"
+#include "HMAC.h"
 #include "ASMParser.h"
 #include "llvm/Support/Format.h"
 
@@ -56,6 +57,7 @@ namespace {
 
             external::ExtLibraryHandler ExtLibHandler;
             external::AESCache AESCache;
+            external::HMAC HMAC;
             external::ASMParser asmParser;
 
 
@@ -191,6 +193,7 @@ namespace {
             void performInstrumentation(Module&, std::map<PAGNode*, std::set<PAGNode*>>&);
 
             void performAesCacheInstrumentation(Module&, std::map<PAGNode*, std::set<PAGNode*>>&);
+            void performHMACInstrumentation(Module& M);
 
             //void instrumentInlineAsm(Module&);
 
@@ -211,7 +214,6 @@ namespace {
             //int getSzVoidArgVal(Value*, Module&);
 
             void fixupSizeOfOperators(Module&);
-
             //void collectVoidDataObjects(Module&);
 
             void getAnalysisUsage(AnalysisUsage& AU) const {
@@ -235,6 +237,9 @@ cl::opt<bool> Partitioning("partitioning", cl::desc("Partitioning"), cl::init(fa
 cl::opt<bool> OptimizedCheck("optimized-check", cl::desc("Reduce no of Checks needed"), cl::init(false), cl::Hidden);
 cl::opt<bool> ReadFromFile("read-from-file", cl::desc("Read from file"), cl::init(false), cl::Hidden);
 cl::opt<bool> WriteToFile("write-from-file", cl::desc("Write to file"), cl::init(false), cl::Hidden);
+cl::opt<bool> Integrity("integrity", cl::desc("Integrity only"), cl::init(false), cl::Hidden);
+cl::opt<bool> Confidentiality("confidentiality", cl::desc("confidentiality"), cl::init(false), cl::Hidden);
+
 //cl::opt<bool> SkipVFA("skip-vfa-enc", cl::desc("Skip VFA"), cl::init(false), cl::Hidden);
 
 
@@ -1833,7 +1838,11 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
 }
 
 void EncryptionPass::performInstrumentation(Module& M, std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap) {
-    performAesCacheInstrumentation(M, ptsToMap);
+    if (Confidentiality) {
+        performAesCacheInstrumentation(M, ptsToMap);
+    } else {
+        performHMACInstrumentation(M);
+    }
 }
 
 
@@ -3959,7 +3968,41 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensit
     }
 }
 
+void EncryptionPass::performHMACInstrumentation(Module& M) {
+    // For HMAC, the instrumentation is simpler compared to AES encryption
+    // We don't really replace anything here. Our work is purely computing the
+    // authentication code and storing it immediately before the address being
+    // accessed (starting at (address - 32) (for SHA-256)
+    for (std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementList.begin() ; 
+            ReplacementIt != ReplacementList.end(); ++ReplacementIt) {
+        InstructionReplacement* Repl = *ReplacementIt;
+        if (Repl->Type == LOAD) {
+            IRBuilder<> Builder(Repl->NextInstruction); // Insert before "next" instruction
+            LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
+
+            // Call the authentication routine
+            HMAC.insertCheckAuthentication(LdInst);
+        } else	if (Repl->Type == STORE) {
+            IRBuilder<> Builder(Repl->OldInstruction); // Insert before the current Store instruction
+            StoreInst* StInst = dyn_cast<StoreInst>(Repl->OldInstruction);
+            
+            // Call the hmac computation and update route
+            HMAC.insertComputeAuthentication(StInst);
+        }
+    }
+}
+
 bool EncryptionPass::runOnModule(Module &M) {
+    // Check soundness of config options
+    assert(!(Integrity && Confidentiality) && "Can't support both integrity and confidentiality right now");
+    assert((Integrity || Confidentiality) && "Need to select at least one -- integrity or confidentiality");
+
+    // Set up the widening / aligning bytes
+    if (Confidentiality) {
+        const_cast<DataLayout&>(M.getDataLayout()).setWidenSensitiveBytes(16);
+    } else {
+        const_cast<DataLayout&>(M.getDataLayout()).setWidenSensitiveBytes(98); // [ 256 (hmac) : 512 (data) ]
+    }
     PAG* pag = getAnalysis<WPAPass>().getPAG();
     // Set up the external functions handled
 
@@ -4218,8 +4261,16 @@ bool EncryptionPass::runOnModule(Module &M) {
     errs() << "After adding sensitive objects from PointsFromSet: " << SensitiveObjList.size() << " memory objects found\n";
 
 
-    AESCache.initializeAes(M);
-    AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
+    if (Confidentiality) {
+        AESCache.initializeAes(M);
+        AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
+    }
+
+    if (Integrity) {
+        HMAC.initializeHMAC(M);
+        HMAC.widenSensitiveAllocationSites(M, SensitiveObjList);
+    }
+
     if(Partitioning){
         //Set Labels for Sensitive objects
         AESCache.setLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
@@ -4294,10 +4345,11 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     }
 
-    unConstantifySensitiveAllocSites(M);
-    initializeSensitiveGlobalVariables(M);
-
-    collectSensitiveExternalLibraryCalls(M, ptsToMap);
+    if (Confidentiality) {
+        unConstantifySensitiveAllocSites(M);
+        initializeSensitiveGlobalVariables(M);
+        collectSensitiveExternalLibraryCalls(M, ptsToMap);
+    }
 
     dbgs() << "Collected sensitive External Library calls\n";
     errs() << "External Library Call List Size: " << SensitiveExternalLibCallList.size() << "\n";
@@ -4310,15 +4362,21 @@ bool EncryptionPass::runOnModule(Module &M) {
     ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall
     ExtLibHandler.addAESCacheExtFuncHandler(M);
 
+
     performInstrumentation(M, ptsToMap);
-    instrumentExternalFunctionCall(M, ptsToMap);
+    if (Confidentiality) {
+        instrumentExternalFunctionCall(M, ptsToMap);
+    }
     fixupSizeOfOperators(M);
 
 
-    dbgs () << "Inserted " << decryptionCount << " calls to decryption routines.\n";
-    dbgs () << "Inserted " << encryptionCount << " calls to encryption routines.\n";
+    if (Confidentiality) {
+        dbgs () << "Inserted " << decryptionCount << " calls to decryption routines.\n";
+        dbgs () << "Inserted " << encryptionCount << " calls to encryption routines.\n";
 
-    collectLoadStoreStats(M);
+        collectLoadStoreStats(M);
+    }
+
     if (skipVFA) {
         errs() << "************* ANALYZED WITH VALUE FLOW ANALYSIS SKIPPED! *********************\n";
     }

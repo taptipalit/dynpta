@@ -3,6 +3,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include/llvm/Analysis/SVF)
 add_llvm_library(LLVMEncryption
 	AESBasic.cpp
 	AESCache.cpp
+    HMAC.cpp
 	Encryption.cpp
 	ExtLibraryHandler.cpp
 	ASMParser.cpp

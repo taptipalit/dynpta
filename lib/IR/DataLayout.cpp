@@ -58,10 +58,10 @@ StructLayout::StructLayout(StructType *ST, const DataLayout &DL) {
     unsigned TyAlign;
     if (ST->isSensitiveField(i)) {
         prevFieldSensitive = true;
-        TyAlign = 16;
+        TyAlign = DL.getWidenSensitiveBytes();
     } else if (prevFieldSensitive) {
         prevFieldSensitive = false;
-        TyAlign = 16;
+        TyAlign = DL.getWidenSensitiveBytes();
     } else {
         TyAlign  = ST->isPacked() ? 1 : DL.getABITypeAlignment(Ty);
     }
@@ -81,7 +81,7 @@ StructLayout::StructLayout(StructType *ST, const DataLayout &DL) {
 
   // If the last element was sensitive, then consume more!
   if (ST->isSensitiveField(NumElements-1)) {
-      StructSize += 16;
+      StructSize += DL.getWidenSensitiveBytes();
   }
 
   // Empty structures have alignment of 1 byte.
