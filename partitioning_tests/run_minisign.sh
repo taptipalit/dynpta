@@ -65,9 +65,9 @@ then
 fi
 
 $LLVMROOT/clang -c -fPIC -fPIE aes_inmemkey.s -o aes.o
-$LLVMROOT/clang -c -fPIC -fPIE aes_helper.c -o aes_h.o
+$LLVMROOT/clang -c -fPIC -fPIE -march=native aes_helper.c -o aes_h.o
 #$LLVMROOT/clang -fPIC -pie -fsanitize=dataflow $GGDB aes.o aes_h.o $filedfsan.o -o $file
-$LLVMROOT/clang $GGDB -O0 -lutil -lz  -lcrypt -lcrypto -lresolv -fsanitize=dataflow aes.o aes_h.o $filedfsan.o -lsodium -o $file
+$LLVMROOT/clang $GGDB -O0 -fsanitize=dataflow aes.o aes_h.o $filedfsan.o -lsodium -o $file
 if [ $? -ne 0 ]
 then
     exit 1

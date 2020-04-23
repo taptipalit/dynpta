@@ -1877,7 +1877,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
     /*IntegerType* longTy = IntegerType::get(M.getContext(), 64);*/
 
     for (CallInst* externalCallInst : SensitiveExternalLibCallList) {
-        errs()<<"CallInst "<<*externalCallInst<<"\n";
+        //errs()<<"CallInst "<<*externalCallInst<<"\n";
         Function* externalFunction = externalCallInst->getCalledFunction();
         if (!externalFunction) {
             // Was a function pointer.
