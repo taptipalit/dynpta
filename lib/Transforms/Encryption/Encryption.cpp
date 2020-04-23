@@ -2194,7 +2194,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 }
 
             }
-        } else if (externalFunction->getName() == "fopen" || externalFunction->getName() == "open") {
+        } else if (externalFunction->getName() == "fopen" || externalFunction->getName() == "open" || externalFunction->getName() == "open64" ) {
             Value* fileName = externalCallInst->getArgOperand(0);
             Value* mode = externalCallInst->getArgOperand(1);
 
@@ -2246,24 +2246,44 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             }
         } else if (externalFunction->getName() == "vsnprintf") {
             // vsnprintf(char* str, size_t size, const char *format, va_list ap);
-            /*int argNum = externalCallInst->getNumArgOperands();
+            int argNum = externalCallInst->getNumArgOperands();
             PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
             IntegerType* longType = IntegerType::get(M.getContext(), 64);
 
             // The first argument -> char *str
             Value* arg = externalCallInst->getArgOperand(0);
             if (isSensitiveArg(arg, ptsToMap)) {
-                //Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+                Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
                 std::vector<Value*> ArgList;
+
                 if (arg->getType() != voidPtrType) {
                     arg = InstBuilder.CreateBitCast(arg, voidPtrType);
                 }
                 ArgList.push_back(arg);
-                //InstBuilder.CreateCall(decryptFunction, ArgList);
-                // Encrypt it back
-                Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
-                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
-                encCInst->insertAfter(externalCallInst);
+
+                if (Partitioning){
+
+                    IRBuilder<> Builder(externalCallInst);
+                    Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
+
+                    CallInst* readLabel = nullptr;
+                    ConstantInt* noOfByte = Builder.getInt64(1);
+                    ConstantInt *One = Builder.getInt16(1);
+
+                    readLabel = Builder.CreateCall(DFSanReadLabelFn,{arg , noOfByte});
+                    readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+
+                    Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+                    Instruction* SplitBeforeNew = cast<Instruction>(externalCallInst->getNextNode());
+                    TerminatorInst* ThenTerm  = SplitBlockAndInsertIfThen(cmpInst, SplitBeforeNew, false);
+                    Builder.SetInsertPoint(ThenTerm);
+
+                    CallInst* enecryptArray = Builder.CreateCall(encryptFunction, ArgList);
+                    Builder.SetInsertPoint(SplitBeforeNew);
+                } else {
+                    CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
+                    encCInst->insertAfter(externalCallInst);
+                }
 
             }
             // Second argument is the size, ignore
@@ -2310,7 +2330,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 Function* encryptFunction = M.getFunction("encryptVaArgListAfterLibCall");
                 CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
                 encCInst->insertAfter(vaStartCInst);
-            }*/
+            }
         } else if (externalFunction->getName() == "vprintf") {
             PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
             IntegerType* longType = IntegerType::get(M.getContext(), 64);
@@ -4143,12 +4163,22 @@ bool EncryptionPass::runOnModule(Module &M) {
                 continue;
             if (LoadInst* ldInst = dyn_cast<LoadInst>(user)) {
                 if (ldInst->getPointerOperand() == ptrVal) {
-                    //errs()<<"LdInst "<<*ldInst<<"\n";
+                    if(OptimizedCheck){
+                        /*Skipping all loads that load address from a pointer*/
+                        if (PointerType* pointerElementType = dyn_cast<PointerType>(ldInst->getPointerOperand()->getType()->getPointerElementType())){
+                            continue;
+                        }
+                    }
                     SensitiveLoadList.push_back(ldInst);
                 }
             } else if (StoreInst* stInst = dyn_cast<StoreInst>(user)) {
                 if (stInst->getPointerOperand() == ptrVal) {
-                    //errs()<<"StoreInst "<<*stInst<<"\n";
+                    if(OptimizedCheck){
+                        /*Skipping all stores that stores address to a pointer*/
+                        if (PointerType* pointerElementType = dyn_cast<PointerType>(stInst->getPointerOperand()->getType()->getPointerElementType())){
+                            continue;
+                        }
+                    }
                     SensitiveStoreList.push_back(stInst);
                 }
             }
