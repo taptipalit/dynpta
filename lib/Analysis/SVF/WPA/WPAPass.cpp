@@ -682,6 +682,19 @@ std::vector<PAGNode*> WPAPass::pointsToSet(NodeID ptrNodeId) {
     return sensitiveNodeIdForPointsToSet;
 }
 
+void WPAPass::getPtsFrom(NodeID ptdId, std::vector<PAGNode*>& pointsFrom) {
+    PAG* pag = _pta->getPAG();
+
+    SteensgaardFast* steens = dyn_cast<SteensgaardFast>(_pta);
+    assert(steens && "getPtsFrom works only on Steensgaard");
+
+    PointsTo ptsFrom = steens->getPtsFrom(ptdId);
+    for (NodeBS::iterator ptIt = ptsFrom.begin(), ptEit = ptsFrom.end(); ptIt != ptEit; ++ptIt) {
+        PAGNode* ptNode = pag->getPAGNode(*ptIt);
+        pointsFrom.push_back(ptNode);
+    }
+}
+
 void WPAPass::getPtsFrom(std::vector<PAGNode*>& sensitiveNodes,
                     std::set<PAGNode*>& pointsFrom) {
     PAG* pag = _pta->getPAG();

@@ -175,7 +175,18 @@ private:
   /// malformed.
   void parseSpecifier(StringRef LayoutDescription);
 
+  int widenSensitiveBytes;
+
 public:
+
+  void setWidenSensitiveBytes(int widenSensitiveBytes) {
+      this->widenSensitiveBytes = widenSensitiveBytes;
+  }
+
+  int getWidenSensitiveBytes() const{
+      return widenSensitiveBytes;
+  }
+
   // Free all internal data structures.
   void clear();
 

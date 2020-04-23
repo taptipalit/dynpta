@@ -1,6 +1,7 @@
 #include "EncryptionInternal.h"
 #include "ExtLibraryHandler.h"
 #include "AES.h"
+#include "HMAC.h"
 #include "ASMParser.h"
 #include "llvm/Support/Format.h"
 
@@ -35,6 +36,15 @@ namespace {
             std::set<Value*> ExtraSensitivePtrs;
             std::vector<string> instrumentedExternalFunctions;
 
+            void doVFADirect(Value* work, std::vector<Value*>& sinkSites,
+                    std::vector<Value*>& workList, std::vector<Value*>& processedList);
+
+            void doVFAIndirect(Value* work, std::vector<Value*>& sinkSites,
+                    std::vector<Value*>& workList, std::vector<Value*>& processedList);
+
+
+            void handleSink(Value* storePtr, std::vector<Value*>& sinkSites,
+                    std::vector<Value*>& workList, std::vector<Value*>& processedList);
             // Statistics
             long decryptionCount;
             long encryptionCount;
@@ -47,6 +57,7 @@ namespace {
 
             external::ExtLibraryHandler ExtLibHandler;
             external::AESCache AESCache;
+            external::HMAC HMAC;
             external::ASMParser asmParser;
 
 
@@ -134,6 +145,8 @@ namespace {
 
             Instruction* FindNextInstruction(Instruction*);
 
+            void getPtsTo(Value*, std::vector<Value*>&);
+            void getPtsFrom(Value*, std::vector<Value*>&);
 
             //void postProcessPointsToGraph(Module&, std::map<llvm::Value*, std::vector<llvm::Value*>>&, std::map<llvm::Value*, std::vector<llvm::Value*>>&);
             void removeAnnotateInstruction(Module& M);
@@ -180,6 +193,7 @@ namespace {
             void performInstrumentation(Module&, std::map<PAGNode*, std::set<PAGNode*>>&);
 
             void performAesCacheInstrumentation(Module&, std::map<PAGNode*, std::set<PAGNode*>>&);
+            void performHMACInstrumentation(Module& M);
 
             //void instrumentInlineAsm(Module&);
 
@@ -200,7 +214,6 @@ namespace {
             //int getSzVoidArgVal(Value*, Module&);
 
             void fixupSizeOfOperators(Module&);
-
             //void collectVoidDataObjects(Module&);
 
             void getAnalysisUsage(AnalysisUsage& AU) const {
@@ -219,11 +232,14 @@ namespace {
 char EncryptionPass::ID = 0;
 
 //cl::opt<bool> NullEnc("null-enc", cl::desc("XOR Encryption"), cl::init(false), cl::Hidden);
-cl::opt<bool> AesEncCache("aes-enc-cache", cl::desc("AES Encryption - Cache"), cl::init(false), cl::Hidden);
+cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl::init(false), cl::Hidden);
 cl::opt<bool> Partitioning("partitioning", cl::desc("Partitioning"), cl::init(false), cl::Hidden);
 cl::opt<bool> OptimizedCheck("optimized-check", cl::desc("Reduce no of Checks needed"), cl::init(false), cl::Hidden);
 cl::opt<bool> ReadFromFile("read-from-file", cl::desc("Read from file"), cl::init(false), cl::Hidden);
 cl::opt<bool> WriteToFile("write-from-file", cl::desc("Write to file"), cl::init(false), cl::Hidden);
+cl::opt<bool> Integrity("integrity", cl::desc("Integrity only"), cl::init(false), cl::Hidden);
+cl::opt<bool> Confidentiality("confidentiality", cl::desc("confidentiality"), cl::init(false), cl::Hidden);
+
 //cl::opt<bool> SkipVFA("skip-vfa-enc", cl::desc("Skip VFA"), cl::init(false), cl::Hidden);
 
 
@@ -772,45 +788,124 @@ bool EncryptionPass::filterDataFlowPointersByType(Value* potentialIndirectFlowPo
     return true;
 }
 
-void EncryptionPass::performSourceSinkAnalysis(Module& M) {
+void EncryptionPass::doVFAIndirect(Value* work, std::vector<Value*>& sinkSites,
+        std::vector<Value*>& workList, std::vector<Value*>& processedList) {
+    for (User* user: work->users()) {
+        if (LoadInst* loadInst = dyn_cast<LoadInst>(user)) {
+            // The first load will load the address
+            for (User* loadUser: loadInst->users()) {
+                if (StoreInst* storeInst = dyn_cast<StoreInst>(loadUser)) {
+                    if (storeInst->getValueOperand() == loadInst) {
+                        Value* storeLocation = storeInst->getPointerOperand();
+                        handleSink(storeLocation, sinkSites, workList, processedList);
+                    }
+                }
+            }
+        }
+    }
+}
 
-    std::map<PAGNode*, std::set<PAGNode*>> ptsFromMap = getAnalysis<WPAPass>().getPAGPtsFromMap();
+void EncryptionPass::doVFADirect(Value* work, std::vector<Value*>& sinkSites,
+        std::vector<Value*>& workList, std::vector<Value*>& processedList) {
+    for (User* user: work->users()) {
+        if (LoadInst* loadInst = dyn_cast<LoadInst>(user)) {
+            // If there's a direct store only then we care
+            for (User* loadUser: loadInst->users()) {
+                if (StoreInst* storeInst = dyn_cast<StoreInst>(loadUser)) {
+                    if (storeInst->getValueOperand() == loadInst) {
+                        // Handle different types of sinks
+                        Value* storeLocation = storeInst->getPointerOperand();
+                        handleSink(storeLocation, sinkSites, workList, processedList);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void EncryptionPass::handleSink(Value* storePtr, std::vector<Value*>& sinkSites,
+        std::vector<Value*>& workList, std::vector<Value*>& processedList) {
+    if (isa<AllocaInst>(storePtr) || isa<GlobalVariable>(storePtr) || isa<CallInst>(storePtr)) {
+        sinkSites.push_back(storePtr);
+        workList.push_back(storePtr);
+    }  else {
+        // Find what it can point to
+        std::vector<Value*> ptsToVec;
+        getPtsTo(storePtr, ptsToVec);
+        for (Value* ptd: ptsToVec) {
+            sinkSites.push_back(ptd);       
+            workList.push_back(ptd);
+        }
+    }
+}
+
+void EncryptionPass::getPtsFrom(Value* ptd, std::vector<Value*>& ptsFromVec) {
     PAG* pag = getAnalysis<WPAPass>().getPAG();
 
-    buildRetCallMap(M);
+    PAGNode* ptdNode = pag->getPAGNode(pag->getObjectNode(ptd));
 
-    std::vector<PAGNode*> sinkSites;
-    std::vector<PAGNode*> workList; // List of allocation sites for which we still need to perform source-sink analysis
-    std::vector<PAGNode*> analyzedList; // List of sites for which we have completed source-sink analysis (item as Source)
-    std::vector<PAGNode*> analyzedPtrList; // List of pointers for which we have completed source-sink analysis (item as Source)
-    std::set<PAGNode*> tempSinkSites; // Temporary list of sink-sites
+    std::vector<PAGNode*> pagPtrVec;
+
+    getAnalysis<WPAPass>().getPtsFrom(ptdNode->getId(), pagPtrVec);
+
+    for (PAGNode* possibleNode: pagPtrVec) {
+        ptsFromVec.push_back(const_cast<Value*>(possibleNode->getValue()));
+    }
+}
+
+void EncryptionPass::getPtsTo(Value* ptr, std::vector<Value*>& ptsToVec) {
+    PAG* pag = getAnalysis<WPAPass>().getPAG();
+
+    PAGNode* ptrNode = pag->getPAGNode(pag->getValueNode(ptr));
+
+    for (PAGNode* possibleNode: getAnalysis<WPAPass>().pointsToSet(ptrNode->getId())) {
+        ptsToVec.push_back(const_cast<Value*>(possibleNode->getValue()));
+    }
+}
+
+void EncryptionPass::performSourceSinkAnalysis(Module& M) {
+    PAG* pag = getAnalysis<WPAPass>().getPAG();
+
+    //std::vector<Type*> sensitiveTypes;
+    std::vector<Value*> workList; // List of allocation sites for which we still need to perform source-sink analysis
+    std::vector<Value*> sinkSites;
+    std::vector<Value*> processedList;
+    
     for (PAGNode* sensitiveObjNode: SensitiveObjList) {
-        workList.push_back(sensitiveObjNode);
+        workList.push_back(const_cast<Value*>(sensitiveObjNode->getValue()));
+        /*
+        Type* sensitiveType = sensitiveObjNode->getValue()->getType();
+        sensitiveTypes.push_back(sensitiveType);
+        if (PointerType* sensitivePtrType = dyn_cast<PointerType>(sensitiveType)) {
+            sensitiveTypes.push_back(sensitiveType->getPointerElementType);
+        }
+        if (StructType* stType = dyn_cast<StructType>(sensitiveType)) {
+            for (int i = 0; i < stType->getNumElements(); i++) {
+                sensitiveTypes.push_back(stType->getElementType(i));
+            }
+        }
+        */
     }
 
     while (!workList.empty()) {
-        PAGNode* work = workList.back();
+        Value* work = workList.back();
         workList.pop_back();
 
-        for (PAGNode* ptsFrom: ptsFromMap[work]) {
-            if (!(ptsFrom->vfaVisited)) {
-                findIndirectSinkSites(ptsFrom, tempSinkSites);
-                ptsFrom->vfaVisited = true;
-            }
+        processedList.push_back(work);
+        // Direct vfa
+        doVFADirect(work, sinkSites, workList, processedList);
+        std::vector<Value*> ptsFromVec;
+        getPtsFrom(work, ptsFromVec);
+        // Indirect vfa 
+        for (Value* ptr: ptsFromVec) {
+            doVFAIndirect(ptr, sinkSites, workList, processedList);
         }
-
-        findDirectSinkSites(work, tempSinkSites);
-
-        for (PAGNode* sinkSiteNode: tempSinkSites) {
-            SensitiveObjList.push_back(sinkSiteNode);
-            if (!(work->vfaVisited)) {
-                workList.push_back(sinkSiteNode); 
-            }
-        }
-        tempSinkSites.clear();
-        work->vfaVisited = true;
     }
 
+    // Put it back in PAG-world
+    for (Value* sinkVal: sinkSites) {
+        SensitiveObjList.push_back(pag->getPAGNode(pag->getObjectNode(sinkVal)));
+    }
 }
 
 
@@ -1743,7 +1838,11 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
 }
 
 void EncryptionPass::performInstrumentation(Module& M, std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap) {
-    performAesCacheInstrumentation(M, ptsToMap);
+    if (Confidentiality) {
+        performAesCacheInstrumentation(M, ptsToMap);
+    } else {
+        performHMACInstrumentation(M);
+    }
 }
 
 
@@ -3928,7 +4027,41 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensit
     }
 }
 
+void EncryptionPass::performHMACInstrumentation(Module& M) {
+    // For HMAC, the instrumentation is simpler compared to AES encryption
+    // We don't really replace anything here. Our work is purely computing the
+    // authentication code and storing it immediately before the address being
+    // accessed (starting at (address - 32) (for SHA-256)
+    for (std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementList.begin() ; 
+            ReplacementIt != ReplacementList.end(); ++ReplacementIt) {
+        InstructionReplacement* Repl = *ReplacementIt;
+        if (Repl->Type == LOAD) {
+            IRBuilder<> Builder(Repl->NextInstruction); // Insert before "next" instruction
+            LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
+
+            // Call the authentication routine
+            HMAC.insertCheckAuthentication(LdInst);
+        } else	if (Repl->Type == STORE) {
+            IRBuilder<> Builder(Repl->OldInstruction); // Insert before the current Store instruction
+            StoreInst* StInst = dyn_cast<StoreInst>(Repl->OldInstruction);
+            
+            // Call the hmac computation and update route
+            HMAC.insertComputeAuthentication(StInst);
+        }
+    }
+}
+
 bool EncryptionPass::runOnModule(Module &M) {
+    // Check soundness of config options
+    assert(!(Integrity && Confidentiality) && "Can't support both integrity and confidentiality right now");
+    assert((Integrity || Confidentiality) && "Need to select at least one -- integrity or confidentiality");
+
+    // Set up the widening / aligning bytes
+    if (Confidentiality) {
+        const_cast<DataLayout&>(M.getDataLayout()).setWidenSensitiveBytes(16);
+    } else {
+        const_cast<DataLayout&>(M.getDataLayout()).setWidenSensitiveBytes(98); // [ 256 (hmac) : 512 (data) ]
+    }
     PAG* pag = getAnalysis<WPAPass>().getPAG();
     // Set up the external functions handled
 
@@ -4059,11 +4192,9 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     addPAGNodesFromSensitiveObjects(sensitiveMemAllocCalls);
 
-    /* 
-       if (!SkipVFA) {
-       performSourceSinkAnalysis(M);
-       }*/
-
+    if (!skipVFA) {
+        performSourceSinkAnalysis(M);
+    }
 
     if (SensitiveObjSet) {
         delete(SensitiveObjSet);
@@ -4071,6 +4202,9 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
     errs() << "Total sensitive allocation sites: " << SensitiveObjSet->size() << "\n";
+    for (PAGNode* sensitiveNode: *SensitiveObjSet) {
+        errs() << "Sensitive node: " << *(sensitiveNode->getValue()) << "\n";
+    }
     SensitiveObjList.clear();
     std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
     errs() << "After collectSensitivePointsToInfo: " << SensitiveObjList.size() << " memory objects found\n";
@@ -4196,8 +4330,16 @@ bool EncryptionPass::runOnModule(Module &M) {
     errs() << "After adding sensitive objects from PointsFromSet: " << SensitiveObjList.size() << " memory objects found\n";
 
 
-    AESCache.initializeAes(M);
-    AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
+    if (Confidentiality) {
+        AESCache.initializeAes(M);
+        AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
+    }
+
+    if (Integrity) {
+        HMAC.initializeHMAC(M);
+        HMAC.widenSensitiveAllocationSites(M, SensitiveObjList);
+    }
+
     if(Partitioning){
         //Set Labels for Sensitive objects
         AESCache.setLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
@@ -4272,10 +4414,11 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     }
 
-    unConstantifySensitiveAllocSites(M);
-    initializeSensitiveGlobalVariables(M);
-
-    collectSensitiveExternalLibraryCalls(M, ptsToMap);
+    if (Confidentiality) {
+        unConstantifySensitiveAllocSites(M);
+        initializeSensitiveGlobalVariables(M);
+        collectSensitiveExternalLibraryCalls(M, ptsToMap);
+    }
 
     dbgs() << "Collected sensitive External Library calls\n";
     errs() << "External Library Call List Size: " << SensitiveExternalLibCallList.size() << "\n";
@@ -4288,15 +4431,24 @@ bool EncryptionPass::runOnModule(Module &M) {
     ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall
     ExtLibHandler.addAESCacheExtFuncHandler(M);
 
+
     performInstrumentation(M, ptsToMap);
-    instrumentExternalFunctionCall(M, ptsToMap);
+    if (Confidentiality) {
+        instrumentExternalFunctionCall(M, ptsToMap);
+    }
     fixupSizeOfOperators(M);
 
 
-    dbgs () << "Inserted " << decryptionCount << " calls to decryption routines.\n";
-    dbgs () << "Inserted " << encryptionCount << " calls to encryption routines.\n";
+    if (Confidentiality) {
+        dbgs () << "Inserted " << decryptionCount << " calls to decryption routines.\n";
+        dbgs () << "Inserted " << encryptionCount << " calls to encryption routines.\n";
 
-    collectLoadStoreStats(M);
+        collectLoadStoreStats(M);
+    }
+
+    if (skipVFA) {
+        errs() << "************* ANALYZED WITH VALUE FLOW ANALYSIS SKIPPED! *********************\n";
+    }
     return true;
 }
 
