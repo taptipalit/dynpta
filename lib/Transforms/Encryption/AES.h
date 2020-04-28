@@ -69,18 +69,23 @@ namespace external{
             llvm::Function* encryptCacheFunction;
             llvm::Function* decryptCacheFunction;
             llvm::Function* writebackFunction;
+            llvm::Function* getEncDecCountFunction;
 
             llvm::Function* encryptLoopByteFunction;
             llvm::Function* encryptLoopWordFunction;
             llvm::Function* encryptLoopDWordFunction;
             llvm::Function* encryptLoopQWordFunction;
             llvm::Function* encryptLoopDoubleFunction;
+            llvm::Function* encryptLoopVecFunction;
+            llvm::Function* encryptLoopVec4Function;
 
             llvm::Function* decryptLoopByteFunction;
             llvm::Function* decryptLoopWordFunction;
             llvm::Function* decryptLoopDWordFunction;
             llvm::Function* decryptLoopQWordFunction;
             llvm::Function* decryptLoopDoubleFunction;
+            llvm::Function* decryptLoopVectorFunction;
+            llvm::Function* decryptLoopVector4Function;
 
             llvm::Function* DFSanSetLabelFn;
             llvm::Function* setLabelForContextSensitiveCallsFn;
@@ -89,9 +94,7 @@ namespace external{
             llvm::Function* aesMallocFunction;
             llvm::Function* aesCallocFunction;
             llvm::Function* aesStrdupFunction;
-            llvm::Function* aesSodiumMallocFunction;
             llvm::Function* aesFreeFunction;
-            llvm::Function* aesSodiumFreeFunction;
             llvm::Function* aesFreeWithBitcastFunction;
             llvm::Function* memcpySensDstFunction;
             llvm::Function* memcpySensSrcFunction;

@@ -44,7 +44,7 @@ fi
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $file.bc 
-$LLVMROOT/opt -encryption -steens-fast -skip-csa=false -callsite-threshold=10 -optimized-check=false -partitioning=true  $file.bc -o $fileinst.bc
+$LLVMROOT/opt -encryption -steens-fast -skip-csa=false -skip-vfa -callsite-threshold=10 -optimized-check=false -confidentiality=true -partitioning=true  $file.bc -o $fileinst.bc
 $LLVMROOT/opt --dfsan $fileinst.bc -o $filedfsan.bc
 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
@@ -65,9 +65,9 @@ then
 fi
 
 $LLVMROOT/clang -c -fPIC -fPIE aes_inmemkey.s -o aes.o
-$LLVMROOT/clang -c -fPIC -fPIE aes_helper.c -o aes_h.o
+$LLVMROOT/clang -c -fPIC -fPIE -march=native aes_helper.c -o aes_h.o
 #$LLVMROOT/clang -fPIC -pie -fsanitize=dataflow $GGDB aes.o aes_h.o $filedfsan.o -o $file
-$LLVMROOT/clang $GGDB -O0 -lutil -lz  -lcrypt -lcrypto -lresolv -fsanitize=dataflow aes.o aes_h.o $filedfsan.o -lsodium -o $file
+$LLVMROOT/clang $GGDB -O0 -fsanitize=dataflow aes.o aes_h.o $filedfsan.o -lsodium -o $file
 if [ $? -ne 0 ]
 then
     exit 1

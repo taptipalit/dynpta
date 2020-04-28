@@ -13,6 +13,9 @@ namespace external {
         FunctionType* writebackFnTy = FunctionType::get(Type::getVoidTy(M.getContext()), typeWritebackArr, false);
         this->writebackFunction = Function::Create(writebackFnTy, Function::ExternalLinkage, "writeback_cache", &M);
 
+        this->getEncDecCountFunction = Function::Create(writebackFnTy, Function::ExternalLinkage, "getEncDecCount", &M);
+        
+
         // Build the signature of the function
         PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
         IntegerType* intType = IntegerType::get(M.getContext(), 32);
@@ -36,6 +39,8 @@ namespace external {
         IntegerType* wordType = IntegerType::get(M.getContext(), 16);
         IntegerType* dwordType = IntegerType::get(M.getContext(), 32);
         IntegerType* qwordType = IntegerType::get(M.getContext(), 64);
+        VectorType* vectorType = VectorType::get(qwordType,2);
+        VectorType* vector4Type = VectorType::get(qwordType,4);
         Type *doubleType = Type::getDoubleTy(M.getContext());
 
         std::vector<Type*> loopDecTypes;
@@ -70,6 +75,8 @@ namespace external {
         FunctionType* FTypeDecLoopDWord = FunctionType::get(dwordType, loopDecTypeArray, false);
         FunctionType* FTypeDecLoopQWord = FunctionType::get(qwordType, loopDecTypeArray, false);
         FunctionType* FTypeDecLoopDouble = FunctionType::get(doubleType, loopDecTypeArray, false);
+        FunctionType* FTypeDecLoopVector = FunctionType::get(vectorType, loopDecTypeArray, false);
+        FunctionType* FTypeDecLoopVector4 = FunctionType::get(vector4Type, loopDecTypeArray, false);
 
 
         FunctionType* FTypeSetLabel = FunctionType::get(Type::getVoidTy(*Ctx), DFSanSetLabelArgs, false);
@@ -82,6 +89,8 @@ namespace external {
         this->decryptLoopDWordFunction = Function::Create(FTypeDecLoopDWord, Function::ExternalLinkage, "getDecryptedValueDWord", &M);
         this->decryptLoopQWordFunction = Function::Create(FTypeDecLoopQWord, Function::ExternalLinkage, "getDecryptedValueQWord", &M);
         this->decryptLoopDoubleFunction = Function::Create(FTypeDecLoopDouble, Function::ExternalLinkage, "getDecryptedValueDouble", &M);
+        this->decryptLoopVectorFunction = Function::Create(FTypeDecLoopVector, Function::ExternalLinkage, "getDecryptedValueVector", &M);
+        this->decryptLoopVector4Function = Function::Create(FTypeDecLoopVector4, Function::ExternalLinkage, "getDecryptedValueVector4", &M);
 
 
         this->DFSanSetLabelFn = Function::Create(FTypeSetLabel, Function::ExternalLinkage, "dfsan_set_label", &M);
@@ -118,6 +127,18 @@ namespace external {
         loopEncTypeQWord.push_back(qwordType);
         ArrayRef<Type*> loopEncTypeQWordArray(loopEncTypeQWord);
 
+        std::vector<Type*> loopEncTypeVec;
+        loopEncTypeVec.push_back(voidPtrType);
+        loopEncTypeVec.push_back(vectorType);
+        /*loopEncTypeVec.push_back(qwordType);
+        loopEncTypeVec.push_back(qwordType);*/
+        ArrayRef<Type*> loopEncTypeVecArray(loopEncTypeVec);
+
+        std::vector<Type*> loopEncTypeVec4;
+        loopEncTypeVec4.push_back(voidPtrType);
+        loopEncTypeVec4.push_back(vector4Type);
+        ArrayRef<Type*> loopEncTypeVec4Array(loopEncTypeVec4);
+
         std::vector<Type*> loopEncTypeDouble;
         loopEncTypeDouble.push_back(voidPtrType);
         loopEncTypeDouble.push_back(doubleType);
@@ -128,14 +149,16 @@ namespace external {
         FunctionType* FTypeEncLoopDWord = FunctionType::get(voidPtrType, loopEncTypeDWordArray, false);
         FunctionType* FTypeEncLoopQWord = FunctionType::get(voidPtrType, loopEncTypeQWordArray, false);
         FunctionType* FTypeEncLoopDouble = FunctionType::get(voidPtrType, loopEncTypeDoubleArray, false);
-
+        FunctionType* FTypeEncLoopVec = FunctionType::get(voidPtrType, loopEncTypeVecArray, false);
+        FunctionType* FTypeEncLoopVec4 = FunctionType::get(voidPtrType, loopEncTypeVec4Array, false);
 
         this->encryptLoopByteFunction = Function::Create(FTypeEncLoopByte, Function::ExternalLinkage, "setEncryptedValueByte", &M);
         this->encryptLoopWordFunction = Function::Create(FTypeEncLoopWord, Function::ExternalLinkage, "setEncryptedValueWord", &M);
         this->encryptLoopDWordFunction = Function::Create(FTypeEncLoopDWord, Function::ExternalLinkage, "setEncryptedValueDWord", &M);
         this->encryptLoopQWordFunction = Function::Create(FTypeEncLoopQWord, Function::ExternalLinkage, "setEncryptedValueQWord", &M);
         this->encryptLoopDoubleFunction = Function::Create(FTypeEncLoopDouble, Function::ExternalLinkage, "setEncryptedValueDouble", &M);
-
+        this->encryptLoopVecFunction = Function::Create(FTypeEncLoopVec, Function::ExternalLinkage, "setEncryptedValueVector", &M);
+        this->encryptLoopVec4Function = Function::Create(FTypeEncLoopVec4, Function::ExternalLinkage, "setEncryptedValueVector4", &M);
 
         // The instrumented malloc function
         std::vector<Type*> mallocVec;
@@ -155,16 +178,6 @@ namespace external {
         this->aesCallocFunction = Function::Create(FTypeCalloc, Function::ExternalLinkage, "aes_calloc", &M);
 
 
-        // The instrumented sodium_malloc function
-        std::vector<Type*> sodiumMallocVec;
-        sodiumMallocVec.push_back(longType);
-        ArrayRef<Type*> sodiumMallocArrRef(sodiumMallocVec);
-        FunctionType* FTypeSodiumMalloc = FunctionType::get(voidPtrType, sodiumMallocArrRef, false);
-
-        this->aesSodiumMallocFunction = Function::Create(FTypeSodiumMalloc, Function::ExternalLinkage, "aes_sodiumMalloc", &M);
-
-
-        
         // The instrumented strdup function
         std::vector<Type*> strdupVec;
         strdupVec.push_back(voidPtrType);
@@ -182,14 +195,6 @@ namespace external {
         this->aesFreeFunction = Function::Create(FTypeFree, Function::ExternalLinkage, "aes_free", &M);
 
         
-        // The instrumented sodium_free function
-        std::vector<Type*> sodiumFreeVec;
-        sodiumFreeVec.push_back(voidPtrType);
-        ArrayRef<Type*> sodiumFreeArrRef(sodiumFreeVec);
-        FunctionType* FTypeSodiumFree = FunctionType::get(Type::getVoidTy(*Ctx), sodiumFreeArrRef, false);
-
-        this->aesSodiumFreeFunction = Function::Create(FTypeSodiumFree, Function::ExternalLinkage, "aes_sodiumFree", &M);
-
         // The instrumented free function
         std::vector<Type*> freeWithBitcastVec;
         freeWithBitcastVec.push_back(voidPtrType);
@@ -197,6 +202,7 @@ namespace external {
         FunctionType* FTypeFreeWithBitcast = FunctionType::get(voidPtrType, freeWithBitcastArrRef, false);
 
         this->aesFreeWithBitcastFunction = Function::Create(FTypeFreeWithBitcast, Function::ExternalLinkage, "aes_freeWithBitcast", &M);
+
 
         // The "sensitivity" aware versions of memcpy
         std::vector<Type*> memcpyVec;
@@ -617,9 +623,9 @@ namespace external {
                                             StringRef mallocStr("malloc");
                                             StringRef callocStr("calloc");
                                             StringRef strdupStr("strdup");
-                                            StringRef sodiumFreeStr("sodium_free");
-                                            StringRef sodiumMallocStr("sodium_malloc");
-                                            if (mallocStr.equals(function->getName()) || sodiumMallocStr.equals(function->getName())) {
+                                            /*StringRef sodiumFreeStr("sodium_free");
+                                            StringRef sodiumMallocStr("sodium_malloc");*/
+                                            if (mallocStr.equals(function->getName()) /*|| sodiumMallocStr.equals(function->getName())*/) {
                                                 // Change the called function to inst_malloc
                                                 //need to check changing malloc and calloc for DFSan
                                                 callInst->setCalledFunction(aesMallocFunction);
@@ -627,22 +633,13 @@ namespace external {
                                                 callInst->setCalledFunction(aesCallocFunction);
                                             } else if (strdupStr.equals(function->getName())) {
                                                 callInst->setCalledFunction(aesStrdupFunction);
-                                            /*} else if (sodiumMallocStr.equals(function->getName())) {
-                                                callInst->setCalledFunction(aesSodiumMallocFunction);*/
-                                            } else if (freeStr.equals(function->getName()) || sodiumFreeStr.equals(function->getName())) {
+                                            } else if (freeStr.equals(function->getName()) /*|| sodiumFreeStr.equals(function->getName())*/) {
                                                 //callInst->setCalledFunction(aesFreeFunction);
                                                 std::vector<Value*> argList;
                                                 CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
                                                 writebackInst->insertAfter(callInst);
                                                 callInst->setCalledFunction(aesFreeFunction);
-                                             
-                                            } /*else if (sodiumFreeStr.equals(function->getName())) {
-                                                //callInst->setCalledFunction(aesFreeFunction);
-                                                std::vector<Value*> argList;
-                                                CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
-                                                writebackInst->insertAfter(callInst);
-                                                callInst->setCalledFunction(aesSodiumFreeFunction);
-                                            } */
+                                            }
                                         } else {
                                             if (BitCastOperator* castOp = dyn_cast<BitCastOperator>(callInst->getCalledValue())) {
                                                 for (int i = 0; i < castOp->getNumOperands(); i++) {
@@ -660,6 +657,11 @@ namespace external {
                                             }
                                         }
                                     } else if (ReturnInst* retInst = dyn_cast<ReturnInst>(Inst)) {
+                                        if ( F->getName() == "main"){
+                                            IRBuilder<> Builder(retInst);
+                                            std::vector<Value*> argList;
+                                            Builder.CreateCall(this->getEncDecCountFunction, argList);
+                                        }
                                         writeback(retInst); // Invalidate the cache
                                     }
                                 }
@@ -908,11 +910,11 @@ namespace external {
             IntegerType* PlainTextValIntType = nullptr;
             Type* PlainTextValDoubleType = nullptr;
             PointerType* PlainTextValPtrType = nullptr;
+            VectorType* PlainTextValVecType = nullptr;
 
             StoreInst* stInst = dyn_cast<StoreInst>(plainTextVal);
             Value* stInstPtrOperand = stInst->getPointerOperand();
             Value* stInstValueOperand = stInst->getValueOperand();
-            //errs()<<"Original store "<<*stInst<<"\n";
 
             /*if (stInstPtrOperand->getType()->getPointerElementType()->isPointerTy()) {
               errs()<<" Pointer Type "<<*stInstPtrOperand<<"\n";
@@ -928,11 +930,20 @@ namespace external {
             int INCREMENT = 0;
             PlainTextValIntType = dyn_cast<IntegerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
             PlainTextValPtrType = dyn_cast<PointerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
+            PlainTextValVecType = dyn_cast<VectorType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
+
             if (Type* thisType = plainTextVal->getPointerOperand()->getType()->getPointerElementType()) {
                 if (thisType->isDoubleTy()) {
                     PlainTextValDoubleType = thisType;
                 }
             }
+            int vectorNumElements = 0;
+            if (VectorType *vectorType = dyn_cast<VectorType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType())){
+                Type* thisType = dyn_cast<Type>(vectorType);
+                //errs()<<"Bitsize "<<thisType->getScalarSizeInBits()<<" and no of elements "<<thisType->getVectorNumElements()<<"\n";
+                vectorNumElements = thisType->getVectorNumElements();
+            }
+
             if (PlainTextValIntType) {
                 if (PlainTextValIntType->getBitWidth() == 8) {
                     INCREMENT = 1;
@@ -945,13 +956,22 @@ namespace external {
                 }
             } else if (PlainTextValPtrType) {
                 INCREMENT = 8; // Pointer always 64 bit
-            } else {
+            } else if (PlainTextValVecType){
+                if (vectorNumElements == 2){
+                    INCREMENT = 16;
+                } else if (vectorNumElements == 4){
+                    INCREMENT = 32;
+                } else {
+                    assert((vectorNumElements == 2 || vectorNumElements == 4) && "Unknown Type for vector type");
+                }
+            }else {
                 assert(PlainTextValDoubleType && "Unknown Type!");
             }
             std::vector<Value*> encryptArgList;
             PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
             IntegerType* stInstIntegerType = dyn_cast<IntegerType>(stInstPtrType->getPointerElementType());
             PointerType* stInstPtrElemType = dyn_cast<PointerType>(stInstPtrType->getPointerElementType());
+            VectorType* stInstVectorType = dyn_cast<VectorType>(stInstPtrType->getPointerElementType());
             //assert((stInstIntegerType != nullptr) || (stInstPtrElemType != nullptr));
             Value* PtrOperand = nullptr;
             Value* ValueOperand = nullptr;
@@ -963,6 +983,8 @@ namespace external {
             }
 
             if (stInstIntegerType) {
+                ValueOperand = stInstValueOperand;
+            } else if (stInstVectorType) {
                 ValueOperand = stInstValueOperand;
             } else {
                 // Check needed for NULL assignments
@@ -992,6 +1014,12 @@ namespace external {
                     case 8:
                         val = Builder.CreateCall(this->encryptLoopQWordFunction, encryptArgList);
                         break;
+                    case 16:
+                        val = Builder.CreateCall(this->encryptLoopVecFunction, encryptArgList);
+                        break;
+                    case 32:
+                        val = Builder.CreateCall(this->encryptLoopVec4Function, encryptArgList);
+                        break;
                 }
             } else {
                 val = Builder.CreateCall(this->encryptLoopDoubleFunction, encryptArgList);
@@ -1009,6 +1037,7 @@ namespace external {
             IntegerType* PlainTextValIntType = nullptr;
             Type* PlainTextValDoubleType = nullptr;
             PointerType* PlainTextValPtrType = nullptr;
+            VectorType* PlainTextValVecType = nullptr;
 
             StoreInst* stInst = dyn_cast<StoreInst>(plainTextVal);
             Value* stInstPtrOperand = stInst->getPointerOperand();
@@ -1021,12 +1050,18 @@ namespace external {
             int INCREMENT = 0;
             PlainTextValIntType = dyn_cast<IntegerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
             PlainTextValPtrType = dyn_cast<PointerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
+            PlainTextValVecType = dyn_cast<VectorType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
             if (Type* thisType = plainTextVal->getPointerOperand()->getType()->getPointerElementType()) {
                 if (thisType->isDoubleTy()) {
                     PlainTextValDoubleType = thisType;
                 }
             }
 
+            int vectorNumElements = 0;
+            if (VectorType *vectorType = dyn_cast<VectorType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType())){
+                Type* thisType = dyn_cast<Type>(vectorType);
+                vectorNumElements = thisType->getVectorNumElements();
+            }
             if (PlainTextValIntType) {
                 if (PlainTextValIntType->getBitWidth() == 8) {
                     INCREMENT = 1;
@@ -1038,14 +1073,24 @@ namespace external {
                     INCREMENT = 8;
                 }
             } else if (PlainTextValPtrType) {
-                INCREMENT = 8; // Pointer always 64 bit
+                INCREMENT = 8; // Pointer always 64 bit 
+            } else if (PlainTextValVecType){
+                if (vectorNumElements == 2){
+                    INCREMENT = 16;
+                } else if (vectorNumElements == 4){
+                    INCREMENT = 32;
+                } else {
+                    assert((vectorNumElements == 2 || vectorNumElements == 4) && "Unknown Type for vector type");
+                }
             } else {
                 assert(PlainTextValDoubleType && "Unknown Type!");
             }
             std::vector<Value*> encryptArgList;
             PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
             IntegerType* stInstIntegerType = dyn_cast<IntegerType>(stInstPtrType->getPointerElementType());
-            PointerType* stInstPtrElemType = dyn_cast<PointerType>(stInstPtrType->getPointerElementType());
+            PointerType* stInstPtrElemType = dyn_cast<PointerType>(stInstPtrType->getPointerElementType()); 
+            VectorType* stInstVectorType = dyn_cast<VectorType>(stInstPtrType->getPointerElementType());
+            //assert((stInstIntegerType != nullptr) || (stInstPtrElemType != nullptr));
             //assert((stInstIntegerType != nullptr) || (stInstPtrElemType != nullptr));
             Value* PtrOperand = nullptr;
             Value* ValueOperand = nullptr;
@@ -1057,6 +1102,8 @@ namespace external {
             }
 
             if (stInstIntegerType) {
+                ValueOperand = stInstValueOperand; 
+            } else if (stInstVectorType) {
                 ValueOperand = stInstValueOperand;
             } else {
                 // Check needed for NULL assignments
@@ -1074,7 +1121,6 @@ namespace external {
             ConstantInt* noOfByte = Builder.getInt64(1);
             readLabel = Builder.CreateCall(this->DFSanReadLabelFn, {PtrOperand, noOfByte});
             readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
-            //errs()<< "Value of readlabel is :"<<*readLabel<<"\n";
 
             Type *int32Ty;
             int32Ty = Type::getInt32Ty(plainTextVal->getContext());
@@ -1107,6 +1153,12 @@ namespace external {
                     case 8:
                         val = Builder.CreateCall(this->encryptLoopQWordFunction, encryptArgList);
                         break;
+                    case 16:
+                        val = Builder.CreateCall(this->encryptLoopVecFunction, encryptArgList);
+                        break;
+                    case 32:
+                        val = Builder.CreateCall(this->encryptLoopVec4Function, encryptArgList);
+                        break;
                 }
             } else {
                 val = Builder.CreateCall(this->encryptLoopDoubleFunction, encryptArgList);
@@ -1133,8 +1185,8 @@ namespace external {
             IRBuilder<> Builder(encVal);
             IntegerType* EncValIntType = nullptr;
             Type* EncValDoubleType = nullptr;
-
             PointerType* EncValPtrType = nullptr;
+            VectorType* EncValVectorType = nullptr;
 
             bool isLoop = false;
 
@@ -1156,7 +1208,13 @@ namespace external {
             int INCREMENT = 0;
             EncValIntType =  dyn_cast<IntegerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
             EncValPtrType = dyn_cast<PointerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
+            EncValVectorType = dyn_cast<VectorType>(encVal->getPointerOperand()->getType()->getPointerElementType());
 
+            int vectorNumElements = 0;
+            if (VectorType *vectorType = dyn_cast<VectorType>(encVal->getPointerOperand()->getType()->getPointerElementType())){
+                Type* thisType = dyn_cast<Type>(vectorType);
+                vectorNumElements = thisType->getVectorNumElements();
+            }
             if (Type* thisType = encVal->getPointerOperand()->getType()->getPointerElementType()) {
                 if (thisType->isDoubleTy()) {
                     EncValDoubleType = thisType;
@@ -1175,7 +1233,16 @@ namespace external {
                 }
             } else if (EncValPtrType) {
                 INCREMENT = 8;
-            } else {
+            } else if (EncValVectorType){
+
+                if (vectorNumElements == 2){
+                    INCREMENT = 16;
+                } else if (vectorNumElements == 4){
+                    INCREMENT = 32;
+                } else {
+                    assert((vectorNumElements == 2 || vectorNumElements == 4) && "Unknown Type for vector type");
+                }
+            }else {
                 assert(EncValDoubleType && "Unknown type!");
             }
 
@@ -1208,6 +1275,12 @@ namespace external {
                     case 8:
                         retVal = Builder.CreateCall(this->decryptLoopQWordFunction, decryptArgList);
                         break;
+                    case 16:
+                        retVal = Builder.CreateCall(this->decryptLoopVectorFunction, decryptArgList);
+                        break;
+                    case 32:
+                        retVal = Builder.CreateCall(this->decryptLoopVector4Function, decryptArgList);
+                        break;
                 }
             } else {
                 retVal = Builder.CreateCall(this->decryptLoopDoubleFunction, decryptArgList);
@@ -1232,6 +1305,7 @@ namespace external {
             IntegerType* EncValIntType = nullptr;
             PointerType* EncValPtrType = nullptr;
             Type* EncValDoubleType = nullptr;
+            VectorType* EncValVectorType = nullptr;
 
             bool isLoop = false;
 
@@ -1246,6 +1320,13 @@ namespace external {
             int INCREMENT = 0;
             EncValIntType =  dyn_cast<IntegerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
             EncValPtrType = dyn_cast<PointerType>(encVal->getPointerOperand()->getType()->getPointerElementType());
+            EncValVectorType = dyn_cast<VectorType>(encVal->getPointerOperand()->getType()->getPointerElementType());
+
+            int vectorNumElements = 0;
+            if (VectorType *vectorType = dyn_cast<VectorType>(encVal->getPointerOperand()->getType()->getPointerElementType())){
+                Type* thisType = dyn_cast<Type>(vectorType);
+                vectorNumElements = thisType->getVectorNumElements();
+            }
 
             if (Type* thisType = encVal->getPointerOperand()->getType()->getPointerElementType()) {
                 if (thisType->isDoubleTy()) {
@@ -1265,6 +1346,15 @@ namespace external {
                 }
             } else if (EncValPtrType) {
                 INCREMENT = 8;
+            } else if (EncValVectorType){
+
+                if (vectorNumElements == 2){
+                    INCREMENT = 16;
+                } else if (vectorNumElements == 4){
+                    INCREMENT = 32;
+                } else {
+                    assert((vectorNumElements == 2 || vectorNumElements == 4) && "Unknown Type for vector type");
+                }
             } else {
                 assert(EncValDoubleType && "Unknown type!");
             }
@@ -1272,8 +1362,8 @@ namespace external {
             PointerType* ldInstPtrType = dyn_cast<PointerType>(ldInstPtrOperand->getType());
             IntegerType* ldInstIntegerType = dyn_cast<IntegerType>(ldInstPtrType->getPointerElementType());
             PointerType* ldInstPtrElemType = dyn_cast<PointerType>(ldInstPtrType->getPointerElementType());
-
-//            assert((ldInstIntegerType != nullptr) || (ldInstPtrElemType != nullptr));
+            
+            //assert((ldInstIntegerType != nullptr) || (ldInstPtrElemType != nullptr));
             Value* PtrOperand = nullptr;
             if (ldInstIntegerType && ldInstIntegerType->getBitWidth() == 8) {
                 PtrOperand = ldInstPtrOperand;
@@ -1315,6 +1405,12 @@ namespace external {
                         break;
                     case 8:
                         retVal = Builder.CreateCall(this->decryptLoopQWordFunction, decryptArgList);
+                        break;
+                    case 16:
+                        retVal = Builder.CreateCall(this->decryptLoopVectorFunction, decryptArgList);
+                        break;
+                    case 32:
+                        retVal = Builder.CreateCall(this->decryptLoopVector4Function, decryptArgList);
                         break;
                 }
             } else {

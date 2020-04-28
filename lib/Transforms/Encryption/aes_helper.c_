@@ -6,6 +6,8 @@
 #include <stdarg.h>
 #include <dirent.h>
 #include <inttypes.h>
+#include <emmintrin.h> 
+#include <immintrin.h>
 #include <sanitizer/dfsan_interface.h>
 
 uint64_t rbp, rsp;
@@ -14,8 +16,8 @@ int dirty __attribute__ ((aligned (16)));
 char asm_str[100] __attribute__ ((aligned (16)));
 char offset_str[2] __attribute__ ((aligned (16)));
 
-long enc = 1;
-long dec = 1;
+long long enc = 0;
+long long dec = 0;
 long aesenccount, aesdeccount;
 
 void encrypt_cache(void*);
@@ -35,6 +37,10 @@ void writeback_cache() {
     dirty = 0;
 }
 
+void getEncDecCount () {
+    printf("Total No of Encryption is: %lld\n",enc);
+    printf("Total No of Decryption is: %lld\n",dec);
+}
 void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
     //printf ("Encrypted_Byte: %p ",ptr);
     //printf ("Value to be encrypted : %d",byte_arg);
@@ -50,7 +56,8 @@ void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
 
             encrypt_cache((void*)lastAddr);
 
-            //printf("Encryption %ld\n",enc++);        
+            //printf("Encryption %ld\n",enc++);
+            enc++; 
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -126,6 +133,7 @@ void setEncryptedValueWord(void* ptr, uint16_t word_arg) {
             encrypt_cache((void*)lastAddr);
 
             //printf("Encryption %ld\n",enc++);
+            enc++;
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -174,12 +182,10 @@ void setEncryptedValueDWord(void* ptr, uint32_t dword_arg) {
     if (aligned_ptr != (uint64_t) lastAddr) {
 
         if (lastAddr > 0 && dirty) {
-
-
-
             encrypt_cache((void*)lastAddr);
 
             //printf("Encryption %ld\n",enc++);
+            enc++;
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -229,6 +235,7 @@ void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
             encrypt_cache((void*)lastAddr);
 
             //printf("Encryption %ld\n",enc++);
+            enc++;
         }
         lastAddr = aligned_ptr;
         decrypt_cache((void*)aligned_ptr);
@@ -262,7 +269,45 @@ void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
             break;
     }
 }
+void setEncryptedValueVector (void* ptr, __m128i vec_arg) {
+    uint64_t* vecArgPtr = (uint64_t*) &vec_arg;
+    //printf ("Value to be encrypted : %016"PRIx64"%016"PRIx64" \n",vecArgPtr[0],vecArgPtr[1]);
 
+    int offset = (uint64_t)ptr % 16;
+
+    uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
+
+    // Align to 128 bit
+    if (aligned_ptr != (uint64_t) lastAddr) {
+
+        if (lastAddr > 0 && dirty) {
+            encrypt_cache((void*)lastAddr);
+
+            //printf("Encryption %ld\n",enc++);
+            enc++;
+        }
+        lastAddr = aligned_ptr;
+        decrypt_cache((void*)aligned_ptr);
+    }
+    dirty = 1;
+    asm("pinsrq $0, %0, %%xmm13 \n\t":: "r"(vecArgPtr[0]) : );
+    asm("pinsrq $1, %0, %%xmm13 \n\t":: "r"(vecArgPtr[1]) : );
+}
+
+void setEncryptedValueVector4(void* ptr, __m256i vec_arg) {
+    //printf ("Encryted_256Vec ptr: %p\n",ptr);
+    uint64_t* vecArgPtr = (uint64_t*) &vec_arg;
+    //printf ("Value to be encrypted : %016"PRIx64"%016"PRIx64"%016"PRIx64"%016"PRIx64"\n",vecArgPtr[0],vecArgPtr[1],vecArgPtr[2],vecArgPtr[3]);
+
+    __m128i lower_128bit = _mm_set_epi64x(vecArgPtr[1] , vecArgPtr[0]);
+    setEncryptedValueVector(ptr, lower_128bit);
+
+    ptr = ptr + 16;
+    //printf ("Encryted_256Vec ptr: %p\n",ptr);
+    
+    __m128i upper_128bit = _mm_set_epi64x(vecArgPtr[3] , vecArgPtr[2]);
+    setEncryptedValueVector(ptr, upper_128bit);
+}
 
 uint8_t getDecryptedValueByte(void* ptr) {
     //printf ("Decryted_Byte: %p\n",ptr);
@@ -278,11 +323,13 @@ uint8_t getDecryptedValueByte(void* ptr) {
             encrypt_cache((void*)lastAddr);
             dirty = 0;
             //printf("Encryption %ld\n",enc++);
+            enc++;
         }
         lastAddr = aligned_ptr;
 
         decrypt_cache((void*)aligned_ptr);
         //printf("Decryption %ld\n",dec++);
+        dec++;
     }
     switch(offset) {
         case 0:
@@ -355,11 +402,13 @@ uint16_t getDecryptedValueWord(void* ptr) {
             encrypt_cache((void*)lastAddr);
             dirty = 0;
             //printf("Encryption %ld\n",enc++);
+            enc++;
         }
         lastAddr = aligned_ptr;
 
         decrypt_cache((void*)aligned_ptr);
         //printf("Decryption %ld\n",dec++);
+        dec++;
     }
     offset = offset/2;
     switch(offset) {
@@ -410,11 +459,13 @@ uint32_t getDecryptedValueDWord(void* ptr) {
             encrypt_cache((void*)lastAddr);
             dirty = 0;
             //printf("Encryption %ld\n",enc++);
+            enc++;
         }
         lastAddr = aligned_ptr;
 
         decrypt_cache((void*)aligned_ptr);
         //printf("Decryption %ld\n",dec++);
+        dec++;
     }
     offset = offset/4;
     switch(offset) {
@@ -462,11 +513,13 @@ uint64_t getDecryptedValueQWord(void* ptr) {
             encrypt_cache((void*)lastAddr);
             dirty = 0;
             //printf("Encryption %ld\n",enc++);
+            enc++;
         }
         lastAddr = aligned_ptr;
 
         decrypt_cache((void*)aligned_ptr);
         //printf("Decryption %ld\n",dec++);
+        dec++;
     }
     offset = offset/8;
     switch(offset) {
@@ -500,6 +553,51 @@ uint64_t getDecryptedValueQWord(void* ptr) {
     return qword_result;
 }
 
+
+__m128i getDecryptedValueVector(void* ptr) {
+    
+    //printf ("Decryted_QWord: %p\n",ptr); 
+    int offset = (uint64_t)ptr % 16;
+    register uint64_t lower_qword;
+    register uint64_t upper_qword;
+
+    uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
+
+    // Align to 128 bit
+    if (aligned_ptr != (uint64_t) lastAddr) {
+
+        if (lastAddr > 0 && dirty) {
+            encrypt_cache((void*)lastAddr);
+            dirty = 0;
+            //printf("Encryption %ld\n",enc++);
+            enc++;
+        }
+        lastAddr = aligned_ptr;
+
+        decrypt_cache((void*)aligned_ptr);
+        //printf("Decryption %ld\n",dec++);
+        dec++;
+    }
+
+    asm("pextrq $0, %%xmm13, %0\n\t": "=r"(lower_qword) : );
+    asm("pextrq $1, %%xmm13, %0\n\t": "=r"(upper_qword) : );
+    __m128i result = _mm_set_epi64x(upper_qword,lower_qword); 
+    return result;
+}
+
+
+__m256i getDecryptedValueVector4(void* ptr) {
+    //printf ("Decryted_ptr: %p\n",ptr); 
+    __m128i lower_128bit = getDecryptedValueVector(ptr);
+   
+    ptr = ptr + 16; 
+    //printf ("Decryted_ptr: %p\n",ptr); 
+    __m128i upper_128bit = getDecryptedValueVector(ptr);
+
+    __m256i result = _mm256_castps128_ps256(lower_128bit);
+    result = _mm256_insertf128_ps(result, upper_128bit, 1);
+    return result;
+}
 
 void encrypt_globals(char* ptr, long numBytes) {
     long numBlocks = (numBytes + (16 - 1)) / 16;
@@ -690,12 +788,12 @@ void aes_free(void* ptr) {
     free(ptr);
 }
 
-void aes_sodiumFree(void* ptr) {
+/*void aes_sodiumFree(void* ptr) {
     //printf( "Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
     size_t noOfByte = malloc_usable_size(ptr);
     dfsan_set_label(0, ptr, noOfByte);
     sodium_free(ptr);
-}
+}*/
 
 void* aes_freeWithBitcast(void* ptr) {
     //printf( "Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
@@ -720,7 +818,7 @@ void* aes_malloc(long size) {
     return Ptr;
 }
 
-void* aes_sodiumMalloc(long size) {
+/*void* aes_sodiumMalloc(long size) {
     size = size*128; // hack to fix widening
     long roundedSize = -1;
     if (size % 16 == 0) {
@@ -731,7 +829,8 @@ void* aes_sodiumMalloc(long size) {
     
     void* Ptr = sodium_malloc(roundedSize);
     return Ptr;
-}
+}*/
+
 void* aes_calloc(long nmem, long elem_size) {
     elem_size = elem_size*128; // hack to fix widening
     long size = nmem*elem_size;
