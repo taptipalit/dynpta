@@ -48,6 +48,8 @@ namespace {
             // Statistics
             long decryptionCount;
             long encryptionCount;
+            long checkAuthenticationCount;
+            long computeAuthenticationCount;
 
             void collectLoadStoreStats(Module&);
 
@@ -4041,12 +4043,14 @@ void EncryptionPass::performHMACInstrumentation(Module& M) {
 
             // Call the authentication routine
             HMAC.insertCheckAuthentication(LdInst);
+            checkAuthenticationCount++;
         } else	if (Repl->Type == STORE) {
             IRBuilder<> Builder(Repl->OldInstruction); // Insert before the current Store instruction
             StoreInst* StInst = dyn_cast<StoreInst>(Repl->OldInstruction);
             
             // Call the hmac computation and update route
             HMAC.insertComputeAuthentication(StInst);
+            computeAuthenticationCount++;
         }
     }
 }
@@ -4444,6 +4448,9 @@ bool EncryptionPass::runOnModule(Module &M) {
         dbgs () << "Inserted " << encryptionCount << " calls to encryption routines.\n";
 
         collectLoadStoreStats(M);
+    } else {
+        dbgs() << "Inserted " << checkAuthenticationCount << " calls to check-authentication routines.\n";
+        dbgs() << "Inserted " << computeAuthenticationCount << " calls to compute-authentication routines.\n";
     }
 
     if (skipVFA) {

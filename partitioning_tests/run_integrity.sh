@@ -21,7 +21,7 @@ fi
 
 $LLVMROOT/llvm-dis $file.bc -o $file.ll
 
-$LLVMROOT/opt -encryption -steens-fast -integrity=true -skip-csa=true -skip-vfa -optimized-check=false -partitioning=false  $file.bc -o $fileinst.bc
+$LLVMROOT/opt -encryption -ander -integrity=true -skip-csa=true -skip-vfa -optimized-check=false -partitioning=false  $file.bc -o $fileinst.bc
 
 $LLVMROOT/llvm-dis $fileinst.bc -o $fileinst.ll
 

@@ -2,8 +2,9 @@
 
 #define SENSITIVE __attribute__((annotate("sensitive")))
 
+SENSITIVE int allow_script;
+
 int main(void) {
-    SENSITIVE int allow_script;
     allow_script = 1;
 
     if (allow_script == 1) {
