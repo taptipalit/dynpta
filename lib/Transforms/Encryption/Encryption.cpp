@@ -227,6 +227,7 @@ namespace {
             inline void externalFunctionHandler(Module&, CallInst*, Function*, Function*, std::vector<Value*>&);
 
             bool isOptimizedOut(Value*);
+            void collectSensitivePointers();
 
     };
 }
@@ -277,6 +278,32 @@ bool EncryptionPass::isOptimizedOut(Value* ptrVal) {
             return true;
         }
     }
+}
+
+void EncryptionPass::collectSensitivePointers() {
+    if (!ReadFromFile) {
+        getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
+        if (WriteToFile) {
+            std::ofstream outFile;
+            outFile.open("pointsto.results");
+            for (PAGNode* pagNode: pointsFroms) {
+                outFile << pagNode->getId() << "\n";
+            }
+            outFile.close();
+        }
+    } else {
+        std::ifstream inFile;
+        NodeID sensitivePtrId;
+        inFile.open("pointsto.results");
+        if (!inFile) {
+            assert(false && "Can't open file to read from\n");
+        }
+        while (inFile >> sensitivePtrId) {
+            PAGNode* sensitiveNode = getAnalysis<WPAPass>().getPAG()->getPAGNode(sensitivePtrId);
+            pointsFroms.insert(sensitiveNode);
+        }
+    }
+    errs() << "Points from size: " << pointsFroms.size() << "\n";
 }
 
 void EncryptionPass::collectLoadStoreStats(Module& M) {
@@ -4239,29 +4266,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
     errs() << "After collectSensitivePointsToInfo: " << SensitiveObjList.size() << " memory objects found\n";
 
-    if (!ReadFromFile) {
-        getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
-        if (WriteToFile) {
-            std::ofstream outFile;
-            outFile.open("pointsto.results");
-            for (PAGNode* pagNode: pointsFroms) {
-                outFile << pagNode->getId() << "\n";
-            }
-            outFile.close();
-        }
-    } else {
-        std::ifstream inFile;
-        NodeID sensitivePtrId;
-        inFile.open("pointsto.results");
-        if (!inFile) {
-            assert(false && "Can't open file to read from\n");
-        }
-        while (inFile >> sensitivePtrId) {
-            PAGNode* sensitiveNode = getAnalysis<WPAPass>().getPAG()->getPAGNode(sensitivePtrId);
-            pointsFroms.insert(sensitiveNode);
-        }
-    }
-    errs() << "Points from size: " << pointsFroms.size() << "\n";
+    collectSensitivePointers();
 
     // Check for the LoadInsts and StoreInsts that use the sensitive
     // memory
