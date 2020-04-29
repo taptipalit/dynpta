@@ -234,7 +234,7 @@ namespace {
 char EncryptionPass::ID = 0;
 
 //cl::opt<bool> NullEnc("null-enc", cl::desc("XOR Encryption"), cl::init(false), cl::Hidden);
-cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl::init(false), cl::Hidden);
+cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl::init(true), cl::Hidden);
 cl::opt<bool> Partitioning("partitioning", cl::desc("Partitioning"), cl::init(false), cl::Hidden);
 cl::opt<bool> OptimizedCheck("optimized-check", cl::desc("Reduce no of Checks needed"), cl::init(false), cl::Hidden);
 cl::opt<bool> ReadFromFile("read-from-file", cl::desc("Read from file"), cl::init(false), cl::Hidden);
@@ -851,6 +851,8 @@ void EncryptionPass::getPtsFrom(Value* ptd, std::vector<Value*>& ptsFromVec) {
     getAnalysis<WPAPass>().getPtsFrom(ptdNode->getId(), pagPtrVec);
 
     for (PAGNode* possibleNode: pagPtrVec) {
+        if (isa<DummyValPN>(possibleNode) || isa<DummyObjPN>(possibleNode))
+            continue;
         ptsFromVec.push_back(const_cast<Value*>(possibleNode->getValue()));
     }
 }
@@ -861,6 +863,8 @@ void EncryptionPass::getPtsTo(Value* ptr, std::vector<Value*>& ptsToVec) {
     PAGNode* ptrNode = pag->getPAGNode(pag->getValueNode(ptr));
 
     for (PAGNode* possibleNode: getAnalysis<WPAPass>().pointsToSet(ptrNode->getId())) {
+        if (isa<DummyValPN>(possibleNode) || isa<DummyObjPN>(possibleNode))
+            continue;
         ptsToVec.push_back(const_cast<Value*>(possibleNode->getValue()));
     }
 }
@@ -4056,6 +4060,9 @@ void EncryptionPass::performHMACInstrumentation(Module& M) {
 }
 
 bool EncryptionPass::runOnModule(Module &M) {
+    checkAuthenticationCount = 0;
+    computeAuthenticationCount = 0;
+
     // Check soundness of config options
     assert(!(Integrity && Confidentiality) && "Can't support both integrity and confidentiality right now");
     assert((Integrity || Confidentiality) && "Need to select at least one -- integrity or confidentiality");

@@ -121,6 +121,10 @@ public:
 
     }
 
+    virtual PointsTo& getPtsFrom(NodeID nodeID) {
+        assert(false && "Not implemented");
+    }
+
     //}
 
     /// Finalize analysis
@@ -432,6 +436,10 @@ public:
     virtual bool handleStore(NodeID id, const ConstraintEdge* store);
 
     virtual bool updateCallGraph(const CallSiteToFunPtrMap& callsites);
+
+    PointsTo& getPtsFrom(NodeID nodeID) {
+        return getRevPts(nodeID);
+    }
 
 protected:
     virtual void mergeNodeToRep(NodeID nodeId,NodeID newRepId);

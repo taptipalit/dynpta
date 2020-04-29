@@ -658,10 +658,15 @@ llvm::AliasResult WPAPass::alias(const Value* V1, const Value* V2) {
 
 
 bool WPAPass::isPointsToNodes(NodeID ptrNodeId, std::vector<NodeID>& sensitiveNodeIds) {
+    /*
     SteensgaardFast* steens = dyn_cast<SteensgaardFast>(_pta);
     assert(steens && "getPtsFrom works only on Steensgaard");
+    */
+
+    Andersen* andersen = dyn_cast<Andersen>(_pta);
+    assert(andersen && "getPtsFrom only works on subclasses of Andersen (Steens-fast is a subclass too)");
     
-    for (NodeID ptsId: steens->getPts(ptrNodeId)) {
+    for (NodeID ptsId: andersen->getPts(ptrNodeId)) {
         if (std::find(sensitiveNodeIds.begin(), sensitiveNodeIds.end(), ptsId) != sensitiveNodeIds.end()) {
             return true;
         }
@@ -671,12 +676,17 @@ bool WPAPass::isPointsToNodes(NodeID ptrNodeId, std::vector<NodeID>& sensitiveNo
 
 
 std::vector<PAGNode*> WPAPass::pointsToSet(NodeID ptrNodeId) {
+    /*
     SteensgaardFast* steens = dyn_cast<SteensgaardFast>(_pta);
     assert(steens && "getPtsFrom works only on Steensgaard");
+    */
+
+    Andersen* andersen = dyn_cast<Andersen>(_pta);
+    assert(andersen && "getPts only works on subclasses of Andersen (Steens-fast is a subclass too)");
     
     PAG* pag = _pta->getPAG();
     std::vector<PAGNode*> sensitiveNodeIdForPointsToSet;
-    for (NodeID ptsId: steens->getPts(ptrNodeId)) {
+    for (NodeID ptsId: andersen->getPts(ptrNodeId)) {
             sensitiveNodeIdForPointsToSet.push_back(pag->getPAGNode(ptsId));
    }
     return sensitiveNodeIdForPointsToSet;
@@ -685,10 +695,14 @@ std::vector<PAGNode*> WPAPass::pointsToSet(NodeID ptrNodeId) {
 void WPAPass::getPtsFrom(NodeID ptdId, std::vector<PAGNode*>& pointsFrom) {
     PAG* pag = _pta->getPAG();
 
+    /*
     SteensgaardFast* steens = dyn_cast<SteensgaardFast>(_pta);
     assert(steens && "getPtsFrom works only on Steensgaard");
-
-    PointsTo ptsFrom = steens->getPtsFrom(ptdId);
+    */
+    Andersen* andersen = dyn_cast<Andersen>(_pta);
+    assert(andersen && "getPts only works on subclasses of Andersen (Steens-fast is a subclass too)");
+  
+    PointsTo ptsFrom = andersen->getPtsFrom(ptdId);
     for (NodeBS::iterator ptIt = ptsFrom.begin(), ptEit = ptsFrom.end(); ptIt != ptEit; ++ptIt) {
         PAGNode* ptNode = pag->getPAGNode(*ptIt);
         pointsFrom.push_back(ptNode);
@@ -699,12 +713,17 @@ void WPAPass::getPtsFrom(std::vector<PAGNode*>& sensitiveNodes,
                     std::set<PAGNode*>& pointsFrom) {
     PAG* pag = _pta->getPAG();
 
+    Andersen* andersen = dyn_cast<Andersen>(_pta);
+    assert(andersen && "getPts only works on subclasses of Andersen (Steens-fast is a subclass too)");
+ 
+    /*
     SteensgaardFast* steens = dyn_cast<SteensgaardFast>(_pta);
     assert(steens && "getPtsFrom works only on Steensgaard");
+    */
     
 
     for (PAGNode* sensitiveNode: sensitiveNodes) {
-        PointsTo ptsFrom = steens->getPtsFrom(sensitiveNode->getId());
+        PointsTo ptsFrom = andersen->getPtsFrom(sensitiveNode->getId());
         for (NodeBS::iterator ptIt = ptsFrom.begin(), ptEit = ptsFrom.end(); ptIt != ptEit; ++ptIt) {
             PAGNode* ptNode = pag->getPAGNode(*ptIt);
             pointsFrom.insert(ptNode);
