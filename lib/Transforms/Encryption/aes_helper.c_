@@ -269,6 +269,38 @@ void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
             break;
     }
 }
+
+void setEncryptedValueDouble(void* ptr, double qword_arg) {
+    //printf ("Encryted_QWord: %p",ptr); 
+    //printf ("Value to be encrypted : %d ",qword_arg);
+    //printf("and %" PRIu64 "\n", qword_arg);
+    int offset = (uint64_t)ptr % 16;
+
+    uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
+
+    // Align to 128 bit
+    if (aligned_ptr != (uint64_t) lastAddr) {
+
+        if (lastAddr > 0 && dirty) {
+            encrypt_cache((void*)lastAddr);
+
+            //printf("Encryption %ld\n",enc++);
+            enc++;
+        }
+        lastAddr = aligned_ptr;
+        decrypt_cache((void*)aligned_ptr);
+    }
+    dirty = 1;
+    offset = offset/8;
+    switch(offset) {
+        case 0:
+            asm("pinsrq $0, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+            break;
+        case 1:
+            asm("pinsrq $1, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+            break;
+    }
+}
 void setEncryptedValueVector (void* ptr, __m128i vec_arg) {
     uint64_t* vecArgPtr = (uint64_t*) &vec_arg;
     //printf ("Value to be encrypted : %016"PRIx64"%016"PRIx64" \n",vecArgPtr[0],vecArgPtr[1]);
@@ -497,6 +529,41 @@ uint32_t getDecryptedValueDWord(void* ptr) {
     //printf ("After decrypted : %d ",dword_result);
     //printf("and %" PRIu32 "\n", dword_result);
     return dword_result;
+}
+
+double getDecryptedValueDouble(void* ptr) {
+    int offset = (uint64_t)ptr % 16;
+    register double qword_result;
+
+    uint64_t aligned_ptr = ((uint64_t) ptr) & 0xFFFFFFFFFFFFFFF0;
+
+    // Align to 128 bit
+    if (aligned_ptr != (uint64_t) lastAddr) {
+
+        if (lastAddr > 0 && dirty) {
+            encrypt_cache((void*)lastAddr);
+            dirty = 0;
+            //printf("Encryption %ld\n",enc++);
+            enc++;
+        }
+        lastAddr = aligned_ptr;
+
+        decrypt_cache((void*)aligned_ptr);
+        //printf("Decryption %ld\n",dec++);
+        dec++;
+    }
+    offset = offset/8;
+    switch(offset) {
+        case 0:
+            asm("pextrq $0, %%xmm13, %0\n\t": "=r"(qword_result) : );
+            break;
+        case 1:
+            asm("pextrq $1, %%xmm13, %0\n\t": "=r"(qword_result) : );
+            break;
+    }
+    //printf ("After decrypted : %d ",qword_result);
+    //printf("and %" PRIu64 "\n", qword_result);
+    return qword_result;
 }
 
 uint64_t getDecryptedValueQWord(void* ptr) {
