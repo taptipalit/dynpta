@@ -71,7 +71,6 @@ namespace {
             std::vector<InstructionReplacement*> ReplacementCheckList;
 
             std::vector<PAGNode*> SensitiveObjList; // We maintain the PAGNodes here to record field sensitivity
-            std::vector<NodeID> SensitiveNodeIDList;
 
             std::vector<Value*> SensitiveLoadPtrList; // Any pointer that points to sensitive location
             std::vector<Value*> SensitiveLoadList;
@@ -227,6 +226,7 @@ namespace {
             inline void externalFunctionHandlerForPartitioning(Module& , CallInst*, Function*, Function*, Value*, std::vector<Value*>&);
             inline void externalFunctionHandler(Module&, CallInst*, Function*, Function*, std::vector<Value*>&);
 
+            bool isOptimizedOut(Value*);
 
     };
 }
@@ -244,6 +244,40 @@ cl::opt<bool> Confidentiality("confidentiality", cl::desc("confidentiality"), cl
 
 //cl::opt<bool> SkipVFA("skip-vfa-enc", cl::desc("Skip VFA"), cl::init(false), cl::Hidden);
 
+bool EncryptionPass::isOptimizedOut(Value* ptrVal) {
+    if(OptimizedCheck) {
+        if(AllocaInst* allocaInst = dyn_cast<AllocaInst>(ptrVal)) {
+            if (isaCPointer(allocaInst)) {
+                return true;
+            }
+            if (!isSensitiveObjSet(getPAGObjNodeFromValue(ptrVal))) {
+                return true;
+            }
+        }
+        if(GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(ptrVal)) {
+            Type* T = dyn_cast<PointerType>(ptrVal->getType())->getElementType();
+            if (!T->isPointerTy()) {
+                Type* T1 = dyn_cast<PointerType>((dyn_cast<Instruction>(ptrVal)->getOperand(0))->getType())->getElementType();
+                if(T1->isStructTy()){
+                    return true;
+                }
+            } else {
+                return true;
+            }
+        }
+        if (BitCastInst* bitcast = dyn_cast<BitCastInst>(ptrVal)) {
+            Type* T = dyn_cast<PointerType>(ptrVal->getType())->getElementType();
+            if(T->isPointerTy()){
+                return true;
+            }
+        }
+    }
+    if (isa<GlobalVariable>(ptrVal)){
+        if (ptrVal->getName().str().find("stdout") != std::string::npos) {
+            return true;
+        }
+    }
+}
 
 void EncryptionPass::collectLoadStoreStats(Module& M) {
     int loadCount, storeCount, getDecCount, setEncCount;
@@ -1871,19 +1905,6 @@ bool EncryptionPass::isSensitiveArg(Value* arg,  std::map<PAGNode*, std::set<PAG
     // If this arg points to sensitive stuff, then it is sensitive
     PAGNode* argNode = getPAGValNodeFromValue(arg);
     return (std::find(pointsFroms.begin(), pointsFroms.end(), argNode) != pointsFroms.end());
-    //getAnalysis<WPAPass>().isPointsToNodes(argNode->getId(), SensitiveNodeIDList);
-
-    /*if (Partitioning) {
-        return getAnalysis<WPAPass>().isPointsToNodes(argNode->getId(), SensitiveNodeIDList); 
-    } else {
-        for (PAGNode* pointedToNode: ptsToMap[argNode]) {
-            if (isSensitiveObjSet(pointedToNode)) {
-                errs()<<"Returned true from else \n";
-                return true;
-            }
-        }
-        return false;
-    }*/
 }
 
 Type* EncryptionPass::findBaseType(Type* type) {
@@ -4028,8 +4049,6 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensit
                     pag->getValueNode(sensitiveAlloc)
                     ));
 
-        SensitiveNodeIDList.push_back(pag->getObjectNode(sensitiveAlloc));
-        SensitiveNodeIDList.push_back(pag->getValueNode(sensitiveAlloc));
     }
 }
 
@@ -4253,53 +4272,17 @@ bool EncryptionPass::runOnModule(Module &M) {
         Value* ptrVal = const_cast<Value*>(sensitivePtrNode->getValue());
         //errs()<<"ptrVal "<<*ptrVal<<"\n";
 
-        if(OptimizedCheck){
-            if(AllocaInst* allocaInst = dyn_cast<AllocaInst>(ptrVal)){
-                if (isaCPointer(allocaInst)) {
-                    continue;
-                }
-                if (!isSensitiveObjSet(getPAGObjNodeFromValue(ptrVal))) {
-                    continue;
-                }
-
-            }
-            if(GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(ptrVal)){
-                Type* T = dyn_cast<PointerType>(ptrVal->getType())->getElementType();
-                //errs()<<" Element Type"<<*T<<"\n";
-
-                if(!T->isPointerTy()){
-                    Type* T1 = dyn_cast<PointerType>((dyn_cast<Instruction>(ptrVal)->getOperand(0))->getType())->getElementType();
-                    //errs()<<" Element "<<*T1<<"\n";
-                    if(T1->isStructTy()){
-                        continue;
-                    }
-                }else {
-                    continue;
-                }
-            }
-            if(BitCastInst* bitcast = dyn_cast<BitCastInst>(ptrVal)){
-                Type* T = dyn_cast<PointerType>(ptrVal->getType())->getElementType();
-                //errs()<<" BitCast Element Type"<<*T<<"\n";
-                if(T->isPointerTy()){
-                    continue;
-                }
-            }
-
+        if (isOptimizedOut(ptrVal)) {
+            continue;
         }
 
         if(!Partitioning){
             PAG* pag = getAnalysis<WPAPass>().getPAG();
-            if (isa<GlobalVariable>(ptrVal)){
-                if (ptrVal->getName().str().find("stdout") != std::string::npos) {
-                    continue;
-                }
-            }
 
             if (pag->hasObjectNode(ptrVal)) {
                 NodeID objID = pag->getObjectNode(ptrVal);
                 PAGNode* objNode = pag->getPAGNode(objID);
                 SensitiveObjList.push_back(objNode);
-                SensitiveNodeIDList.push_back(pag->getObjectNode(ptrVal));
             }
         }
 
