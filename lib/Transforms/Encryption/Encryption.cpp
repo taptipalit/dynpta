@@ -228,6 +228,7 @@ namespace {
 
             bool isOptimizedOut(Value*);
             void collectSensitivePointers();
+            void collectSensitiveObjectsForWidening();
 
     };
 }
@@ -278,11 +279,16 @@ bool EncryptionPass::isOptimizedOut(Value* ptrVal) {
             return true;
         }
     }
+    return false;
 }
 
 void EncryptionPass::collectSensitivePointers() {
     if (!ReadFromFile) {
-        getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
+        if (!Partitioning) {
+            getAnalysis<WPAPass>().getPtsFromSDD(SensitiveObjList, pointsFroms);
+        } else {
+            getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
+        }
         if (WriteToFile) {
             std::ofstream outFile;
             outFile.open("pointsto.results");
@@ -4072,9 +4078,11 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensit
         SensitiveObjList.push_back(pag->getPAGNode(
                     pag->getObjectNode(sensitiveAlloc)
                     ));
+        /*
         SensitiveObjList.push_back(pag->getPAGNode(
                     pag->getValueNode(sensitiveAlloc)
                     ));
+                    */
 
     }
 }
@@ -4101,6 +4109,23 @@ void EncryptionPass::performHMACInstrumentation(Module& M) {
             // Call the hmac computation and update route
             HMAC.insertComputeAuthentication(StInst);
             computeAuthenticationCount++;
+        }
+    }
+}
+
+void EncryptionPass::collectSensitiveObjectsForWidening() {
+    if (!Partitioning) {
+        // For each of the pointers in pointsFrom, whatever they can point to will
+        // have to be widened
+        for (PAGNode* ptrNode: pointsFroms) {
+            // What it points to
+            for (PAGNode* ptd: getAnalysis<WPAPass>().pointsToSet(ptrNode->getId())) {
+                if (isa<DummyValPN>(ptd) || isa<DummyObjPN>(ptd))
+                    continue;
+                if (isa<ObjPN>(ptd)) {
+                    SensitiveObjList.push_back(ptd);
+                }
+            }
         }
     }
 }
@@ -4281,16 +4306,6 @@ bool EncryptionPass::runOnModule(Module &M) {
             continue;
         }
 
-        if(!Partitioning){
-            PAG* pag = getAnalysis<WPAPass>().getPAG();
-
-            if (pag->hasObjectNode(ptrVal)) {
-                NodeID objID = pag->getObjectNode(ptrVal);
-                PAGNode* objNode = pag->getPAGNode(objID);
-                SensitiveObjList.push_back(objNode);
-            }
-        }
-
         for (User* user: ptrVal->users()) {
             if (user == ptrVal) 
                 continue;
@@ -4318,6 +4333,7 @@ bool EncryptionPass::runOnModule(Module &M) {
         }
     }
 
+    collectSensitiveObjectsForWidening();
 
     if (SensitiveObjSet) {
         delete(SensitiveObjSet);
