@@ -4074,16 +4074,19 @@ void EncryptionPass::fixupSizeOfOperators(Module& M) {
 
 void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensitiveMemAllocCalls) {
     PAG* pag = getAnalysis<WPAPass>().getPAG();
-    for (Value* sensitiveAlloc: sensitiveMemAllocCalls) {
-        SensitiveObjList.push_back(pag->getPAGNode(
-                    pag->getObjectNode(sensitiveAlloc)
-                    ));
-        /*
-        SensitiveObjList.push_back(pag->getPAGNode(
-                    pag->getValueNode(sensitiveAlloc)
-                    ));
-                    */
 
+    for (Value* sensitiveAlloc: sensitiveMemAllocCalls) {
+        NodeID objID = pag->getObjectNode(sensitiveAlloc);
+        NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
+
+        for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
+            PAGNode* fldNode = pag->getPAGNode(*fIt);
+            SensitiveObjList.push_back(fldNode);
+            /*
+            if (GepObjPN* gepNode = dyn_cast<GepObjPN>(fldNode)) {
+            }
+            */
+        }
     }
 }
 
