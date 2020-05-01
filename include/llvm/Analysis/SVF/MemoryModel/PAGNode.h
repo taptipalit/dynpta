@@ -202,6 +202,26 @@ public:
     //@{
     friend llvm::raw_ostream& operator<< (llvm::raw_ostream &o, const PAGNode &node) {
         o << "NodeID: " << node.getId() << "\t, Node Kind: ";
+        if (node.getNodeKind() == ValNode) {
+            o << "ValPN\n";
+        } else if (node.getNodeKind() == GepValNode) {
+            o << "GepValPN\n";
+        } else if (node.getNodeKind() == DummyValNode) {
+            o << "DummyValPN\n";
+        } else if (node.getNodeKind() == ObjNode) {
+            o << "ObjPN\n";
+        } else if (node.getNodeKind() == GepObjNode) {
+            o << "GepObjPN\n";
+        } else if (node.getNodeKind() == FIObjNode) {
+            o << "FIObjPN\n";
+        } else if (node.getNodeKind() == DummyObjNode) {
+            o << "DummyObjPN\n";
+        } else if (node.getNodeKind() == RetNode) {
+            o << "RetPN\n";
+        } else {
+            o << "OtherPN\n";
+        }
+        /*
         if (node.getNodeKind() == ValNode ||
                 node.getNodeKind() == GepValNode ||
                 node.getNodeKind() == DummyValNode) {
@@ -216,6 +236,7 @@ public:
         } else {
             o << "otherPN\n";
         }
+        */
         if (node.hasValue()) {
             const llvm::Value *val = node.getValue();
             if (const llvm::Function *fun = llvm::dyn_cast<llvm::Function>(val))

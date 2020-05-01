@@ -744,7 +744,7 @@ void WPAPass::getPtsFromSDD(NodeID ptdId, std::vector<PAGNode*>& pointsFrom) {
             PointsTo tempPts = andersen->getPts(*ptIt);
             // who all point to tempPts?
             for (NodeBS::iterator ptfIt = tempPts.begin(), ptfEit = tempPts.end(); ptfIt != ptfEit; ++ptfIt) {
-                newPointsFrom |= andersen->getRevPts(*ptfIt);
+                *newPointsFrom |= andersen->getRevPts(*ptfIt);
             }           
         }   
         changed = ptsFrom |= *newPointsFrom;

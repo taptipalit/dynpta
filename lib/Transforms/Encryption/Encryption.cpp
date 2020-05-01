@@ -4082,10 +4082,6 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensit
         for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
             PAGNode* fldNode = pag->getPAGNode(*fIt);
             SensitiveObjList.push_back(fldNode);
-            /*
-            if (GepObjPN* gepNode = dyn_cast<GepObjPN>(fldNode)) {
-            }
-            */
         }
     }
 }
