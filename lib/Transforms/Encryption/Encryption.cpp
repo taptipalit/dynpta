@@ -4,6 +4,7 @@
 #include "HMAC.h"
 #include "ASMParser.h"
 #include "llvm/Support/Format.h"
+#include <llvm/IR/Metadata.h>
 
 #define DEBUG_TYPE "encryption"
 
@@ -56,6 +57,8 @@ namespace {
             bool runOnModule(Module &M) override;
 
         private:
+
+            Module* mod;
 
             external::ExtLibraryHandler ExtLibHandler;
             external::AESCache AESCache;
@@ -4081,7 +4084,71 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensit
 
         for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
             PAGNode* fldNode = pag->getPAGNode(*fIt);
-            SensitiveObjList.push_back(fldNode);
+            if (GepObjPN* gepNode = dyn_cast<GepObjPN>(fldNode)) {
+                // If this is a pointer type, then just skip it
+                int index = gepNode->getLocationSet().getOffset();
+                // Get the value, and check the type
+                Value* sensitiveValue = const_cast<Value*>(gepNode->getValue());
+                if (StructType* senStType = dyn_cast<StructType>(sensitiveValue->getType()->getPointerElementType())) {
+                    Type* subType = senStType->getElementType(index);
+                    // If this is a sub-type struct, then we have a problem and should
+                    // abort
+                    assert(!isa<StructType>(subType) && "Don't support structs in a sensitive struct yet");
+                    if (isa<PointerType>(subType) || isa<ArrayType>(subType)) {
+                        // Skip!
+                        continue;
+                    }
+                }
+                SensitiveObjList.push_back(fldNode);
+            } else {
+                SensitiveObjList.push_back(fldNode);
+            }
+        }
+    }
+
+    // Figure this out baby
+	for (Module::iterator MIterator = mod->begin(); MIterator != mod->end(); MIterator++) {
+		if (auto *F = dyn_cast<Function>(MIterator)) {
+			// Get the local sensitive values
+			for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+				if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+					//outs() << "Basic block found, name : " << BB->getName() << "\n";
+					for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+						if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+							// Check if it's an annotation
+							if (isa<CallInst>(Inst)) {
+								CallInst* CInst = dyn_cast<CallInst>(Inst);
+								// CallInst->getCalledValue() gives us a pointer to the Function
+								if (CInst->getCalledValue()->getName().startswith("llvm.ptr.annotation")) {
+									Value* SV = CInst->getArgOperand(0);
+                                    if (BitCastInst* bcInst = dyn_cast<BitCastInst>(SV)) {
+                                        // The first operand is a Gep? 
+                                        Value* operand = bcInst->getOperand(0);
+                                        if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(operand)) {
+                                            ConstantInt* constantInt = dyn_cast<ConstantInt>(gep->getOperand(2));
+                                            int sensitiveIndex = constantInt->getZExtValue();
+                                            // Find the gep node
+                                            NodeID objID = pag->getObjectNode(gep->getPointerOperand());
+                                            NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
+
+                                            for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
+                                                PAGNode* fldNode = pag->getPAGNode(*fIt);
+                                                if (GepObjPN* gepNode = dyn_cast<GepObjPN>(fldNode)) {
+                                                    // If this is a pointer type, then just skip it
+                                                    int gepObjIndex = gepNode->getLocationSet().getOffset();
+                                                    if (sensitiveIndex == gepObjIndex) { 
+                                                        SensitiveObjList.push_back(fldNode);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -4130,6 +4197,7 @@ void EncryptionPass::collectSensitiveObjectsForWidening() {
 }
 
 bool EncryptionPass::runOnModule(Module &M) {
+    this->mod = &M;
     checkAuthenticationCount = 0;
     computeAuthenticationCount = 0;
 
@@ -4140,9 +4208,12 @@ bool EncryptionPass::runOnModule(Module &M) {
     // Set up the widening / aligning bytes
     if (Confidentiality) {
         const_cast<DataLayout&>(M.getDataLayout()).setWidenSensitiveBytes(16);
+        M.addModuleFlag(llvm::Module::Warning, StringRef("auth_mode"), (uint32_t)0);
     } else {
         const_cast<DataLayout&>(M.getDataLayout()).setWidenSensitiveBytes(98); // [ 256 (hmac) : 512 (data) ]
+        M.addModuleFlag(llvm::Module::Warning, StringRef("auth_mode"), (uint32_t)1);
     }
+
     PAG* pag = getAnalysis<WPAPass>().getPAG();
     // Set up the external functions handled
 

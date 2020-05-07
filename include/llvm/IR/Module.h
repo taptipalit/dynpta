@@ -233,6 +233,9 @@ public:
   /// Get the data layout for the module's target platform.
   const DataLayout &getDataLayout() const;
 
+  void setWidenSensitiveBytes(int widen) {
+      DL.setWidenSensitiveBytes(widen);
+  }
   /// Get the target triple which is a string describing the target host.
   /// @returns a string containing the target triple.
   const std::string &getTargetTriple() const { return TargetTriple; }

@@ -120,7 +120,7 @@ public:
     extf_t get_type(const llvm::Function *F) const {
         assert(F);
         std::string funName = F->getName().str();
-        if(F->isIntrinsic()) {
+        if (F->getName() != "llvm.ptr.annotation.p0i8" && F->isIntrinsic()) {
             funName = "llvm." + F->getName().split('.').second.split('.').first.str();
         }
         llvm::StringMap<extf_t>::const_iterator it= info.find(funName);

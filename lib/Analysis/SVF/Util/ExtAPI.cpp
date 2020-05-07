@@ -712,6 +712,7 @@ static const ei_pair ei_pairs[]= {
     {"strrchr", ExtAPI::EFT_L_A0},
     {"strstr", ExtAPI::EFT_L_A0},
     {"tmpnam_r", ExtAPI::EFT_L_A0},
+    {"llvm.ptr.annotation.p0i8", ExtAPI::EFT_L_A0},
     {"asctime_r", ExtAPI::EFT_L_A1},
     {"bsearch", ExtAPI::EFT_L_A1},
     {"getmntent_r", ExtAPI::EFT_L_A1},

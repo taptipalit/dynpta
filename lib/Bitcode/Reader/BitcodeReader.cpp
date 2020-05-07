@@ -5782,6 +5782,20 @@ BitcodeModule::getModuleImpl(LLVMContext &Context, bool MaterializeAll,
           R->parseBitcodeInto(M.get(), ShouldLazyLoadMetadata, IsImporting))
     return std::move(Err);
 
+  auto *Val = cast_or_null<ConstantAsMetadata>(M.get()->getModuleFlag(StringRef("auth_mode")));
+  if (Val) {
+      switch(cast<ConstantInt>(Val->getValue())->getZExtValue()) {
+          case 0:
+              M.get()->setWidenSensitiveBytes(16);
+              break;
+          case 1:
+              M.get()->setWidenSensitiveBytes(96);
+              break;
+          default:
+              errs() << "Unknown value for auth_mode\n";
+      }
+  }
+
   if (MaterializeAll) {
     // Read in the entire module, and destroy the BitcodeReader.
     if (Error Err = M->materializeAll())
