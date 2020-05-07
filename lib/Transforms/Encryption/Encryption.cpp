@@ -278,11 +278,29 @@ bool EncryptionPass::isOptimizedOut(Value* ptrVal) {
             return true;
         }
     }
+    return false;
 }
 
 void EncryptionPass::collectSensitivePointers() {
     if (!ReadFromFile) {
-        getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
+        /*To find recursive memory allocations, we need pointsTo analysis;
+         * we wiil find possibleSensitive allocations from pointsTo analysis
+         * and then perform pointsFrom analysis to find the complete set*/
+        std::vector<PAGNode*> tempSensitiveObjList = SensitiveObjList;
+        for (PAGNode* sensitiveNode: SensitiveObjList) {
+            for (PAGNode* possibleSensitiveNode: getAnalysis<WPAPass>().pointsToSet(sensitiveNode->getId())) {
+                if (isa<DummyValPN>(possibleSensitiveNode) || isa<DummyObjPN>(possibleSensitiveNode))
+                    continue;
+                Value* valNode = const_cast<Value*>(possibleSensitiveNode->getValue());
+                /*Since memory allocations can be done via callInst, we will
+                 * only consider call instructions as possibleSensitive
+                 * allocation*/
+                if(CallInst* callInst = dyn_cast<CallInst>(valNode)){
+                    tempSensitiveObjList.push_back(possibleSensitiveNode);
+                }
+            }
+        }
+        getAnalysis<WPAPass>().getPtsFrom(tempSensitiveObjList, pointsFroms);
         if (WriteToFile) {
             std::ofstream outFile;
             outFile.open("pointsto.results");
@@ -2294,6 +2312,34 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
             }
+        } else if (externalFunction->getName() == "stat64") {
+            IRBuilder<> InstBuilder(externalCallInst);
+            Value* arg1 = externalCallInst->getArgOperand(0);
+            Value* arg2 = externalCallInst->getArgOperand(1);
+
+            Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+            Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+
+            if (isSensitiveArg(arg1, ptsToMap)) {
+                std::vector<Value*> ArgList;
+                ArgList.push_back(arg1);
+               
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, arg1, ArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
+                }
+            }
+            if (isSensitiveArg(arg2, ptsToMap)) {
+                std::vector<Value*> ArgList;
+                ArgList.push_back(arg2);
+               
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, arg2, ArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
+                }
+            }
         } else if (externalFunction->getName() == "fgets") {
             Value* buffer = externalCallInst->getArgOperand(0);
             Value* fileStream0 = externalCallInst->getArgOperand(2);
@@ -2382,6 +2428,10 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 // has varargs
                 for (int i = 1; i < argNum; i++) {
                     Value* arg = externalCallInst->getArgOperand(i);
+                    Type* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+                    if(arg->getType() != voidPtrType){
+                        continue;
+                    }
 
                     Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
                     Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
@@ -3164,6 +3214,24 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 }
             }
         } else if (externalFunction->getName() == "bzero") {
+            Value *bufferPtr = externalCallInst->getArgOperand(0);
+            Value *numBytes = externalCallInst->getArgOperand(1);
+
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+            if (isSensitiveArg(bufferPtr, ptsToMap)) {
+                std::vector<Value*> ArgList;
+                ArgList.push_back(bufferPtr);
+                ArgList.push_back(numBytes);
+
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, bufferPtr, ArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
+                }
+            }
+        } else if (externalFunction->getName() == "getcwd") {
             Value *bufferPtr = externalCallInst->getArgOperand(0);
             Value *numBytes = externalCallInst->getArgOperand(1);
 
@@ -4067,15 +4135,17 @@ void EncryptionPass::fixupSizeOfOperators(Module& M) {
 }
 
 void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensitiveMemAllocCalls) {
-    PAG* pag = getAnalysis<WPAPass>().getPAG();
-    for (Value* sensitiveAlloc: sensitiveMemAllocCalls) {
-        SensitiveObjList.push_back(pag->getPAGNode(
-                    pag->getObjectNode(sensitiveAlloc)
-                    ));
-        SensitiveObjList.push_back(pag->getPAGNode(
-                    pag->getValueNode(sensitiveAlloc)
-                    ));
 
+    PAG* pag = getAnalysis<WPAPass>().getPAG();
+
+    for (Value* sensitiveAlloc: sensitiveMemAllocCalls) {
+        NodeID objID = pag->getObjectNode(sensitiveAlloc);
+        NodeBS nodeBS = pag->getAllFieldsObjNode(objID);
+
+        for (NodeBS::iterator fIt = nodeBS.begin(), fEit = nodeBS.end(); fIt != fEit; ++fIt) {
+            PAGNode* fldNode = pag->getPAGNode(*fIt);
+            SensitiveObjList.push_back(fldNode);
+        }
     }
 }
 
@@ -4275,7 +4345,6 @@ bool EncryptionPass::runOnModule(Module &M) {
             continue;
         }
         Value* ptrVal = const_cast<Value*>(sensitivePtrNode->getValue());
-        //errs()<<"ptrVal "<<*ptrVal<<"\n";
 
         if (isOptimizedOut(ptrVal)) {
             continue;
@@ -4342,24 +4411,9 @@ bool EncryptionPass::runOnModule(Module &M) {
     if(Partitioning){
         //Set Labels for Sensitive objects
         AESCache.setLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
+        AESCache.trackDownAllRecursiveSensitiveAllocations(M);
     }
     dbgs() << "Initialized AES, widened buffers to multiples of 128 bits\n";
-
-    /*for (PAGNode* senPAGNode: SensitiveObjList) {
-        Value* senVal = const_cast<Value*>(senPAGNode->getValue());
-        //errs() <<"SensitiveObj "<< *senVal << "\n";
-        if (CallInst* callInst = dyn_cast<CallInst>(senVal)) {
-            Function* function = callInst->getCalledFunction();
-            if (function) {
-                StringRef callocStr("aes_calloc");
-                if (callocStr.equals(function->getName())){
-                    errs() << "Found calloc function call: " << *callInst << " in function " << callInst->getParent()->getParent()->getName() << "\n";
-                    SensitiveExternalLibCallList.push_back(callInst);
-                }
-            }
-        }
-
-    }*/
 
     buildSets(M);
 
@@ -4422,10 +4476,6 @@ bool EncryptionPass::runOnModule(Module &M) {
     dbgs() << "Collected sensitive External Library calls\n";
     errs() << "External Library Call List Size: " << SensitiveExternalLibCallList.size() << "\n";
 
-    /*for (CallInst* sensitivePAGNode: SensitiveExternalLibCallList) {
-      errs() <<  *sensitivePAGNode << "\n";
-      }
-      */
 
     ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall
     ExtLibHandler.addAESCacheExtFuncHandler(M);

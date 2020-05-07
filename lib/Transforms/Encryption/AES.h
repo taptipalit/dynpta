@@ -93,6 +93,7 @@ namespace external{
 
             llvm::Function* aesMallocFunction;
             llvm::Function* aesCallocFunction;
+            llvm::Function* aesReallocFunction;
             llvm::Function* aesStrdupFunction;
             llvm::Function* aesFreeFunction;
             llvm::Function* aesFreeWithBitcastFunction;
@@ -113,10 +114,11 @@ namespace external{
             void widenSensitiveAllocationSites(llvm::Module&, std::vector<PAGNode*>&,
                     std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
             void gepCallInstHandlerForPartitioning(llvm::Module&, CallInst*, GepObjPN*);
-            void gepAllocaInstHandlerForPartitioning(llvm::Module&, AllocaInst* allocInst, GepObjPN*, Value*);
+            void gepAllocaInstHandlerForPartitioning(llvm::Module&, AllocaInst* , GepObjPN*, Value*);
             void setLabelsForSensitiveObjects(llvm::Module&, std::set<PAGNode*>*,
                     std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
-
+            void trackDownAllRecursiveSensitiveAllocations(llvm::Module&);
+            void addDynamicCheckForSetLabel(StoreInst*, CallInst*);
             Type* findBaseType(Type*);
             OffsetXMMPair* findValueInCache(llvm::Value* ptr, int offsetBytes);
             llvm::Value* setEncryptedValueCached(llvm::StoreInst*);

@@ -80,11 +80,14 @@ bool ContextSensitivityAnalysisPass::returnsAllocedMemory(Function* F) {
         return false;
     }
     // For all the return insts, check that they are in the mallockedPtrs
-    for (ReturnInst* retInst: retInsts) {
+    
+    /* May be we don't need to skip functions because malloced address has
+     * been written? we can encrypt the whole block after the call*/
+    /* for (ReturnInst* retInst: retInsts) {
         if (!isReturningUnwrittenMallockedPtr(retInst, mallockedPtrs)) {
             return false;
         }
-    }
+    }*/
     return true;
 }
 
@@ -249,6 +252,9 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
                 if (returnsAllocedMemory(F)) {
                     mallocWrappers.insert(F);
                 }
+                /*if (F->getName() == "buffer_init"){
+                    mallocWrappers.insert(F);
+                }*/
             }
         }
     }

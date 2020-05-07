@@ -38,8 +38,8 @@ void writeback_cache() {
 }
 
 void getEncDecCount () {
-    printf("Total No of Encryption is: %lld\n",enc);
-    printf("Total No of Decryption is: %lld\n",dec);
+    fprintf(stderr ,"Total No of Encryption is: %lld\n",enc);
+    fprintf(stderr ,"Total No of Decryption is: %lld\n",dec);
 }
 void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
     //printf ("Encrypted_Byte: %p ",ptr);
@@ -846,6 +846,8 @@ void setLabelForContextSensitiveCalls(void* ptr){
     //printf( "Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
     size_t noOfByte = malloc_usable_size(ptr);
     dfsan_set_label(1, ptr, noOfByte);
+    //dividing noOfByte by 128 since we multiplied by 128 during memory allocation
+    encryptArrayForLibCall(ptr, (noOfByte/128));
 }
 
 void aes_free(void* ptr) {
@@ -913,6 +915,17 @@ void* aes_calloc(long nmem, long elem_size) {
     //fprintf(stderr, "Calloc ptr = %p\n", Ptr);
     //printf("AES_calloc size %d\n",roundedSize);
     return Ptr;
+}
+void* aes_realloc(void* ptr, long size) {
+    size = size*128; // hack to fix widening
+    long roundedSize = -1;
+    if (size % 16 == 0) {
+        roundedSize = size;
+    } else {
+        roundedSize = size + 16;
+    }
+    ptr = realloc(ptr, roundedSize);
+    return ptr;
 }
 
 /*
