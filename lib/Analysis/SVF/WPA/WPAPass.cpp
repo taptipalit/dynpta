@@ -692,6 +692,8 @@ std::vector<PAGNode*> WPAPass::pointsToSet(NodeID ptrNodeId) {
     return sensitiveNodeIdForPointsToSet;
 }
 
+
+
 void WPAPass::getPtsFrom(NodeID ptdId, std::vector<PAGNode*>& pointsFrom) {
     PAG* pag = _pta->getPAG();
 
@@ -706,8 +708,66 @@ void WPAPass::getPtsFrom(NodeID ptdId, std::vector<PAGNode*>& pointsFrom) {
     PointsTo ptsFrom = andersen->getPtsFrom(ptdId);
     for (NodeBS::iterator ptIt = ptsFrom.begin(), ptEit = ptsFrom.end(); ptIt != ptEit; ++ptIt) {
         PAGNode* ptNode = pag->getPAGNode(*ptIt);
-        pointsFrom.push_back(ptNode);
+        if (isa<ValPN>(ptNode)) {
+            pointsFrom.push_back(ptNode);
+        }
     }
+}
+
+/**
+ * Get all pointers that that point to the SDD
+ * In case of Steensgaard this is the same as getPtsFrom. In case of Andersen
+ * the SDD has to be constructed
+ */
+void WPAPass::getPtsFromSDD(NodeID ptdId, std::vector<PAGNode*>& pointsFrom) {
+    PAG* pag = _pta->getPAG();
+
+    /*
+    SteensgaardFast* steens = dyn_cast<SteensgaardFast>(_pta);
+    assert(steens && "getPtsFrom works only on Steensgaard");
+    */
+    Andersen* andersen = dyn_cast<Andersen>(_pta);
+    assert(andersen && "getPts only works on subclasses of Andersen (Steens-fast is a subclass too)");
+  
+    if (_pta->getAnalysisTy() == PointerAnalysis::SteensgaardFast_WPA) {
+        return getPtsFrom(ptdId, pointsFrom);
+    }
+
+    PointsTo ptsFrom = andersen->getPtsFrom(ptdId);
+    PointsTo* newPointsFrom = nullptr;
+    bool changed = false;
+    do {
+        if (!newPointsFrom) {
+            newPointsFrom = new PointsTo();
+        }
+        // For all the pointers in ptsFrom, find their pointsTo
+        for (NodeBS::iterator ptIt = ptsFrom.begin(), ptEit = ptsFrom.end(); ptIt != ptEit; ++ptIt) {
+            PointsTo tempPts = andersen->getPts(*ptIt);
+            // who all point to tempPts?
+            for (NodeBS::iterator ptfIt = tempPts.begin(), ptfEit = tempPts.end(); ptfIt != ptfEit; ++ptfIt) {
+                *newPointsFrom |= andersen->getRevPts(*ptfIt);
+            }           
+        }   
+        changed = ptsFrom |= *newPointsFrom;
+    } while (changed);
+
+    for (NodeBS::iterator ptIt = ptsFrom.begin(), ptEit = ptsFrom.end(); ptIt != ptEit; ++ptIt) {
+        PAGNode* ptNode = pag->getPAGNode(*ptIt);
+        if (isa<ValPN>(ptNode)) {
+            pointsFrom.push_back(ptNode);
+        }
+    }
+}
+
+void WPAPass::getPtsFromSDD(std::vector<PAGNode*>& sensitiveNodes,
+                    std::set<PAGNode*>& pointsFrom) {
+    std::vector<PAGNode*> pointsFromVec;
+    for (PAGNode* sensitiveNode: sensitiveNodes) {
+        getPtsFromSDD(sensitiveNode->getId(), pointsFromVec);
+    }
+    std::copy(pointsFromVec.begin(),
+            pointsFromVec.end(),
+            std::inserter(pointsFrom, pointsFrom.end()));
 }
 
 void WPAPass::getPtsFrom(std::vector<PAGNode*>& sensitiveNodes,
@@ -727,7 +787,9 @@ void WPAPass::getPtsFrom(std::vector<PAGNode*>& sensitiveNodes,
         PointsTo ptsFrom = andersen->getPtsFrom(sensitiveNode->getId());
         for (NodeBS::iterator ptIt = ptsFrom.begin(), ptEit = ptsFrom.end(); ptIt != ptEit; ++ptIt) {
             PAGNode* ptNode = pag->getPAGNode(*ptIt);
-            pointsFrom.insert(ptNode);
+            if (isa<ValPN>(ptNode)) {
+                pointsFrom.insert(ptNode);
+            }
         }
     }
 }

@@ -119,6 +119,10 @@ public:
     void getPtsFrom(NodeID ptd, std::vector<PAGNode*>& pointsFrom);
     void getPtsFrom(std::vector<PAGNode*>& sensitiveNodes,
                     std::set<PAGNode*>& pointsFrom);
+    void getPtsFromSDD(NodeID ptd, std::vector<PAGNode*>& pointsFrom);
+    void getPtsFromSDD(std::vector<PAGNode*>& sensitiveNodes,
+                    std::set<PAGNode*>& pointsFrom);
+
  
     /// PTA name
     virtual inline llvm::StringRef getPassName() const {

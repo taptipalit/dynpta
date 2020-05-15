@@ -228,6 +228,7 @@ namespace {
 
             bool isOptimizedOut(Value*, Value*);
             void collectSensitivePointers();
+            void collectSensitiveObjectsForWidening();
 
     };
 }
@@ -277,24 +278,29 @@ bool EncryptionPass::isOptimizedOut(Value* userVal, Value* ptrVal) {
 
 void EncryptionPass::collectSensitivePointers() {
     if (!ReadFromFile) {
-        /*To find recursive memory allocations, we need pointsTo analysis;
-         * we wiil find possibleSensitive allocations from pointsTo analysis
-         * and then perform pointsFrom analysis to find the complete set*/
-        std::vector<PAGNode*> tempSensitiveObjList = SensitiveObjList;
-        for (PAGNode* sensitiveNode: SensitiveObjList) {
-            for (PAGNode* possibleSensitiveNode: getAnalysis<WPAPass>().pointsToSet(sensitiveNode->getId())) {
-                if (isa<DummyValPN>(possibleSensitiveNode) || isa<DummyObjPN>(possibleSensitiveNode))
-                    continue;
-                Value* valNode = const_cast<Value*>(possibleSensitiveNode->getValue());
-                /*Since memory allocations can be done via callInst, we will
-                 * only consider call instructions as possibleSensitive
-                 * allocation*/
-                if(CallInst* callInst = dyn_cast<CallInst>(valNode)){
-                    tempSensitiveObjList.push_back(possibleSensitiveNode);
+        if (!Partitioning) {
+            getAnalysis<WPAPass>().getPtsFromSDD(SensitiveObjList, pointsFroms);
+        } else {
+            /*To find recursive memory allocations, we need pointsTo analysis;
+             * we wiil find possibleSensitive allocations from pointsTo analysis
+             * and then perform pointsFrom analysis to find the complete set*/
+            std::vector<PAGNode*> tempSensitiveObjList = SensitiveObjList;
+            for (PAGNode* sensitiveNode: SensitiveObjList) {
+                for (PAGNode* possibleSensitiveNode: getAnalysis<WPAPass>().pointsToSet(sensitiveNode->getId())) {
+                    if (isa<DummyValPN>(possibleSensitiveNode) || isa<DummyObjPN>(possibleSensitiveNode))
+                        continue;
+                    Value* valNode = const_cast<Value*>(possibleSensitiveNode->getValue());
+                    /*Since memory allocations can be done via callInst, we will
+                     * only consider call instructions as possibleSensitive
+                     * allocation*/
+                    if(CallInst* callInst = dyn_cast<CallInst>(valNode)){
+                        tempSensitiveObjList.push_back(possibleSensitiveNode);
+                    }
                 }
             }
+            getAnalysis<WPAPass>().getPtsFrom(tempSensitiveObjList, pointsFroms);
+            //getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
         }
-        getAnalysis<WPAPass>().getPtsFrom(tempSensitiveObjList, pointsFroms);
         if (WriteToFile) {
             std::ofstream outFile;
             outFile.open("pointsto.results");
@@ -4169,6 +4175,23 @@ void EncryptionPass::performHMACInstrumentation(Module& M) {
     }
 }
 
+void EncryptionPass::collectSensitiveObjectsForWidening() {
+    if (!Partitioning) {
+        // For each of the pointers in pointsFrom, whatever they can point to will
+        // have to be widened
+        for (PAGNode* ptrNode: pointsFroms) {
+            // What it points to
+            for (PAGNode* ptd: getAnalysis<WPAPass>().pointsToSet(ptrNode->getId())) {
+                if (isa<DummyValPN>(ptd) || isa<DummyObjPN>(ptd))
+                    continue;
+                if (isa<ObjPN>(ptd)) {
+                    SensitiveObjList.push_back(ptd);
+                }
+            }
+        }
+    }
+}
+
 bool EncryptionPass::runOnModule(Module &M) {
     checkAuthenticationCount = 0;
     computeAuthenticationCount = 0;
@@ -4340,16 +4363,6 @@ bool EncryptionPass::runOnModule(Module &M) {
         }
         Value* ptrVal = const_cast<Value*>(sensitivePtrNode->getValue());
 
-        if(!Partitioning){
-            PAG* pag = getAnalysis<WPAPass>().getPAG();
-
-            if (pag->hasObjectNode(ptrVal)) {
-                NodeID objID = pag->getObjectNode(ptrVal);
-                PAGNode* objNode = pag->getPAGNode(objID);
-                SensitiveObjList.push_back(objNode);
-            }
-        }
-
         for (User* user: ptrVal->users()) {
             if (user == ptrVal) 
                 continue;
@@ -4371,6 +4384,7 @@ bool EncryptionPass::runOnModule(Module &M) {
         }
     }
 
+    collectSensitiveObjectsForWidening();
 
     if (SensitiveObjSet) {
         delete(SensitiveObjSet);
