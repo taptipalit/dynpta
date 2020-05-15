@@ -226,7 +226,7 @@ namespace {
             inline void externalFunctionHandlerForPartitioning(Module& , CallInst*, Function*, Function*, Value*, std::vector<Value*>&);
             inline void externalFunctionHandler(Module&, CallInst*, Function*, Function*, std::vector<Value*>&);
 
-            bool isOptimizedOut(Value*);
+            bool isOptimizedOut(Value*, Value*);
             void collectSensitivePointers();
 
     };
@@ -245,30 +245,24 @@ cl::opt<bool> Confidentiality("confidentiality", cl::desc("confidentiality"), cl
 
 //cl::opt<bool> SkipVFA("skip-vfa-enc", cl::desc("Skip VFA"), cl::init(false), cl::Hidden);
 
-bool EncryptionPass::isOptimizedOut(Value* ptrVal) {
+bool EncryptionPass::isOptimizedOut(Value* userVal, Value* ptrVal) {
+
     if(OptimizedCheck) {
-        if(AllocaInst* allocaInst = dyn_cast<AllocaInst>(ptrVal)) {
-            if (isaCPointer(allocaInst)) {
+        /* During set Label for context sensitive call, we directly encrypt
+         * whatever in the memory. we don't know if memory has
+         * been allocated for struct and what are the struct fields. So we
+         * can't ignore instrumenting load/store of pointer when these are 
+         * users of a gepInst*/
+        if(GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(ptrVal)){
+            return false;
+        } else if(LoadInst* ldInst = dyn_cast<LoadInst>(userVal)){
+            /*Skipping all loads that load address from a pointer*/
+            if (PointerType* pointerElementType = dyn_cast<PointerType>(ldInst->getPointerOperand()->getType()->getPointerElementType())){
                 return true;
             }
-            if (!isSensitiveObjSet(getPAGObjNodeFromValue(ptrVal))) {
-                return true;
-            }
-        }
-        if(GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(ptrVal)) {
-            Type* T = dyn_cast<PointerType>(ptrVal->getType())->getElementType();
-            if (!T->isPointerTy()) {
-                Type* T1 = dyn_cast<PointerType>((dyn_cast<Instruction>(ptrVal)->getOperand(0))->getType())->getElementType();
-                if(T1->isStructTy()){
-                    return true;
-                }
-            } else {
-                return true;
-            }
-        }
-        if (BitCastInst* bitcast = dyn_cast<BitCastInst>(ptrVal)) {
-            Type* T = dyn_cast<PointerType>(ptrVal->getType())->getElementType();
-            if(T->isPointerTy()){
+        } else if(StoreInst* stInst = dyn_cast<StoreInst>(userVal)){
+            /*Skipping all stores that stores address to a pointer*/
+            if (PointerType* pointerElementType = dyn_cast<PointerType>(stInst->getPointerOperand()->getType()->getPointerElementType())){
                 return true;
             }
         }
@@ -4346,10 +4340,6 @@ bool EncryptionPass::runOnModule(Module &M) {
         }
         Value* ptrVal = const_cast<Value*>(sensitivePtrNode->getValue());
 
-        if (isOptimizedOut(ptrVal)) {
-            continue;
-        }
-
         if(!Partitioning){
             PAG* pag = getAnalysis<WPAPass>().getPAG();
 
@@ -4365,21 +4355,15 @@ bool EncryptionPass::runOnModule(Module &M) {
                 continue;
             if (LoadInst* ldInst = dyn_cast<LoadInst>(user)) {
                 if (ldInst->getPointerOperand() == ptrVal) {
-                    if(OptimizedCheck){
-                        /*Skipping all loads that load address from a pointer*/
-                        if (PointerType* pointerElementType = dyn_cast<PointerType>(ldInst->getPointerOperand()->getType()->getPointerElementType())){
-                            continue;
-                        }
+                    if (isOptimizedOut(ldInst, ptrVal)) {
+                        continue;
                     }
                     SensitiveLoadList.push_back(ldInst);
                 }
             } else if (StoreInst* stInst = dyn_cast<StoreInst>(user)) {
                 if (stInst->getPointerOperand() == ptrVal) {
-                    if(OptimizedCheck){
-                        /*Skipping all stores that stores address to a pointer*/
-                        if (PointerType* pointerElementType = dyn_cast<PointerType>(stInst->getPointerOperand()->getType()->getPointerElementType())){
-                            continue;
-                        }
+                    if (isOptimizedOut(stInst, ptrVal)) {
+                        continue;
                     }
                     SensitiveStoreList.push_back(stInst);
                 }
