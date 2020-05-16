@@ -725,6 +725,7 @@ namespace external {
                                             StringRef callocStr("calloc");
                                             StringRef reallocStr("realloc");
                                             StringRef strdupStr("strdup");
+                                            StringRef exitStr("exit");
                                             if (mallocStr.equals(function->getName()))  {
                                                 // Change the called function to inst_malloc
                                                 callInst->setCalledFunction(aesMallocFunction);
@@ -739,6 +740,10 @@ namespace external {
                                                 CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
                                                 writebackInst->insertAfter(callInst);
                                                 callInst->setCalledFunction(aesFreeFunction);
+                                            } else if (exitStr.equals(function->getName()) ) {
+                                                IRBuilder<> Builder(callInst);
+                                                std::vector<Value*> argList;
+                                                Builder.CreateCall(this->getEncDecCountFunction, argList);
                                             }
                                         } else {
                                             if (BitCastOperator* castOp = dyn_cast<BitCastOperator>(callInst->getCalledValue())) {
