@@ -80,9 +80,17 @@ bool ContextSensitivityAnalysisPass::returnsAllocedMemory(Function* F) {
         return false;
     }
     // For all the return insts, check that they are in the mallockedPtrs
+    
+    /* May be we don't need to skip functions because malloced address has
+     * been written? we can encrypt the whole block after the call...
+     * But we can not comment out this call because it sets the funcRetPairList inside
+     * isReturningUnwrittenMallockedPtr function.
+     * TODO: Separate these two functionalities*/
     for (ReturnInst* retInst: retInsts) {
         if (!isReturningUnwrittenMallockedPtr(retInst, mallockedPtrs)) {
-            return false;
+            //return false;
+            /* Even though malloced address has been written, we're still considering 
+             * it as a mallocWrapper; so we are not returning false from here*/
         }
     }
     return true;
@@ -249,6 +257,9 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
                 if (returnsAllocedMemory(F)) {
                     mallocWrappers.insert(F);
                 }
+                /*if (F->getName() == "buffer_init"){
+                    mallocWrappers.insert(F);
+                }*/
             }
         }
     }

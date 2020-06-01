@@ -229,7 +229,7 @@ namespace {
             inline void externalFunctionHandlerForPartitioning(Module& , CallInst*, Function*, Function*, Value*, std::vector<Value*>&);
             inline void externalFunctionHandler(Module&, CallInst*, Function*, Function*, std::vector<Value*>&);
 
-            bool isOptimizedOut(Value*);
+            bool isOptimizedOut(Value*, Value*);
             void collectSensitivePointers();
             void collectSensitiveObjectsForWidening();
 
@@ -249,30 +249,24 @@ cl::opt<bool> Confidentiality("confidentiality", cl::desc("confidentiality"), cl
 
 //cl::opt<bool> SkipVFA("skip-vfa-enc", cl::desc("Skip VFA"), cl::init(false), cl::Hidden);
 
-bool EncryptionPass::isOptimizedOut(Value* ptrVal) {
+bool EncryptionPass::isOptimizedOut(Value* userVal, Value* ptrVal) {
+
     if(OptimizedCheck) {
-        if(AllocaInst* allocaInst = dyn_cast<AllocaInst>(ptrVal)) {
-            if (isaCPointer(allocaInst)) {
+        /* During set Label for context sensitive call, we directly encrypt
+         * whatever in the memory. we don't know if memory has
+         * been allocated for struct and what are the struct fields. So we
+         * can't ignore instrumenting load/store of pointer when these are 
+         * users of a gepInst*/
+        if(GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(ptrVal)){
+            return false;
+        } else if(LoadInst* ldInst = dyn_cast<LoadInst>(userVal)){
+            /*Skipping all loads that load address from a pointer*/
+            if (PointerType* pointerElementType = dyn_cast<PointerType>(ldInst->getPointerOperand()->getType()->getPointerElementType())){
                 return true;
             }
-            if (!isSensitiveObjSet(getPAGObjNodeFromValue(ptrVal))) {
-                return true;
-            }
-        }
-        if(GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(ptrVal)) {
-            Type* T = dyn_cast<PointerType>(ptrVal->getType())->getElementType();
-            if (!T->isPointerTy()) {
-                Type* T1 = dyn_cast<PointerType>((dyn_cast<Instruction>(ptrVal)->getOperand(0))->getType())->getElementType();
-                if(T1->isStructTy()){
-                    return true;
-                }
-            } else {
-                return true;
-            }
-        }
-        if (BitCastInst* bitcast = dyn_cast<BitCastInst>(ptrVal)) {
-            Type* T = dyn_cast<PointerType>(ptrVal->getType())->getElementType();
-            if(T->isPointerTy()){
+        } else if(StoreInst* stInst = dyn_cast<StoreInst>(userVal)){
+            /*Skipping all stores that stores address to a pointer*/
+            if (PointerType* pointerElementType = dyn_cast<PointerType>(stInst->getPointerOperand()->getType()->getPointerElementType())){
                 return true;
             }
         }
@@ -290,7 +284,25 @@ void EncryptionPass::collectSensitivePointers() {
         if (!Partitioning) {
             getAnalysis<WPAPass>().getPtsFromSDD(SensitiveObjList, pointsFroms);
         } else {
-            getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
+            /*To find recursive memory allocations, we need pointsTo analysis;
+             * we wiil find possibleSensitive allocations from pointsTo analysis
+             * and then perform pointsFrom analysis to find the complete set*/
+            std::vector<PAGNode*> tempSensitiveObjList = SensitiveObjList;
+            for (PAGNode* sensitiveNode: SensitiveObjList) {
+                for (PAGNode* possibleSensitiveNode: getAnalysis<WPAPass>().pointsToSet(sensitiveNode->getId())) {
+                    if (isa<DummyValPN>(possibleSensitiveNode) || isa<DummyObjPN>(possibleSensitiveNode))
+                        continue;
+                    Value* valNode = const_cast<Value*>(possibleSensitiveNode->getValue());
+                    /*Since memory allocations can be done via callInst, we will
+                     * only consider call instructions as possibleSensitive
+                     * allocation*/
+                    if(CallInst* callInst = dyn_cast<CallInst>(valNode)){
+                        tempSensitiveObjList.push_back(possibleSensitiveNode);
+                    }
+                }
+            }
+            getAnalysis<WPAPass>().getPtsFrom(tempSensitiveObjList, pointsFroms);
+            //getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
         }
         if (WriteToFile) {
             std::ofstream outFile;
@@ -2303,6 +2315,34 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
             }
+        } else if (externalFunction->getName() == "stat64") {
+            IRBuilder<> InstBuilder(externalCallInst);
+            Value* arg1 = externalCallInst->getArgOperand(0);
+            Value* arg2 = externalCallInst->getArgOperand(1);
+
+            Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+            Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+
+            if (isSensitiveArg(arg1, ptsToMap)) {
+                std::vector<Value*> ArgList;
+                ArgList.push_back(arg1);
+               
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, arg1, ArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
+                }
+            }
+            if (isSensitiveArg(arg2, ptsToMap)) {
+                std::vector<Value*> ArgList;
+                ArgList.push_back(arg2);
+               
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, arg2, ArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
+                }
+            }
         } else if (externalFunction->getName() == "fgets") {
             Value* buffer = externalCallInst->getArgOperand(0);
             Value* fileStream0 = externalCallInst->getArgOperand(2);
@@ -2391,6 +2431,10 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 // has varargs
                 for (int i = 1; i < argNum; i++) {
                     Value* arg = externalCallInst->getArgOperand(i);
+                    Type* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+                    if(arg->getType() != voidPtrType){
+                        continue;
+                    }
 
                     Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
                     Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
@@ -3173,6 +3217,24 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 }
             }
         } else if (externalFunction->getName() == "bzero") {
+            Value *bufferPtr = externalCallInst->getArgOperand(0);
+            Value *numBytes = externalCallInst->getArgOperand(1);
+
+            Function* decryptFunction = M.getFunction("decryptArrayForLibCall");
+            Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
+
+            if (isSensitiveArg(bufferPtr, ptsToMap)) {
+                std::vector<Value*> ArgList;
+                ArgList.push_back(bufferPtr);
+                ArgList.push_back(numBytes);
+
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, bufferPtr, ArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
+                }
+            }
+        } else if (externalFunction->getName() == "getcwd") {
             Value *bufferPtr = externalCallInst->getArgOperand(0);
             Value *numBytes = externalCallInst->getArgOperand(1);
 
@@ -4076,6 +4138,7 @@ void EncryptionPass::fixupSizeOfOperators(Module& M) {
 }
 
 void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensitiveMemAllocCalls) {
+
     PAG* pag = getAnalysis<WPAPass>().getPAG();
 
     for (Value* sensitiveAlloc: sensitiveMemAllocCalls) {
@@ -4370,32 +4433,21 @@ bool EncryptionPass::runOnModule(Module &M) {
             continue;
         }
         Value* ptrVal = const_cast<Value*>(sensitivePtrNode->getValue());
-        //errs()<<"ptrVal "<<*ptrVal<<"\n";
-
-        if (isOptimizedOut(ptrVal)) {
-            continue;
-        }
 
         for (User* user: ptrVal->users()) {
             if (user == ptrVal) 
                 continue;
             if (LoadInst* ldInst = dyn_cast<LoadInst>(user)) {
                 if (ldInst->getPointerOperand() == ptrVal) {
-                    if(OptimizedCheck){
-                        /*Skipping all loads that load address from a pointer*/
-                        if (PointerType* pointerElementType = dyn_cast<PointerType>(ldInst->getPointerOperand()->getType()->getPointerElementType())){
-                            continue;
-                        }
+                    if (isOptimizedOut(ldInst, ptrVal)) {
+                        continue;
                     }
                     SensitiveLoadList.push_back(ldInst);
                 }
             } else if (StoreInst* stInst = dyn_cast<StoreInst>(user)) {
                 if (stInst->getPointerOperand() == ptrVal) {
-                    if(OptimizedCheck){
-                        /*Skipping all stores that stores address to a pointer*/
-                        if (PointerType* pointerElementType = dyn_cast<PointerType>(stInst->getPointerOperand()->getType()->getPointerElementType())){
-                            continue;
-                        }
+                    if (isOptimizedOut(stInst, ptrVal)) {
+                        continue;
                     }
                     SensitiveStoreList.push_back(stInst);
                 }
@@ -4428,24 +4480,9 @@ bool EncryptionPass::runOnModule(Module &M) {
     if(Partitioning){
         //Set Labels for Sensitive objects
         AESCache.setLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
+        AESCache.trackDownAllRecursiveSensitiveAllocations(M);
     }
     dbgs() << "Initialized AES, widened buffers to multiples of 128 bits\n";
-
-    /*for (PAGNode* senPAGNode: SensitiveObjList) {
-        Value* senVal = const_cast<Value*>(senPAGNode->getValue());
-        //errs() <<"SensitiveObj "<< *senVal << "\n";
-        if (CallInst* callInst = dyn_cast<CallInst>(senVal)) {
-            Function* function = callInst->getCalledFunction();
-            if (function) {
-                StringRef callocStr("aes_calloc");
-                if (callocStr.equals(function->getName())){
-                    errs() << "Found calloc function call: " << *callInst << " in function " << callInst->getParent()->getParent()->getName() << "\n";
-                    SensitiveExternalLibCallList.push_back(callInst);
-                }
-            }
-        }
-
-    }*/
 
     buildSets(M);
 
@@ -4508,10 +4545,6 @@ bool EncryptionPass::runOnModule(Module &M) {
     dbgs() << "Collected sensitive External Library calls\n";
     errs() << "External Library Call List Size: " << SensitiveExternalLibCallList.size() << "\n";
 
-    /*for (CallInst* sensitivePAGNode: SensitiveExternalLibCallList) {
-      errs() <<  *sensitivePAGNode << "\n";
-      }
-      */
 
     ExtLibHandler.addNullExtFuncHandler(M); // This includes the decryptStringForLibCall and decryptArrayForLibCall
     ExtLibHandler.addAESCacheExtFuncHandler(M);

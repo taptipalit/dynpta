@@ -177,6 +177,14 @@ namespace external {
 
         this->aesCallocFunction = Function::Create(FTypeCalloc, Function::ExternalLinkage, "aes_calloc", &M);
 
+        // The instrumented realloc function
+        std::vector<Type*> reallocVec;
+        reallocVec.push_back(voidPtrType);
+        reallocVec.push_back(longType);
+        ArrayRef<Type*> reallocArrRef(reallocVec);
+        FunctionType* FTypeRealloc = FunctionType::get(voidPtrType, reallocArrRef, false);
+
+        this->aesReallocFunction = Function::Create(FTypeRealloc, Function::ExternalLinkage, "aes_realloc", &M);
 
         // The instrumented strdup function
         std::vector<Type*> strdupVec;
@@ -525,6 +533,7 @@ namespace external {
                         if (function) {
                             StringRef mallocStr("aes_malloc");
                             StringRef callocStr("aes_calloc");
+                            StringRef reallocStr("aes_realloc");
                             if (mallocStr.equals(function->getName())) {
                                 Value* argumentOfMalloc = callInst->getArgOperand(0);
                                 size = argumentOfMalloc;
@@ -532,25 +541,23 @@ namespace external {
                             } else if (callocStr.equals(function->getName())) {
                                 Value* argument1OfCalloc = callInst->getArgOperand(0);
                                 Value* argument2OfCalloc = callInst->getArgOperand(1);
-                                //errs()<<"Argument1 of Calloc is "<<*argument1OfCalloc<<" and Argument 2 of Calloc is "<<*argument2OfCalloc<<"\n";
                                 size = Builder.CreateMul(argument1OfCalloc, argument2OfCalloc);
-                                //errs()<<"Size of Calloc is "<<*size<<"\n";
-                            } else {
+                            } else if (reallocStr.equals(function->getName())) {
+                                    Value* argumentOfRealloc = callInst->getArgOperand(1);
+                                    size = argumentOfRealloc;
+                            } else {//Context Sensitive function calls
                                 if (PointerType* ptrType = dyn_cast<PointerType>(callInst->getType())) {
-                                    if (IntegerType* intType = dyn_cast<IntegerType>(ptrType->getPointerElementType())) {
-                                        if (intType->getBitWidth() != 8) {
-                                            // Cast it to the type
-                                            IntegerType* voidType = IntegerType::get(callInst->getContext(), 8);
-                                            PointerType* voidPtrType = PointerType::get(voidType, 0);
-                                            // The bitcast
-                                            Value* bcVal = Builder.CreateBitCast(callInst, voidPtrType);
-                                            Builder.CreateCall(this->setLabelForContextSensitiveCallsFn, {bcVal});
-                                            continue;
-                                        }
-                                    } 
-                                    Builder.CreateCall(this->setLabelForContextSensitiveCallsFn, {callInst});
+                                    IntegerType* voidType = IntegerType::get(callInst->getContext(), 8);
+                                    PointerType* voidPtrType = PointerType::get(voidType, 0);
+                                    Value* argVal = dyn_cast<Value>(callInst);
+                                    if (ptrType != voidPtrType){
+                                        argVal = Builder.CreateBitCast(callInst, voidPtrType);
+                                    }
+                                    Builder.CreateCall(this->setLabelForContextSensitiveCallsFn, {argVal});
+                                    continue;
+                                }else {
+                                    assert(dyn_cast<PointerType>(callInst->getType()) && "Not a pointerType; can't set label for non-pointer type");
                                 }
-                                continue;
                             }
                             size = Builder.CreateMul(size, dyn_cast<Value>(multiplier));
                         }
@@ -562,6 +569,100 @@ namespace external {
         }
     }
 
+    void AESCache::addDynamicCheckForSetLabel(StoreInst* stInst, CallInst* callInst){
+        
+        IRBuilder<> Builder(stInst);
+
+        Value* PtrOperand = nullptr;
+        CallInst* readLabel = nullptr;
+        Value* size = nullptr;
+        CallInst* setLabel = nullptr;
+
+        Value* stInstPtrOperand = stInst->getPointerOperand();
+        Type* byteType = Type::getInt8Ty(callInst->getContext());
+        PointerType* voidPtrType = PointerType::get(byteType, 0);
+
+        ConstantInt* noOfByte = Builder.getInt64(1);
+        ConstantInt *One = Builder.getInt16(1);
+        ConstantInt* label = Builder.getInt16(1);
+        ConstantInt* multiplier = Builder.getInt64(128);
+
+        Function* function = callInst->getCalledFunction();
+        StringRef mallocStr("aes_malloc");
+        StringRef callocStr("aes_calloc");
+        StringRef reallocStr("aes_realloc");
+        if (PointerType* ptrType = dyn_cast<PointerType>(stInstPtrOperand->getType()->getPointerElementType())){
+            
+            PtrOperand = Builder.CreateBitCast(stInstPtrOperand, voidPtrType);
+            
+            readLabel = Builder.CreateCall(DFSanReadLabelFn,{PtrOperand , noOfByte});
+            readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+
+            Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+            Instruction* SplitBefore = cast<Instruction>(stInst);
+            TerminatorInst* ThenTerm = SplitBlockAndInsertIfThen(cmpInst, SplitBefore, false);
+
+            Builder.SetInsertPoint(ThenTerm);
+            if (mallocStr.equals(function->getName())){
+                Value* argumentOfMalloc = callInst->getArgOperand(0);
+                size = argumentOfMalloc;
+            } else if (callocStr.equals(function->getName())){
+                Value* argument1OfCalloc = callInst->getArgOperand(0);
+                Value* argument2OfCalloc = callInst->getArgOperand(1);
+                size = Builder.CreateMul(argument1OfCalloc, argument2OfCalloc);
+            } else if (reallocStr.equals(function->getName())){
+                Value* argumentOfRealloc = callInst->getArgOperand(1);
+                size = argumentOfRealloc;
+            }
+
+            size = Builder.CreateMul(size, dyn_cast<Value>(multiplier));
+            setLabel = Builder.CreateCall(this->DFSanSetLabelFn, {label, callInst, size});
+            setLabel->addParamAttr(0, Attribute::ZExt);
+
+            Builder.SetInsertPoint(SplitBefore);
+        }
+    }
+
+
+    void AESCache::trackDownAllRecursiveSensitiveAllocations(Module &M){
+        /* Finds out all users of malloc/calloc/realloc calls and add checks
+         * for the store instructions; high level idea is wheneven a pointer will
+         * take address, we will add check to it. If the pointer itself
+         * sensitive, then we will tag the address it points to as sensiitve*/
+        for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+            if (auto *F = dyn_cast<Function>(MIterator)) {
+                for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+                    if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+                        for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+                            if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                                if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
+                                    Function* function = callInst->getCalledFunction();
+                                    if (function) {
+                                        StringRef mallocStr("aes_malloc");
+                                        StringRef callocStr("aes_calloc");
+                                        StringRef reallocStr("aes_realloc");
+                                        if (mallocStr.equals(function->getName()) || callocStr.equals(function->getName()) || reallocStr.equals(function->getName()))  {
+                                            for (User* callInstUser: callInst->users()) {
+                                                if (BitCastInst* bcInst = dyn_cast<BitCastInst>(callInstUser)){
+                                                    for (User* bitCastUser: bcInst->users()){
+                                                        if (StoreInst* stInst = dyn_cast<StoreInst>(bitCastUser)){
+                                                            addDynamicCheckForSetLabel(stInst, callInst);
+                                                        }
+                                                    }
+                                                } else if (StoreInst* storeInst = dyn_cast<StoreInst>(callInstUser)){
+                                                    addDynamicCheckForSetLabel(storeInst, callInst);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
         void AESCache::widenSensitiveAllocationSites(Module &M, std::vector<PAGNode*>& SensitiveAllocaList,
                 std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
@@ -622,23 +723,27 @@ namespace external {
                                         if (function) {
                                             StringRef mallocStr("malloc");
                                             StringRef callocStr("calloc");
+                                            StringRef reallocStr("realloc");
                                             StringRef strdupStr("strdup");
-                                            /*StringRef sodiumFreeStr("sodium_free");
-                                            StringRef sodiumMallocStr("sodium_malloc");*/
-                                            if (mallocStr.equals(function->getName()) /*|| sodiumMallocStr.equals(function->getName())*/) {
+                                            StringRef exitStr("exit");
+                                            if (mallocStr.equals(function->getName()))  {
                                                 // Change the called function to inst_malloc
-                                                //need to check changing malloc and calloc for DFSan
                                                 callInst->setCalledFunction(aesMallocFunction);
                                             } else if (callocStr.equals(function->getName())) {
                                                 callInst->setCalledFunction(aesCallocFunction);
+                                            } else if (reallocStr.equals(function->getName())) {
+                                                callInst->setCalledFunction(aesReallocFunction);
                                             } else if (strdupStr.equals(function->getName())) {
                                                 callInst->setCalledFunction(aesStrdupFunction);
-                                            } else if (freeStr.equals(function->getName()) /*|| sodiumFreeStr.equals(function->getName())*/) {
-                                                //callInst->setCalledFunction(aesFreeFunction);
+                                            } else if (freeStr.equals(function->getName()) ) {
                                                 std::vector<Value*> argList;
                                                 CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
                                                 writebackInst->insertAfter(callInst);
                                                 callInst->setCalledFunction(aesFreeFunction);
+                                            } else if (exitStr.equals(function->getName()) ) {
+                                                IRBuilder<> Builder(callInst);
+                                                std::vector<Value*> argList;
+                                                Builder.CreateCall(this->getEncDecCountFunction, argList);
                                             }
                                         } else {
                                             if (BitCastOperator* castOp = dyn_cast<BitCastOperator>(callInst->getCalledValue())) {
