@@ -4169,6 +4169,8 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensit
         }
     }
 
+    /* This is integrity stuff -- commenting it out on this branch to prevent
+     * breaking - TODO @tpalit
     // Figure this out baby
 	for (Module::iterator MIterator = mod->begin(); MIterator != mod->end(); MIterator++) {
 		if (auto *F = dyn_cast<Function>(MIterator)) {
@@ -4214,6 +4216,7 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensit
             }
         }
     }
+    */
 }
 
 void EncryptionPass::performHMACInstrumentation(Module& M) {
