@@ -32,6 +32,8 @@ static cl::opt<int> callsiteThreshold("callsite-threshold", cl::desc("How many c
 
 static cl::opt<int> calldepthThreshold("calldepth-threshold", cl::desc("How many other functions can a malloc wrapper call, and still be treated as context-sensitive"), cl::value_desc("calldepth-threshold"), cl::init(2));
 
+static cl::opt<int> freeCallsiteThreshold("free-callsite-threshold", cl::desc("How many callsites should the free wrappers be called from to be identified as a free wrapper"), cl::value_desc("free-callsite-threshold"), cl::init(100));
+
 /* 
  * Some values:
  * For SensitiveMemAllocTracker: -callsite-threshold=1 -calldepth-threshold=20 -csa-iter=5
@@ -39,6 +41,66 @@ static cl::opt<int> calldepthThreshold("calldepth-threshold", cl::desc("How many
  *          memory allocations
  * To identify nginx + openssl: -callsite-threshold=50 -calldepth-threshold=4 -csa-iter=5
  */
+
+/**
+ * A function is a memory free wrapper if it frees the memory pointed to by
+ * the argument passed to the function
+ */
+bool ContextSensitivityAnalysisPass::freesPassedMemory(Function* F) {
+    FunctionType* functionTy = F->getFunctionType();
+    if (functionTy->getNumParams() != 1) {
+        return false; // has to take only one argument
+    }
+    Type* argType = functionTy->getParamType(0);
+    if (!isa<PointerType>(argType)) {
+        return false;
+    }
+   
+    // A free-wrapper can have multiple free calls on different
+    // conditional branches, each with different free pointers which should
+    // all alias to the argument passed
+    std::vector<Value*> freedPtrs;
+    Argument* arg = nullptr;
+    for (Argument& argObj: F->args()) {
+        arg = &argObj; // should have only one argument
+        break;
+    }
+
+    for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
+        if (CallInst* callInst = dyn_cast<CallInst>(&*I)) {
+            // Direct call
+            if (Function* func = callInst->getCalledFunction()) {
+                if (std::find(freeWrappers.begin(), freeWrappers.end(), func) != freeWrappers.end()) {
+                    freedPtrs.push_back(callInst->getArgOperand(0));
+                }
+            } /*Indirect Call */ else if (Value* funcValue = callInst->getCalledValue()) {
+                // Find if the function pointer is a global pointer to malloc
+                if (LoadInst* loadedFrom = dyn_cast<LoadInst>(funcValue)) {
+                    if (std::find(globalFreeWrapperPtrs.begin(), globalFreeWrapperPtrs.end(), loadedFrom->getPointerOperand()) != globalFreeWrapperPtrs.end()) {
+                        freedPtrs.push_back(callInst->getArgOperand(0));
+                    }
+                }
+            }
+        }
+    }
+
+    // If we didn't free anything
+    if (freedPtrs.size() == 0) {
+        return false;
+    }
+    // For all the freed pointers, check that they alias to the argument to
+    // the function
+    bool freesArg = false;
+    for (Value* freedObj: freedPtrs) {
+        if (CFLAA->query(MemoryLocation(arg), MemoryLocation(freedObj)) == AliasResult::LikelyAlias) {
+            freesArg = true;
+        }
+    }
+    return freesArg;
+}
+
+
+
 
 /**
  * A function is a memory allocation wrapper if it allocates memory using
@@ -88,9 +150,8 @@ bool ContextSensitivityAnalysisPass::returnsAllocedMemory(Function* F) {
      * TODO: Separate these two functionalities*/
     for (ReturnInst* retInst: retInsts) {
         if (!isReturningUnwrittenMallockedPtr(retInst, mallockedPtrs)) {
-            //return false;
-            /* Even though malloced address has been written, we're still considering 
-             * it as a mallocWrapper; so we are not returning false from here*/
+            return false;
+            
         }
     }
     return true;
@@ -137,8 +198,10 @@ bool ContextSensitivityAnalysisPass::isReturningUnwrittenMallockedPtr(ReturnInst
             }
         }
     }
-
-    if (returnsMalloc && !writesToMalloc) {
+    /* Even though malloced address has been written, we're still considering 
+     * it as a mallocWrapper; so we are not returning false from here
+     */
+    if (returnsMalloc/* && !writesToMalloc*/) {
         return true;
     } else {
         return false;
@@ -155,6 +218,9 @@ void ContextSensitivityAnalysisPass::handleGlobalFunctionPointers(llvm::Module& 
                 Constant* init = GV->getInitializer();
                 if (std::find(mallocWrappers.begin(), mallocWrappers.end(), init) != mallocWrappers.end()) {
                     globalMallocWrapperPtrs.insert(GV);
+                } 
+                if (std::find(freeWrappers.begin(), freeWrappers.end(), init) != freeWrappers.end()) {
+                    globalFreeWrapperPtrs.insert(GV);
                 }
             }
         }
@@ -177,6 +243,11 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
         mallocWrapperCallNumMap.push_back(std::make_pair(mallocWrapper, funcCallNumMap[mallocWrapper]));
     }
 
+    for (Function* freeWrapper: freeWrappers) {
+        freeWrapperCallNumMap.push_back(std::make_pair(freeWrapper, funcCallNumMap[freeWrapper]));
+    }
+
+
     // Sort the elements in the map in the right way and then filter it
     struct {
         bool operator()(std::pair<Function*, int>& pair1, std::pair<Function*, int>& pair2) const
@@ -186,6 +257,7 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
     } sorter;
 
     std::sort(mallocWrapperCallNumMap.begin(), mallocWrapperCallNumMap.end(), sorter);
+    std::sort(freeWrapperCallNumMap.begin(), freeWrapperCallNumMap.end(), sorter);
 
     errs() << "Sorted malloc callers\n";
 
@@ -193,6 +265,13 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
         errs() << pair.first->getName() << " : " << pair.second << "\n";
     }
 
+    errs() << "Sorted free callers\n";
+
+    for (auto pair: freeWrapperCallNumMap) {
+        errs() << pair.first->getName() << " : " << pair.second << "\n";
+    }
+
+    // For malloc
     for (auto pair: mallocWrapperCallNumMap) {
         int numCallees = 0;
         findNumFuncRooted(pair.first, numCallees);
@@ -202,6 +281,15 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
         }
     }
 
+    // For free
+    for (auto pair: freeWrapperCallNumMap) {
+        int numCallees = 0;
+        findNumFuncRooted(pair.first, numCallees);
+        errs() << " Function: " << pair.first->getName() << " calls: " << numCallees << " other functions\n";
+        if (numCallees <= calldepthThreshold && pair.second >=freeCallsiteThreshold ) {
+            criticalFreeFunctions.push_back(pair.first);
+        }
+    }
     for (int i = criticalFunctions.size() - 1; i >= 0; i--) {
         top10CriticalFunctions.push_back(criticalFunctions[i]);
         if (top10CriticalFunctions.size() == 10) {
@@ -214,6 +302,9 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
         errs() << "Critical Function: " << critFunction->getName() << "\n";
     }
 
+    for (Function* freeCritFunction: criticalFreeFunctions) {
+        errs() << "Critical free function: " << freeCritFunction->getName() << "\n";
+    }
 }
 
 bool ContextSensitivityAnalysisPass::recompute(Module& M, int callsiteThres, int calldepthThres) {
@@ -240,6 +331,7 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
     Function* mallocFunction = M.getFunction("malloc");
     Function* callocFunction = M.getFunction("calloc");
     Function* reallocFunction = M.getFunction("realloc");
+    Function* freeFunction = M.getFunction("free");
 
     if (mallocFunction) 
         mallocWrappers.insert(mallocFunction);
@@ -248,6 +340,9 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
     if (reallocFunction)
         mallocWrappers.insert(reallocFunction); 
     
+    if (freeFunction)
+        freeWrappers.insert(freeFunction);
+
     for (int num = 0; num < iterations; num++) {
         // Handle Global Function pointers
         handleGlobalFunctionPointers(M);
@@ -257,6 +352,9 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
                 if (returnsAllocedMemory(F)) {
                     mallocWrappers.insert(F);
                 }
+                if (freesPassedMemory(F)) {
+                    freeWrappers.insert(F);
+                }
                 /*if (F->getName() == "buffer_init"){
                     mallocWrappers.insert(F);
                 }*/
@@ -264,12 +362,17 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
         }
     }
 
-    errs() << "All functions that qualify:\n";
+
+    errs() << "All malloc wrapper functions that qualify:\n";
     // Now, filter out the functions that aren't called from too many places
     for (Function* mallocWrapper: mallocWrappers) {
         errs() << mallocWrapper->getName() << "\n";
     }
 
+    errs() << "All free wrapper functions that qualify:\n";
+    for (Function* freeWrapper: freeWrappers) {
+        errs() << freeWrapper->getName() << "\n";
+    }
     // Profile the module
     profileFuncCalls(M);
 

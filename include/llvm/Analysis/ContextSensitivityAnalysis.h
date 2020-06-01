@@ -43,6 +43,10 @@ public:
         return criticalFunctions;
     }
 
+    std::vector<llvm::Function*>& getCriticalFreeFunctions() {
+        return criticalFreeFunctions;
+    }
+
     std::vector<llvm::Function*>& getTop10CriticalFunctions() {
         return top10CriticalFunctions;
     }
@@ -59,12 +63,17 @@ public:
 private:
     std::map<llvm::Function*, int> funcCallNumMap; // A map between a function and how many times they're called
     std::vector<std::pair<llvm::Function*, int>> mallocWrapperCallNumMap;
+    std::vector<std::pair<llvm::Function*, int>> freeWrapperCallNumMap;
 
     std::set<llvm::Function*> mallocWrappers;
+    std::set<llvm::Function*> freeWrappers;
 
     std::set<llvm::GlobalVariable*> globalMallocWrapperPtrs; // these are simple global function pointers
+    std::set<llvm::GlobalVariable*> globalFreeWrapperPtrs; // these are simple global function pointers to free
 
     std::vector<llvm::Function*> criticalFunctions;
+    std::vector<llvm::Function*> criticalFreeFunctions;
+
     std::vector<llvm::Function*> top10CriticalFunctions;
 
     std::vector<std::pair<llvm::Function*, llvm::Value*>> funcRetPairList;
@@ -73,6 +82,7 @@ private:
     void profileFuncCalls(llvm::Module&);
     void handleGlobalFunctionPointers(llvm::Module&);
     bool returnsAllocedMemory(llvm::Function*);
+    bool freesPassedMemory(llvm::Function*);
     bool isReturningUnwrittenMallockedPtr(llvm::ReturnInst*, std::vector<llvm::Value*>&);
     //void findSinks(llvm::Value*, std::vector<llvm::Value*>&);
 
