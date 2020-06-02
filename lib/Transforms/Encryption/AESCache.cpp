@@ -482,7 +482,42 @@ namespace external {
         setLabel->addParamAttr(0, Attribute::ZExt);
     }
 
-                                  
+    void AESCache::findReturnInstsOfFunction(Function* func, std::vector<ReturnInst*>& returnVec) {
+        for (inst_iterator I = inst_begin(func), E = inst_end(func); I != E; ++I) {
+            if (ReturnInst* retInst = dyn_cast<ReturnInst>(&*I)) {
+                returnVec.push_back(retInst);
+            }
+        }
+    }                             
+
+    void AESCache::clearLabelForSensitiveObjects(Module& M, std::vector<PAGNode*>& SensitiveObjList) {
+        // Stack variables can also have sensitive labels associated with them
+        // We need to clear them right before the return statements of their
+        // functions.
+
+        LLVMContext& Ctx = M.getContext();
+        // For every stack variable that is sensitive
+        for (PAGNode* sensitiveNode: SensitiveObjList) {
+            Value* sensitiveValue = const_cast<Value*>(sensitiveNode->getValue());
+            if (AllocaInst* sensitiveStackVar = dyn_cast<AllocaInst>(sensitiveValue)) {
+                std::vector<ReturnInst*> returnInsts;
+                findReturnInstsOfFunction(sensitiveStackVar->getParent()->getParent(), returnInsts);
+
+                for (ReturnInst* returnInst: returnInsts) {
+                    IRBuilder<> Builder(returnInst);
+
+                    ConstantInt* label = Builder.getInt16(0); // 0 to clear
+                    Type* sensitiveTy = sensitiveStackVar->getAllocatedType();
+                    ConstantInt* noOfBytes = Builder.getInt64(M.getDataLayout().getTypeAllocSize(sensitiveTy));
+
+                    Value* ptr = Builder.CreateBitCast(sensitiveStackVar, Type::getInt8PtrTy(Ctx));
+
+                    CallInst* clearCall = Builder.CreateCall(this->DFSanSetLabelFn, {label, ptr, noOfBytes});
+                } 
+            }
+        }
+    }
+
     void AESCache::setLabelsForSensitiveObjects(Module &M, std::set<PAGNode*>* SensitiveAllocaList,
             std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap, std::map<PAGNode*, std::set<PAGNode*>>& ptsFromMap) {
         LLVMContext *Ctx;
@@ -498,9 +533,7 @@ namespace external {
                 IRBuilder<> Builder(I);
                 Builder.SetInsertPoint(I->getNextNode());
 
-                /*For now, we are adding constant single label for all sensitive objects and setting in only 
-                 * first byte. It something break, will look into it later on. 
-                 * */
+                // For now, we are adding constant single label for all sensitive objects
                 ConstantInt* label = Builder.getInt16(1);
                 ConstantInt* noOfByte = Builder.getInt64(1);
                 Value* PtrOperand = nullptr;
@@ -514,7 +547,8 @@ namespace external {
                         PtrOperand = Builder.CreateBitCast(senVal, Type::getInt8PtrTy(*Ctx));
 
                         //finding size of type
-                        Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
+                        //Type* T = dyn_cast<PointerType>((dyn_cast<Instruction>(PtrOperand)->getOperand(0))->getType())->getElementType();
+                        Type* T = allocInst->getAllocatedType();
                         int sizeOfType = M.getDataLayout().getTypeAllocSize(T);
                         //errs()<<"Size of Type is "<<sizeOfType<<"\n";
                         noOfByte = Builder.getInt64(sizeOfType);

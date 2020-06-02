@@ -105,9 +105,12 @@ namespace external{
             void addExternAESFuncDecls(llvm::Module&);
             bool findTrueOffset(StructType*, int, int*, StructType**, int*);
             llvm::Module* M;
+            void findReturnInstsOfFunction(llvm::Function*, std::vector<ReturnInst*>&);
+
         public:
             void initializeAes(llvm::Module&);
 
+            void clearLabelForSensitiveObjects(llvm::Module&, std::vector<PAGNode*>&);
             bool allFieldsSensitive(StructType*);
             bool  widenSensitiveComplexType(GepObjPN*, std::map<PAGNode*, std::set<PAGNode*>>&);
             // For AES Cache

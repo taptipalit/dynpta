@@ -876,7 +876,8 @@ void EncryptionPass::doVFAIndirect(Value* work, std::vector<Value*>& sinkSites,
         std::vector<Value*>& workList, std::vector<Value*>& processedList) {
     for (User* user: work->users()) {
         if (LoadInst* loadInst = dyn_cast<LoadInst>(user)) {
-            // The first load will load the address
+            if (isa<PointerType>(loadInst->getType())) 
+                continue;
             for (User* loadUser: loadInst->users()) {
                 if (StoreInst* storeInst = dyn_cast<StoreInst>(loadUser)) {
                     if (storeInst->getValueOperand() == loadInst) {
@@ -909,16 +910,25 @@ void EncryptionPass::doVFADirect(Value* work, std::vector<Value*>& sinkSites,
 
 void EncryptionPass::handleSink(Value* storePtr, std::vector<Value*>& sinkSites,
         std::vector<Value*>& workList, std::vector<Value*>& processedList) {
-    if (isa<AllocaInst>(storePtr) || isa<GlobalVariable>(storePtr) || isa<CallInst>(storePtr)) {
-        sinkSites.push_back(storePtr);
-        workList.push_back(storePtr);
-    }  else {
-        // Find what it can point to
-        std::vector<Value*> ptsToVec;
-        getPtsTo(storePtr, ptsToVec);
-        for (Value* ptd: ptsToVec) {
-            sinkSites.push_back(ptd);       
-            workList.push_back(ptd);
+    if ((isa<AllocaInst>(storePtr) || isa<GlobalVariable>(storePtr))
+            && !isa<Constant>(storePtr)) {
+        if (((isa<AllocaInst>(storePtr) || isa<GlobalVariable>(storePtr))
+                    && !isa<Constant>(storePtr))) {
+            if (AllocaInst* allocaInst = dyn_cast<AllocaInst>(storePtr)) {
+                if (isa<PointerType>(allocaInst->getAllocatedType())) {
+                    return;
+                }
+            } else {
+                if (isa<PointerType>(storePtr->getType())) {
+                    return;
+                }
+            }
+            //errs() << "VFA: " << *storePtr << "\n";
+            sinkSites.push_back(storePtr);       
+            if (std::find(workList.begin(), workList.end(), storePtr) == workList.end()
+                    && std::find(processedList.begin(), processedList.end(), storePtr) == processedList.end()) {
+                workList.push_back(storePtr);
+            }
         }
     }
 }
@@ -956,6 +966,7 @@ void EncryptionPass::performSourceSinkAnalysis(Module& M) {
 
     //std::vector<Type*> sensitiveTypes;
     std::vector<Value*> workList; // List of allocation sites for which we still need to perform source-sink analysis
+    std::vector<Value*> tempWorkList;
     std::vector<Value*> sinkSites;
     std::vector<Value*> processedList;
     
@@ -975,20 +986,30 @@ void EncryptionPass::performSourceSinkAnalysis(Module& M) {
         */
     }
 
-    while (!workList.empty()) {
-        Value* work = workList.back();
-        workList.pop_back();
+    bool done = false;
+    int iter = 0;
+    do {
+        tempWorkList.clear();
+        while (!workList.empty()) {
+            Value* work = workList.back();
+            workList.pop_back();
 
-        processedList.push_back(work);
-        // Direct vfa
-        doVFADirect(work, sinkSites, workList, processedList);
-        std::vector<Value*> ptsFromVec;
-        getPtsFrom(work, ptsFromVec);
-        // Indirect vfa 
-        for (Value* ptr: ptsFromVec) {
-            doVFAIndirect(ptr, sinkSites, workList, processedList);
+            processedList.push_back(work);
+            // Direct vfa
+            doVFADirect(work, sinkSites, tempWorkList, processedList);
+            std::vector<Value*> ptsFromVec;
+            getPtsFrom(work, ptsFromVec);
+            // Indirect vfa 
+            for (Value* ptr: ptsFromVec) {
+                doVFAIndirect(ptr, sinkSites, tempWorkList, processedList);
+            }
         }
-    }
+        errs() << "Found " << tempWorkList.size() << " new sites during VFA\n";
+        std::copy(tempWorkList.begin(), tempWorkList.end(), std::back_inserter(workList));
+        if (workList.empty()) {
+            done = true;
+        }
+    } while (!done);
 
     // Put it back in PAG-world
     for (Value* sinkVal: sinkSites) {
@@ -1806,7 +1827,9 @@ void EncryptionPass::updateSensitiveState(Value* oldVal, Value* newVal, std::map
         ptsToMap[newValNode].insert(ptsToNode);
     }
 
-    ExtraSensitivePtrs.insert(newVal);
+    // @tpalit - This is a relic of the previous pre-ACSAC messy implementation. This whole 
+    // function can probably safely go away.
+//    ExtraSensitivePtrs.insert(newVal);
 
 }
 
@@ -1923,6 +1946,7 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
         }
     }
 
+    AESCache.clearLabelForSensitiveObjects(M, SensitiveObjList);
 }
 
 void EncryptionPass::performInstrumentation(Module& M, std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap) {
