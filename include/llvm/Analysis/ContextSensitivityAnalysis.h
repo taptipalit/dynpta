@@ -68,6 +68,8 @@ private:
     std::set<llvm::Function*> mallocWrappers;
     std::set<llvm::Function*> freeWrappers;
 
+    std::set<llvm::Function*> newFreeWrappers; // the free wrappers that are found, like CRYPTO_free
+
     std::set<llvm::GlobalVariable*> globalMallocWrapperPtrs; // these are simple global function pointers
     std::set<llvm::GlobalVariable*> globalFreeWrapperPtrs; // these are simple global function pointers to free
 

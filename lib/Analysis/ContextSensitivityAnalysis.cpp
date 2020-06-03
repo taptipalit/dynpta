@@ -24,7 +24,7 @@ using namespace llvm;
 
 char ContextSensitivityAnalysisPass::ID = 0;
 
-static cl::opt<int> iterations("csa-iter", cl::desc("How many iterations of csa should be done"), cl::value_desc("csa-iter"), cl::init(5));
+static cl::opt<int> mallocIterations("malloc-iter", cl::desc("How many iterations of csa should be done to find malloc wrappers"), cl::value_desc("malloc-iter"), cl::init(5));
 
 static cl::opt<bool> skipContextSensitivity("skip-csa", cl::desc("Skip context-sensitivity"), cl::value_desc("skip-csa"), cl::init(false));
 
@@ -243,7 +243,7 @@ void ContextSensitivityAnalysisPass::profileFuncCalls(Module& M) {
         mallocWrapperCallNumMap.push_back(std::make_pair(mallocWrapper, funcCallNumMap[mallocWrapper]));
     }
 
-    for (Function* freeWrapper: freeWrappers) {
+    for (Function* freeWrapper: newFreeWrappers) {
         freeWrapperCallNumMap.push_back(std::make_pair(freeWrapper, funcCallNumMap[freeWrapper]));
     }
 
@@ -343,26 +343,38 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
     if (freeFunction)
         freeWrappers.insert(freeFunction);
 
-    for (int num = 0; num < iterations; num++) {
-        // Handle Global Function pointers
-        handleGlobalFunctionPointers(M);
+    // Handle Global Function pointers
+    handleGlobalFunctionPointers(M);
+    for (int num = 0; num < mallocIterations; num++) {
         for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
             if (auto *F = dyn_cast<Function>(MIterator)) {
                 CFLAA = &(getAnalysis<CFLSteensAAWrapperPass>().getResult());
                 if (returnsAllocedMemory(F)) {
                     mallocWrappers.insert(F);
                 }
-                if (freesPassedMemory(F)) {
-                    freeWrappers.insert(F);
-                }
-                /*if (F->getName() == "buffer_init"){
-                    mallocWrappers.insert(F);
-                }*/
             }
         }
     }
 
-
+    // The purpose of finding the free wrappers is different from finding
+    // malloc wrappers.
+    // We need free wrappers only to be able to reset the sensitivity flag
+    // when the memory object is freed.
+    // 
+    // To do this, we need to find the immediate wrappers, like CRYPTO_free,
+    // and do not need to go up to the BN_free wrapper. So we can get away
+    // with a single iteration
+    //
+    // Actually, just finding that the function pointer in CRYPTO_free was
+    // pointing to free would have been enough.
+    for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+        if (auto *F = dyn_cast<Function>(MIterator)) {
+            CFLAA = &(getAnalysis<CFLSteensAAWrapperPass>().getResult());
+            if (freesPassedMemory(F)) {
+                newFreeWrappers.insert(F);
+            }
+        }
+    }
     errs() << "All malloc wrapper functions that qualify:\n";
     // Now, filter out the functions that aren't called from too many places
     for (Function* mallocWrapper: mallocWrappers) {
@@ -370,7 +382,7 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
     }
 
     errs() << "All free wrapper functions that qualify:\n";
-    for (Function* freeWrapper: freeWrappers) {
+    for (Function* freeWrapper: newFreeWrappers) {
         errs() << freeWrapper->getName() << "\n";
     }
     // Profile the module
