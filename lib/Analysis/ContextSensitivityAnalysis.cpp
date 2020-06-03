@@ -46,7 +46,7 @@ static cl::opt<int> freeCallsiteThreshold("free-callsite-threshold", cl::desc("H
  * A function is a memory free wrapper if it frees the memory pointed to by
  * the argument passed to the function
  */
-bool ContextSensitivityAnalysisPass::freesPassedMemory(Function* F) {
+bool ContextSensitivityAnalysisPass::freesPassedMemoryViaIndirectCall(Function* F) {
     FunctionType* functionTy = F->getFunctionType();
     if (functionTy->getNumParams() != 1) {
         return false; // has to take only one argument
@@ -68,16 +68,24 @@ bool ContextSensitivityAnalysisPass::freesPassedMemory(Function* F) {
 
     for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
         if (CallInst* callInst = dyn_cast<CallInst>(&*I)) {
-            // Direct call
+            // We don't care about direct calls
+            // Remember: Finding free-wrappers is for a different purpose than
+            // malloc wrappers. We only need them to clear the sensitivity
+            // taint
+            /*
             if (Function* func = callInst->getCalledFunction()) {
                 if (std::find(freeWrappers.begin(), freeWrappers.end(), func) != freeWrappers.end()) {
                     freedPtrs.push_back(callInst->getArgOperand(0));
                 }
-            } /*Indirect Call */ else if (Value* funcValue = callInst->getCalledValue()) {
-                // Find if the function pointer is a global pointer to malloc
-                if (LoadInst* loadedFrom = dyn_cast<LoadInst>(funcValue)) {
-                    if (std::find(globalFreeWrapperPtrs.begin(), globalFreeWrapperPtrs.end(), loadedFrom->getPointerOperand()) != globalFreeWrapperPtrs.end()) {
-                        freedPtrs.push_back(callInst->getArgOperand(0));
+            }*/
+            /*Indirect Call */ 
+            if (callInst->getCalledFunction() == nullptr) {
+                if (Value* funcValue = callInst->getCalledValue()) {
+                    // Find if the function pointer is a global pointer to malloc
+                    if (LoadInst* loadedFrom = dyn_cast<LoadInst>(funcValue)) {
+                        if (std::find(globalFreeWrapperPtrs.begin(), globalFreeWrapperPtrs.end(), loadedFrom->getPointerOperand()) != globalFreeWrapperPtrs.end()) {
+                            freedPtrs.push_back(callInst->getArgOperand(0));
+                        }
                     }
                 }
             }
@@ -385,7 +393,7 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
     for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
         if (auto *F = dyn_cast<Function>(MIterator)) {
             CFLAA = &(getAnalysis<CFLSteensAAWrapperPass>().getResult());
-            if (freesPassedMemory(F)) {
+            if (freesPassedMemoryViaIndirectCall(F)) {
                 newFreeWrappers.insert(F);
             }
         }

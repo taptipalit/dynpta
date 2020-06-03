@@ -85,7 +85,7 @@ private:
     void handleGlobalFunctionPointersForMallocWrappers(llvm::Module&);
     void handleGlobalFunctionPointersForFreeWrappers(llvm::Module&);
     bool returnsAllocedMemory(llvm::Function*);
-    bool freesPassedMemory(llvm::Function*);
+    bool freesPassedMemoryViaIndirectCall(llvm::Function*);
     bool isReturningUnwrittenMallockedPtr(llvm::ReturnInst*, std::vector<llvm::Value*>&);
     //void findSinks(llvm::Value*, std::vector<llvm::Value*>&);
 
