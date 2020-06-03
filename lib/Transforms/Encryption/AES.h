@@ -96,6 +96,7 @@ namespace external{
             llvm::Function* aesReallocFunction;
             llvm::Function* aesStrdupFunction;
             llvm::Function* aesFreeFunction;
+            llvm::Function* freeWrapperFunction;
             llvm::Function* aesFreeWithBitcastFunction;
             llvm::Function* memcpySensDstFunction;
             llvm::Function* memcpySensSrcFunction;
@@ -117,6 +118,7 @@ namespace external{
             void gepAllocaInstHandlerForPartitioning(llvm::Module&, AllocaInst* , GepObjPN*, Value*);
             void setLabelsForSensitiveObjects(llvm::Module&, std::set<PAGNode*>*,
                     std::map<PAGNode*, std::set<PAGNode*>>&, std::map<PAGNode*, std::set<PAGNode*>>&);
+            void unsetLabelsForCriticalFreeWrapperFunctions(llvm::Module&, std::set<Function*>&);
             void trackDownAllRecursiveSensitiveAllocations(llvm::Module&);
             void addDynamicCheckForSetLabel(StoreInst*, CallInst*);
             Type* findBaseType(Type*);
