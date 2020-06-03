@@ -857,6 +857,12 @@ void aes_free(void* ptr) {
     free(ptr);
 }
 
+void free_wrapper (void* ptr) {
+    //printf( "Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
+    size_t noOfByte = malloc_usable_size(ptr);
+    dfsan_set_label(0, ptr, noOfByte);
+}
+
 /*void aes_sodiumFree(void* ptr) {
     //printf( "Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
     size_t noOfByte = malloc_usable_size(ptr);

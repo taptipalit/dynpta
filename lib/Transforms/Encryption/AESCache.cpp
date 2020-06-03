@@ -202,7 +202,9 @@ namespace external {
 
         this->aesFreeFunction = Function::Create(FTypeFree, Function::ExternalLinkage, "aes_free", &M);
 
-        
+        // The instrumented critical free function
+        this->freeWrapperFunction = Function::Create(FTypeFree, Function::ExternalLinkage, "free_wrapper", &M);
+
         // The instrumented free function
         std::vector<Type*> freeWithBitcastVec;
         freeWithBitcastVec.push_back(voidPtrType);
@@ -587,6 +589,15 @@ namespace external {
                                     if (ptrType != voidPtrType){
                                         argVal = Builder.CreateBitCast(callInst, voidPtrType);
                                     }
+                                    /* widening memory allocation for context sensitive malloc calls*/
+                                    // skip if wrapper does not have any argument
+                                    if(callInst->getNumOperands() > 1){
+                                        IRBuilder<> builder(callInst);
+                                        ConstantInt* multiplier1 = builder.getInt32(128);
+                                        Value* arg = callInst->getArgOperand(0);
+                                        Value* mul = builder.CreateMul(arg, dyn_cast<Value>(multiplier1));
+                                        callInst->setOperand(0,mul);
+                                    }
                                     Builder.CreateCall(this->setLabelForContextSensitiveCallsFn, {argVal});
                                     continue;
                                 }else {
@@ -602,7 +613,39 @@ namespace external {
             }
         }
     }
+    void AESCache::unsetLabelsForCriticalFreeWrapperFunctions (Module &M, std::set<Function*>& CriticalFreeWrapperFunctions) {
+        /* Finding corresponding callInsts for Critical Free Wrapper Functions so that we can 
+         * add instrumentations */
+        for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+            if (auto *F = dyn_cast<Function>(MIterator)) {
+                for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+                    if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+                        for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+                            if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                                if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
+                                    Function* function = callInst->getCalledFunction();
+                                    if (std::find(CriticalFreeWrapperFunctions.begin(), CriticalFreeWrapperFunctions.end(), function) != CriticalFreeWrapperFunctions.end()) {
+                                        IRBuilder<> Builder(callInst);
+                                        Value* argument = callInst->getArgOperand(0);
+                                        if (PointerType* argType = dyn_cast<PointerType>(argument->getType())) {
+                                            IntegerType* voidType = IntegerType::get(callInst->getContext(), 8);
+                                            PointerType* voidPtrType = PointerType::get(voidType, 0);
+                                            // bitcast if not a void pointer
+                                            if (argType != voidPtrType){
+                                                argument = Builder.CreateBitCast(argument, voidPtrType);
+                                            }
+                                            Value* val  = Builder.CreateCall(this->freeWrapperFunction, {argument});
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
+    }
     void AESCache::addDynamicCheckForSetLabel(StoreInst* stInst, CallInst* callInst){
         
         IRBuilder<> Builder(stInst);

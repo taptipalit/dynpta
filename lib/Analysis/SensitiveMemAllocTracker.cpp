@@ -117,6 +117,11 @@ bool SensitiveMemAllocTrackerPass::runOnModule(Module& M) {
         errs()<<"Function name is: " << criticalFunctions->getName() << "\n";
         mallocRoutines.insert(criticalFunctions);
     }
+    // Critical Free Functions
+    errs()<<"Critical Free Functions in MallocTracker Pass are:\n";
+    for (Function* criticalFreeFunctions : getAnalysis<ContextSensitivityAnalysisPass>().getCriticalFreeFunctions()){
+        errs()<<"Function name is: " << criticalFreeFunctions->getName() << "\n";
+    }
 
     collectLocalSensitiveAnnotations(M);
 
