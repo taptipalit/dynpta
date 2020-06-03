@@ -82,7 +82,8 @@ private:
 
     llvm::CFLSteensAAResult* CFLAA;
     void profileFuncCalls(llvm::Module&);
-    void handleGlobalFunctionPointers(llvm::Module&);
+    void handleGlobalFunctionPointersForMallocWrappers(llvm::Module&);
+    void handleGlobalFunctionPointersForFreeWrappers(llvm::Module&);
     bool returnsAllocedMemory(llvm::Function*);
     bool freesPassedMemory(llvm::Function*);
     bool isReturningUnwrittenMallockedPtr(llvm::ReturnInst*, std::vector<llvm::Value*>&);

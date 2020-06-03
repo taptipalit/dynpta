@@ -208,7 +208,7 @@ bool ContextSensitivityAnalysisPass::isReturningUnwrittenMallockedPtr(ReturnInst
     }
 }
 
-void ContextSensitivityAnalysisPass::handleGlobalFunctionPointers(llvm::Module& M) {
+void ContextSensitivityAnalysisPass::handleGlobalFunctionPointersForMallocWrappers(llvm::Module& M) {
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
         if (I->getName() != "llvm.global.annotations") {
             GlobalVariable* GV = llvm::cast<GlobalVariable>(I);
@@ -219,6 +219,20 @@ void ContextSensitivityAnalysisPass::handleGlobalFunctionPointers(llvm::Module& 
                 if (std::find(mallocWrappers.begin(), mallocWrappers.end(), init) != mallocWrappers.end()) {
                     globalMallocWrapperPtrs.insert(GV);
                 } 
+            }
+        }
+    }
+}
+
+
+void ContextSensitivityAnalysisPass::handleGlobalFunctionPointersForFreeWrappers(llvm::Module& M) {
+    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+        if (I->getName() != "llvm.global.annotations") {
+            GlobalVariable* GV = llvm::cast<GlobalVariable>(I);
+            // If the global variable has an initializer and if it is the
+            // malloc Functions 
+            if (GV->hasInitializer()) {
+                Constant* init = GV->getInitializer();
                 if (std::find(freeWrappers.begin(), freeWrappers.end(), init) != freeWrappers.end()) {
                     globalFreeWrapperPtrs.insert(GV);
                 }
@@ -343,9 +357,9 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
     if (freeFunction)
         freeWrappers.insert(freeFunction);
 
-    // Handle Global Function pointers
-    handleGlobalFunctionPointers(M);
     for (int num = 0; num < mallocIterations; num++) {
+        // Handle Global Function pointers
+        handleGlobalFunctionPointersForMallocWrappers(M);
         for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
             if (auto *F = dyn_cast<Function>(MIterator)) {
                 CFLAA = &(getAnalysis<CFLSteensAAWrapperPass>().getResult());
@@ -367,6 +381,7 @@ bool ContextSensitivityAnalysisPass::runOnModule(Module& M) {
     //
     // Actually, just finding that the function pointer in CRYPTO_free was
     // pointing to free would have been enough.
+    handleGlobalFunctionPointersForFreeWrappers(M);
     for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
         if (auto *F = dyn_cast<Function>(MIterator)) {
             CFLAA = &(getAnalysis<CFLSteensAAWrapperPass>().getResult());
