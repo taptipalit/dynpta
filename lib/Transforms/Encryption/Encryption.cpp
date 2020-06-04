@@ -1798,6 +1798,10 @@ void EncryptionPass::preprocessStoreInstructions(Instruction* Inst) {
 
 
 void EncryptionPass::updateSensitiveState(Value* oldVal, Value* newVal, std::map<PAGNode*, std::set<PAGNode*>>& ptsToMap) {
+    // If the newVal is a pointer type, only then need to update anything
+    if (!newVal->getType()->isPointerTy()) {
+        return;
+    }
     PAG* pag = getAnalysis<WPAPass>().getPAG();
     PAGNode* oldValNode = getPAGValNodeFromValue(oldVal);
     // Hack, we modify the PAG, but not the underlying SymInfo
@@ -1829,9 +1833,7 @@ void EncryptionPass::updateSensitiveState(Value* oldVal, Value* newVal, std::map
         ptsToMap[newValNode].insert(ptsToNode);
     }
 
-    // @tpalit - This is a relic of the previous pre-ACSAC messy implementation. This whole 
-    // function can probably safely go away.
-//    ExtraSensitivePtrs.insert(newVal);
+    ExtraSensitivePtrs.insert(newVal);
 
 }
 
