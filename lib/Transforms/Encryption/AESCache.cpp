@@ -1265,7 +1265,10 @@ namespace external {
                     assert((vectorNumElements == 2 || vectorNumElements == 4) && "Unknown Type for vector type");
                 }
             } else {
-                assert(PlainTextValDoubleType && "Unknown Type!");
+                auto* originalStore = stInst->clone();
+                originalStore->insertBefore(stInst);
+                return nullptr;
+                //assert(PlainTextValDoubleType && "Unknown Type!");
             }
             std::vector<Value*> encryptArgList;
             PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
@@ -1538,7 +1541,14 @@ namespace external {
                     assert((vectorNumElements == 2 || vectorNumElements == 4) && "Unknown Type for vector type");
                 }
             } else {
-                assert(EncValDoubleType && "Unknown type!");
+                // Skipping assertion because we didn't handle the type when a complex struct
+                // is returned by value; this situation occured in OpenVPN. But this type
+                // doesn't become senstitve, so we are just skipping the instrumentation for
+                // these cases. May be in future, we will need to handle these types
+                auto* originalLoad = ldInst->clone();
+                originalLoad->insertBefore(ldInst);
+                return originalLoad;
+                //assert(EncValDoubleType && "Unknown type!");
             }
 
             PointerType* ldInstPtrType = dyn_cast<PointerType>(ldInstPtrOperand->getType());
