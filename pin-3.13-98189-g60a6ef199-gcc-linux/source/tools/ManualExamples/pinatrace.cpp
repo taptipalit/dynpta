@@ -19,18 +19,42 @@
 
 FILE * trace;
 
+unsigned long mem_read_count = 0;
+unsigned long mem_write_count = 0;
+unsigned long aes_enc_count = 0;
+unsigned long aes_dec_count = 0;
+
 // Print a memory read record
 VOID RecordMemRead(VOID * ip, VOID * addr)
 {
-    fprintf(trace,"%p: R %p\n", ip, addr);
+    mem_read_count++;
+    if (mem_read_count % 10 == 0) {
+        fprintf(trace, "mem read: %lu\n", mem_read_count);
+    }
 }
 
 // Print a memory write record
 VOID RecordMemWrite(VOID * ip, VOID * addr)
 {
-    fprintf(trace,"%p: W %p\n", ip, addr);
+    mem_write_count++;
+    if (mem_write_count % 10 == 0) {
+        fprintf(trace, "mem write: %lu\n", mem_write_count);
+    }
 }
 
+VOID RecordAesEnc(VOID * ip) {
+    aes_enc_count++;
+    //if (aes_enc_count % 1000 == 0) {
+        fprintf(trace, "aes encryptions: %lu\n", aes_enc_count); 
+    //}
+}
+
+VOID RecordAesDec(VOID * ip) {
+    aes_dec_count++;
+    //if (aes_dec_count % 1000 == 0) {
+        fprintf(trace, "aes decryptions: %lu\n", aes_dec_count); 
+    //}
+}
 // Is called for every instruction and instruments reads and writes
 VOID Instruction(INS ins, VOID *v)
 {
@@ -41,6 +65,12 @@ VOID Instruction(INS ins, VOID *v)
     // prefixed instructions appear as predicated instructions in Pin.
     UINT32 memOperands = INS_MemoryOperandCount(ins);
 
+    // Insert tracking for the aes encryption / decryption routines
+    if (XED_ICLASS_AESDEC == INS_Opcode(ins)) {
+        INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)RecordAesDec, IARG_INST_PTR, IARG_END);
+    } else if (XED_ICLASS_AESENC == INS_Opcode(ins)) {
+        INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)RecordAesEnc, IARG_INST_PTR, IARG_END);
+    }
     // Iterate over each memory operand of the instruction.
     for (UINT32 memOp = 0; memOp < memOperands; memOp++)
     {
