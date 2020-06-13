@@ -286,25 +286,28 @@ void EncryptionPass::collectSensitivePointers() {
         if (!Partitioning) {
             getAnalysis<WPAPass>().getPtsFromSDD(SensitiveObjList, pointsFroms);
         } else {
+            //Skiping Points-to check for now; this phase is taking a lot of time
+            //during compilation; 
+            //TODO: check if we still need this phase. If we need it, then check if we can optimize it
             /*To find recursive memory allocations, we need pointsTo analysis;
              * we wiil find possibleSensitive allocations from pointsTo analysis
              * and then perform pointsFrom analysis to find the complete set*/
-            std::vector<PAGNode*> tempSensitiveObjList = SensitiveObjList;
+            /*std::vector<PAGNode*> tempSensitiveObjList = SensitiveObjList;
             for (PAGNode* sensitiveNode: SensitiveObjList) {
                 for (PAGNode* possibleSensitiveNode: getAnalysis<WPAPass>().pointsToSet(sensitiveNode->getId())) {
                     if (isa<DummyValPN>(possibleSensitiveNode) || isa<DummyObjPN>(possibleSensitiveNode))
                         continue;
                     Value* valNode = const_cast<Value*>(possibleSensitiveNode->getValue());
-                    /*Since memory allocations can be done via callInst, we will
-                     * only consider call instructions as possibleSensitive
-                     * allocation*/
+                    //Since memory allocations can be done via callInst, we will
+                    //only consider call instructions as possibleSensitive
+                    //allocation
                     if(CallInst* callInst = dyn_cast<CallInst>(valNode)){
                         tempSensitiveObjList.push_back(possibleSensitiveNode);
                     }
                 }
             }
-            getAnalysis<WPAPass>().getPtsFrom(tempSensitiveObjList, pointsFroms);
-            //getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
+            getAnalysis<WPAPass>().getPtsFrom(tempSensitiveObjList, pointsFroms);*/
+            getAnalysis<WPAPass>().getPtsFrom(SensitiveObjList, pointsFroms);
         }
         if (WriteToFile) {
             std::ofstream outFile;
@@ -2525,19 +2528,21 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             arg = externalCallInst->getArgOperand(2);
             if (isSensitiveArg(arg, ptsToMap)) {
                 Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
+                Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
                 std::vector<Value*> ArgList;
                 if (arg->getType() != voidPtrType) {
                     arg = InstBuilder.CreateBitCast(arg, voidPtrType);
                 }
                 ArgList.push_back(arg);
-                InstBuilder.CreateCall(decryptFunction, ArgList);
-                // Encrypt it back
-                Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
-                CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
-                encCInst->insertAfter(externalCallInst);
+                if (Partitioning){
+                    externalFunctionHandlerForPartitioning(M, externalCallInst, decryptFunction, encryptFunction, arg, ArgList);
+                } else {
+                    externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
+                }
             }
             // The fourth argument is the tricky va_list
-            arg = externalCallInst->getArgOperand(3);
+            // We skip the fourth argument for now TODO: handle fourth argument for partitioning
+            /*arg = externalCallInst->getArgOperand(3);
             if (isSensitiveArg(arg, ptsToMap)) {
                 Function* decryptFunction = M.getFunction("decryptVaArgListBeforeLibCall");
                 std::vector<Value*> ArgList;
@@ -2564,7 +2569,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 Function* encryptFunction = M.getFunction("encryptVaArgListAfterLibCall");
                 CallInst* encCInst = CallInst::Create(encryptFunction, ArgList);
                 encCInst->insertAfter(vaStartCInst);
-            }
+            }*/
         } else if (externalFunction->getName() == "vprintf") {
             PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
             IntegerType* longType = IntegerType::get(M.getContext(), 64);
