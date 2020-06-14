@@ -23,6 +23,10 @@ unsigned long mem_read_count = 0;
 unsigned long mem_write_count = 0;
 unsigned long aes_enc_count = 0;
 unsigned long aes_dec_count = 0;
+unsigned long taint_dec_count = 0;
+unsigned long taint_lookup_count = 0;
+
+ADDRINT taintLookupFnAddr = 0;
 
 // Print a memory read record
 VOID RecordMemRead(VOID * ip, VOID * addr)
@@ -55,6 +59,26 @@ VOID RecordAesDec(VOID * ip) {
         fprintf(trace, "aes decryptions: %lu\n", aes_dec_count); 
     //}
 }
+
+VOID RecordTaintLookupCall(VOID * ip) {
+    taint_lookup_count++;
+    //if (aes_dec_count % 1000 == 0) {
+        fprintf(trace, "taint lookups: %lu\n", taint_lookup_count); 
+    //}
+}
+
+VOID Image(IMG img, VOID *v)
+{
+    // Instrument the malloc() and free() functions.  Print the input argument
+    // of each malloc() or free(), and the return value of malloc().
+    //
+    //  Find the malloc() function.
+    RTN taintLookupFn = RTN_FindByName(img, "dfsan_read_label");
+    if (RTN_Valid(taintLookupFn)) {
+        taintLookupFnAddr = RTN_Address(taintLookupFn);
+    }
+}
+ 
 // Is called for every instruction and instruments reads and writes
 VOID Instruction(INS ins, VOID *v)
 {
@@ -67,9 +91,16 @@ VOID Instruction(INS ins, VOID *v)
 
     // Insert tracking for the aes encryption / decryption routines
     if (XED_ICLASS_AESDEC == INS_Opcode(ins)) {
-        INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)RecordAesDec, IARG_INST_PTR, IARG_END);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordAesDec, IARG_INST_PTR, IARG_END);
     } else if (XED_ICLASS_AESENC == INS_Opcode(ins)) {
-        INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)RecordAesEnc, IARG_INST_PTR, IARG_END);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordAesEnc, IARG_INST_PTR, IARG_END);
+    } else if (INS_IsDirectCall(ins)) {
+
+        ADDRINT targetCallAddr = INS_DirectControlFlowTargetAddress(ins);
+        // What's the symbol at this address?
+        if (taintLookupFnAddr == targetCallAddr) {
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordTaintLookupCall, IARG_INST_PTR, IARG_END);
+        }
     }
     // Iterate over each memory operand of the instruction.
     for (UINT32 memOp = 0; memOp < memOperands; memOp++)
@@ -119,9 +150,13 @@ INT32 Usage()
 
 int main(int argc, char *argv[])
 {
+    PIN_InitSymbols();
+
     if (PIN_Init(argc, argv)) return Usage();
 
     trace = fopen("pinatrace.out", "w");
+
+    IMG_AddInstrumentFunction(Image, 0);
 
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddFiniFunction(Fini, 0);
