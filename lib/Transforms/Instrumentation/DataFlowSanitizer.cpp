@@ -951,29 +951,9 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
                     DFSanVisitor(DFSF).visit(Inst);
                 }
             } else if (PHINode* phiNode = dyn_cast<PHINode>(Inst)) {
-                // If one of the operands is the CallInst, only then
-                // instrument it
-                int numIncomingValues = phiNode->getNumIncomingValues();
-                if (numIncomingValues == 2) { 
-                    for (int i = 0; i < numIncomingValues; i++) {
-                        Value* phiIncomingVal = phiNode->getIncomingValue(i);
-                        if (CallInst* callInst = dyn_cast<CallInst>(phiIncomingVal)) {
-                            //if (cInst->getCalledFunction()) {
-                                // Checking getCalledFunction crashes, and I'm too
-                                // tired to investigate why. We'll live with
-                                // some extra instrumentations for now
-                                /*
-                                if ((cInst->getCalledFunction()->getName() == "getDecryptedValueByte"
-                                            || cInst->getCalledFunction()->getName() == "getDecryptedValueWord"
-                                            || cInst->getCalledFunction()->getName() == "getDecryptedValueDWord"
-                                            || cInst->getCalledFunction()->getName() == "getDecryptedValueQWord")) {
-                                */
-                                    // Only then visit the phinode
-                                    DFSanVisitor(DFSF).visit(Inst);
-                                //}
-                            //}
-                        }
-                    }
+                if (phiNode->getMetadata("MAYBE-TAINT")) {
+                    // Only then visit the phinode
+                    DFSanVisitor(DFSF).visit(Inst);
                 }
             }
         }

@@ -46,7 +46,7 @@ fi
 $LLVMROOT/llvm-dis $file.bc -o $file.ll
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $file.bc 
 $LLVMROOT/opt -encryption -steens-fast -confidentiality=true -skip-vfa=false -skip-csa=true -optimized-check=true -partitioning=true  $file.bc -o $fileinst.bc
-$LLVMROOT/opt --dfsan $fileinst.bc -o $filedfsan.bc
+$LLVMROOT/opt --dfsan -dfsan-abilist=./abilist.txt $fileinst.bc -o $filedfsan.bc
 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc

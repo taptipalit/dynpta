@@ -1937,6 +1937,9 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
             decryptionCount++;
             Value* decryptedValue = nullptr;
             decryptedValue = AESCache.getDecryptedValueCachedDfsan(LdInst);
+            PHINode* phi = dyn_cast<PHINode>(decryptedValue);
+            assert(phi && "AESCache must return a phi node");
+            addTaintMetaData(phi);
 
             updateSensitiveState(LdInst, decryptedValue, ptsToMap);
 
