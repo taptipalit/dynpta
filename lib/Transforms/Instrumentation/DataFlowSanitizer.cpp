@@ -145,7 +145,7 @@ static cl::opt<bool> ClCombinePointerLabelsOnLoad(
     "dfsan-combine-pointer-labels-on-load",
     cl::desc("Combine the label of the pointer with the label of the data when "
              "loading from memory."),
-    cl::Hidden, cl::init(true));
+    cl::Hidden, cl::init(false));
 
 // Controls whether the pass includes or ignores the labels of pointers in
 // stores instructions.
@@ -423,6 +423,16 @@ struct DFSanFunction {
                     Instruction *Pos);
   void storeShadow(Value *Addr, uint64_t Size, uint64_t Align, Value *Shadow,
                    Instruction *Pos);
+
+  void performConditionalEncryption(Value *Addr, uint64_t Size, uint64_t Align, Value *Shadow,
+                   Instruction *Pos);
+
+  // This is a simplified copy of the same function in AESCache.cpp, that
+  // doesn't handle vector or other types. 
+  // Keeping the same name as the one in AESCache.cpp. Both need to be changed
+  // to something sensible later. 
+  void setEncryptedValueCachedDfsan(StoreInst*);
+
 };
 
 class DFSanVisitor : public InstVisitor<DFSanVisitor> {
@@ -806,7 +816,6 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
 
   // First, change the ABI of every function in the module.  ABI-listed
   // functions keep their original ABI and get a wrapper function.
-/*
   for (std::vector<Function *>::iterator i = FnsToInstrument.begin(),
                                          e = FnsToInstrument.end();
        i != e; ++i) {
@@ -853,7 +862,7 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
       } else {
         addGlobalNamePrefix(&F);
       }
-    } else if (!IsZeroArgsVoidRet || getWrapperKind(&F) == WK_Custom) {
+    } else if (/*!IsZeroArgsVoidRet || */getWrapperKind(&F) == WK_Custom) {
       // Build a wrapper function for F.  The wrapper simply calls F, and is
       // added to FnsToInstrument so that any instrumentation according to its
       // WrapperKind is done in the second pass below.
@@ -904,7 +913,6 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
       *i = nullptr;
     }
   }
-*/
 
   for (Function *i : FnsToInstrument) {
     if (!i || i->isDeclaration())
@@ -928,9 +936,47 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
         // DFSanVisitor may delete Inst, so keep track of whether it was a
         // terminator.
         bool IsTerminator = isa<TerminatorInst>(Inst);
-        /*if (!DFSF.SkipInsts.count(Inst))
-          DFSanVisitor(DFSF).visit(Inst);
-	*/
+        if (!DFSF.SkipInsts.count(Inst)) {
+            if (CallInst* cInst = dyn_cast<CallInst>(Inst)) {
+                if (cInst->getCalledFunction() 
+                        && (cInst->getCalledFunction()->getName() == "getDecryptedValueByte"
+                        || cInst->getCalledFunction()->getName() == "getDecryptedValueWord"
+                        || cInst->getCalledFunction()->getName() == "getDecryptedValueDWord"
+                        || cInst->getCalledFunction()->getName() == "getDecryptedValueQWord")) {
+                    // Call instructions
+                    DFSanVisitor(DFSF).visit(Inst);
+                }
+            } else if (StoreInst* stInst = dyn_cast<StoreInst>(Inst)) {
+                if (stInst->getMetadata("MAYBE-TAINT")) {
+                    DFSanVisitor(DFSF).visit(Inst);
+                }
+            } else if (PHINode* phiNode = dyn_cast<PHINode>(Inst)) {
+                // If one of the operands is the CallInst, only then
+                // instrument it
+                int numIncomingValues = phiNode->getNumIncomingValues();
+                if (numIncomingValues == 2) { 
+                    for (int i = 0; i < numIncomingValues; i++) {
+                        Value* phiIncomingVal = phiNode->getIncomingValue(i);
+                        if (CallInst* callInst = dyn_cast<CallInst>(phiIncomingVal)) {
+                            //if (cInst->getCalledFunction()) {
+                                // Checking getCalledFunction crashes, and I'm too
+                                // tired to investigate why. We'll live with
+                                // some extra instrumentations for now
+                                /*
+                                if ((cInst->getCalledFunction()->getName() == "getDecryptedValueByte"
+                                            || cInst->getCalledFunction()->getName() == "getDecryptedValueWord"
+                                            || cInst->getCalledFunction()->getName() == "getDecryptedValueDWord"
+                                            || cInst->getCalledFunction()->getName() == "getDecryptedValueQWord")) {
+                                */
+                                    // Only then visit the phinode
+                                    DFSanVisitor(DFSF).visit(Inst);
+                                //}
+                            //}
+                        }
+                    }
+                }
+            }
+        }
         if (IsTerminator)
           break;
         Inst = Next;
@@ -1303,6 +1349,137 @@ void DFSanVisitor::visitLoadInst(LoadInst &LI) {
   DFSF.setShadow(&LI, Shadow);
 }
 
+void DFSanFunction::setEncryptedValueCachedDfsan(StoreInst* plainTextVal) {
+    Module* M = plainTextVal->getParent()->getParent()->getParent();
+    // The instrumentation phase must have already added the declarations of
+    // these functions (hopefully? fingers-crossed :P)
+    Function* DFSanReadLabelFn = M->getFunction("dfsan_read_label");
+    Function* encryptLoopByteFunction = M->getFunction("setEncryptedValueByte");
+    Function* encryptLoopWordFunction = M->getFunction("setEncryptedValueWord");
+    Function* encryptLoopDWordFunction = M->getFunction("setEncryptedValueDWord");
+    Function* encryptLoopQWordFunction = M->getFunction("setEncryptedValueQWord");
+
+    int byteOffset = 0;
+    Value* PointerVal = nullptr;
+    Type* PlainTextValType = nullptr;
+    GetElementPtrInst* GEPVal;
+    IRBuilder<> Builder(plainTextVal);
+    IntegerType* PlainTextValIntType = nullptr;
+    PointerType* PlainTextValPtrType = nullptr;
+    VectorType* PlainTextValVecType = nullptr;
+
+    StoreInst* stInst = dyn_cast<StoreInst>(plainTextVal);
+    Value* stInstPtrOperand = stInst->getPointerOperand();
+    Value* stInstValueOperand = stInst->getValueOperand();
+
+    Type* byteType = Type::getInt8Ty(plainTextVal->getContext());
+    PointerType* bytePtrType = PointerType::get(byteType, 0);
+
+    int INCREMENT = 0;
+    PlainTextValIntType = dyn_cast<IntegerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
+    PlainTextValPtrType = dyn_cast<PointerType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
+    PlainTextValVecType = dyn_cast<VectorType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType());
+
+    int vectorNumElements = 0;
+    if (VectorType *vectorType = dyn_cast<VectorType>(plainTextVal->getPointerOperand()->getType()->getPointerElementType())){
+        Type* thisType = dyn_cast<Type>(vectorType);
+        vectorNumElements = thisType->getVectorNumElements();
+    }
+    if (PlainTextValIntType) {
+        if (PlainTextValIntType->getBitWidth() == 8) {
+            INCREMENT = 1;
+        } else if (PlainTextValIntType->getBitWidth() == 16) {
+            INCREMENT = 2;
+        } else if (PlainTextValIntType->getBitWidth() == 32) {
+            INCREMENT = 4;
+        } else if (PlainTextValIntType->getBitWidth() == 64) {
+            INCREMENT = 8;
+        }
+    }
+    std::vector<Value*> encryptArgList;
+    PointerType* stInstPtrType = dyn_cast<PointerType>(stInstPtrOperand->getType());
+    IntegerType* stInstIntegerType = dyn_cast<IntegerType>(stInstPtrType->getPointerElementType());
+    PointerType* stInstPtrElemType = dyn_cast<PointerType>(stInstPtrType->getPointerElementType()); 
+    VectorType* stInstVectorType = dyn_cast<VectorType>(stInstPtrType->getPointerElementType());
+    Value* PtrOperand = nullptr;
+    Value* ValueOperand = nullptr;
+
+    if (stInstIntegerType && stInstIntegerType->getBitWidth() == 8) {
+        PtrOperand = stInstPtrOperand;
+    } else {
+        PtrOperand = Builder.CreateBitCast(stInstPtrOperand, bytePtrType);
+    }
+
+    if (stInstIntegerType) {
+        ValueOperand = stInstValueOperand; 
+    } else if (stInstVectorType) {
+        ValueOperand = stInstValueOperand;
+    } else {
+        // Check needed for NULL assignments
+        if (stInstValueOperand->getType()->isPointerTy()) {
+            // Convert the pointer to i64
+            ValueOperand = Builder.CreatePtrToInt(stInstValueOperand, IntegerType::get(stInstPtrOperand->getContext(), 64));
+        } else {
+            ValueOperand = stInstValueOperand;
+        }
+    }
+
+    // Adding call to dfsan_read_label. Since we added constant 1 as label, we check against 1; 
+    // depending on the compare result we create branch
+    CallInst* readLabel = nullptr;
+    ConstantInt* noOfByte = Builder.getInt64(1);
+    readLabel = Builder.CreateCall(DFSanReadLabelFn, {PtrOperand, noOfByte});
+    readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+
+    Type *int32Ty;
+    int32Ty = Type::getInt32Ty(plainTextVal->getContext());
+
+
+    ConstantInt *One = Builder.getInt16(1);
+    Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+    Instruction* SplitBefore = cast<Instruction>(plainTextVal);
+
+    TerminatorInst *ThenTerm, *ElseTerm;
+    SplitBlockAndInsertIfThenElse(cmpInst, SplitBefore, &ThenTerm, &ElseTerm);
+
+    Builder.SetInsertPoint(ThenTerm);
+
+    encryptArgList.push_back(PtrOperand);
+    encryptArgList.push_back(ValueOperand);
+
+    Value* val = nullptr;
+    switch(INCREMENT) {
+        case 1:
+            val = Builder.CreateCall(encryptLoopByteFunction, encryptArgList);
+            break;
+        case 2:
+            val = Builder.CreateCall(encryptLoopWordFunction, encryptArgList);
+            break;
+        case 4:
+            val = Builder.CreateCall(encryptLoopDWordFunction, encryptArgList);
+            break;
+        case 8:
+            val = Builder.CreateCall(encryptLoopQWordFunction, encryptArgList);
+            break;
+    }
+
+    Builder.SetInsertPoint(ElseTerm);
+
+    auto* originalStore = stInst->clone();
+    originalStore->insertBefore(ElseTerm);
+
+    Builder.SetInsertPoint(SplitBefore);
+}
+
+
+void DFSanFunction::performConditionalEncryption(Value *Addr, uint64_t Size, uint64_t Align,
+                                Value *Shadow, Instruction *Pos) {
+
+    if (StoreInst* storeInst = dyn_cast<StoreInst>(Pos)) {
+       setEncryptedValueCachedDfsan(storeInst); 
+    }
+}
+
 void DFSanFunction::storeShadow(Value *Addr, uint64_t Size, uint64_t Align,
                                 Value *Shadow, Instruction *Pos) {
   if (AllocaInst *AI = dyn_cast<AllocaInst>(Addr)) {
@@ -1356,6 +1533,28 @@ void DFSanFunction::storeShadow(Value *Addr, uint64_t Size, uint64_t Align,
 }
 
 void DFSanVisitor::visitStoreInst(StoreInst &SI) {
+  errs() << "instrumenting store\n";
+  Type* storeValTy = SI.getValueOperand()->getType();
+  Type* storePtrTy = SI.getPointerOperand()->getType()->getPointerElementType();
+
+  if (!storeValTy || !storePtrTy || !storeValTy->isIntegerTy() || !storePtrTy->isIntegerTy()) {
+      return;
+  }
+
+  // If both the storeValTy and the storePtrTy have integer types
+  // Make sure that they have simple integer types
+  IntegerType* storeValIntTy = dyn_cast<IntegerType>(storeValTy);
+  IntegerType* storePtrIntTy = dyn_cast<IntegerType>(storePtrTy);
+
+  if (!storeValIntTy ||
+          !(storeValIntTy->getBitWidth() == 8 || storeValIntTy->getBitWidth() == 16 
+           || storeValIntTy->getBitWidth() == 32 || storeValIntTy->getBitWidth() == 64) 
+          || !storePtrIntTy || !(storePtrIntTy->getBitWidth() == 8 || storePtrIntTy->getBitWidth() == 16
+              || storePtrIntTy->getBitWidth() == 32 || storePtrIntTy->getBitWidth() == 64)) {
+      return;
+      
+  }
+
   auto &DL = SI.getModule()->getDataLayout();
   uint64_t Size = DL.getTypeStoreSize(SI.getValueOperand()->getType());
   if (Size == 0)
@@ -1371,11 +1570,20 @@ void DFSanVisitor::visitStoreInst(StoreInst &SI) {
   }
 
   Value* Shadow = DFSF.getShadow(SI.getValueOperand());
+  errs() << "SI.getValueOperand(): " << *(SI.getValueOperand()) << "\n";
+  /*
   if (ClCombinePointerLabelsOnStore) {
     Value *PtrShadow = DFSF.getShadow(SI.getPointerOperand());
     Shadow = DFSF.combineShadows(Shadow, PtrShadow, &SI);
   }
+  */
   DFSF.storeShadow(SI.getPointerOperand(), Size, Align, Shadow, &SI);
+  // Once the value has been stored, the taint has flowed to the store
+  // location
+  // If it didn't have the taint, it's contents aren't encrypted yet.
+  // But now, it has the taint, so it must be encrypted
+  DFSF.performConditionalEncryption(SI.getPointerOperand(), Size, Align, Shadow, &SI);
+
 }
 
 void DFSanVisitor::visitBinaryOperator(BinaryOperator &BO) {
@@ -1508,6 +1716,42 @@ void DFSanVisitor::visitReturnInst(ReturnInst &RI) {
 }
 
 void DFSanVisitor::visitCallSite(CallSite CS) {
+    errs() << "Instrumenting call-site\n";
+
+    Function *F = CS.getCalledFunction();
+    CallInst* CI = dyn_cast<CallInst>(CS.getInstruction());
+
+    assert(CI && "no call instruction?");
+
+    assert((F->getName() == "getDecryptedValueByte" 
+            || F->getName() == "getDecryptedValueWord" 
+            || F->getName() == "getDecryptedValueDWord" 
+            || F->getName() == "getDecryptedValueQWord") && "no other call-site should be instrumented");
+
+    assert(CI->getNumArgOperands() == 1 && "getDecryptedXX have only one argument");
+    Value* PointerOperand = CI->getArgOperand(0);
+    // Do the same thing as DFSan's default Load instruction
+    // Find the size
+
+    uint64_t Size = -1;
+    if (F->getName() == "getDecryptedValueByte") {
+        Size = 1;
+    } else if (F->getName() == "getDecryptedValueWord") {
+        Size = 2;
+    } else if (F->getName() == "getDecryptedValueDWord") {
+        Size = 3;
+    } else if (F->getName() == "getDecryptedValueQWord") {
+        Size = 4;
+    }
+
+    IRBuilder<> IRB(CI);
+    Value *Shadow = DFSF.loadShadow(PointerOperand, Size, 16, CI);
+    // No need to do any combining or anything
+    // Just set it to the Instruction
+
+    DFSF.setShadow(CI, Shadow);
+
+    /*
   Function *F = CS.getCalledFunction();
   if ((F && F->isIntrinsic()) || isa<InlineAsm>(CS.getCalledValue())) {
     visitOperandShadowInst(*CS.getInstruction());
@@ -1734,9 +1978,11 @@ void DFSanVisitor::visitCallSite(CallSite CS) {
 
     CS.getInstruction()->eraseFromParent();
   }
+  */
 }
 
 void DFSanVisitor::visitPHINode(PHINode &PN) {
+    errs() << "Visiting PHI Node\n";
   PHINode *ShadowPN =
       PHINode::Create(DFSF.DFS.ShadowTy, PN.getNumIncomingValues(), "", &PN);
 

@@ -714,6 +714,34 @@ void WPAPass::getPtsFrom(NodeID ptdId, std::vector<PAGNode*>& pointsFrom) {
     }
 }
 
+/*
+void WPAPass::buildResultMaps(void) {
+    PAG* pag = _pta->getPAG();
+    for (PAG::iterator it = pag->begin(), eit = pag->end(); it != eit; it++) {
+        NodeID ptr = it->first;
+        PointsTo pts = _pta->getPts(it->first);
+        PAGNode* node = pag->getPAGNode(ptr);
+        if (isa<DummyValPN>(node) || isa<DummyObjPN>(node)) {
+            continue;
+        }
+
+        for (NodeBS::iterator ptIt = pts.begin(), ptEit = pts.end(); ptIt != ptEit; ++ptIt) {
+            PAGNode* ptNode = pag->getPAGNode(*ptIt);
+            if (!isa<ObjPN>(ptNode)) {
+                continue;
+            }
+            if (isa<DummyValPN>(ptNode) || isa<DummyObjPN>(ptNode)) {
+                continue;
+            }
+            if (node != ptNode) {
+                pagPtsToMap[node].insert(ptNode);
+                pagPtsFromMap[ptNode].insert(node);
+            }
+        }
+    }
+}
+*/
+
 /**
  * Get all pointers that that point to the SDD
  * In case of Steensgaard this is the same as getPtsFrom. In case of Andersen
@@ -742,20 +770,53 @@ void WPAPass::getPtsFromSDD(NodeID ptdId, std::vector<PAGNode*>& pointsFrom) {
         }
         // For all the pointers in ptsFrom, find their pointsTo
         for (NodeBS::iterator ptIt = ptsFrom.begin(), ptEit = ptsFrom.end(); ptIt != ptEit; ++ptIt) {
+            PAGNode* ptrNode = pag->getPAGNode(*ptIt);
+            if (isa<DummyValPN>(ptrNode) || isa<DummyObjPN>(ptrNode)) {
+                continue;
+            }
+
             PointsTo tempPts = andersen->getPts(*ptIt);
             // who all point to tempPts?
             for (NodeBS::iterator ptfIt = tempPts.begin(), ptfEit = tempPts.end(); ptfIt != ptfEit; ++ptfIt) {
-                *newPointsFrom |= andersen->getRevPts(*ptfIt);
-            }           
-        }   
+                PAGNode* ptdNode = pag->getPAGNode(*ptfIt);
+                if (!isa<ObjPN>(ptdNode)) {
+                    continue;
+                }
+                if (isa<DummyValPN>(ptdNode) || isa<DummyObjPN>(ptdNode)) {
+                    continue;
+                }
+				
+
+                if (ptrNode != ptdNode) {
+                    if (ptdNode->hasValue()) {
+                        if (isa<Function>(ptdNode->getValue())) {
+                            continue;
+                        }
+						if (ptdNode->getNodeKind() == PAGNode::FIObjNode) {
+							ObjPN* objPN = dyn_cast<ObjPN>(ptdNode);
+							assert(objPN && "ObjPN but not ObjPN?");
+							if (!objPN->getMemObj()->isFieldInsensitive()) {
+								// skip!
+								continue;
+							} else {
+								// Oh well,
+								//errs() << "field insensitive: " << *objPN << "\n";
+							}
+						}
+						if (!isa<DummyValPN>(ptdNode) && !isa<DummyObjPN>(ptdNode)) {
+							*newPointsFrom |= andersen->getRevPts(*ptfIt);
+						}
+					}
+				}
+			}           
+		}   
         changed = ptsFrom |= *newPointsFrom;
+        newPointsFrom->clear();
     } while (changed);
 
     for (NodeBS::iterator ptIt = ptsFrom.begin(), ptEit = ptsFrom.end(); ptIt != ptEit; ++ptIt) {
         PAGNode* ptNode = pag->getPAGNode(*ptIt);
-        if (isa<ValPN>(ptNode)) {
-            pointsFrom.push_back(ptNode);
-        }
+        pointsFrom.push_back(ptNode);
     }
 }
 

@@ -37,6 +37,13 @@ namespace {
             std::set<Value*> ExtraSensitivePtrs;
             std::vector<string> instrumentedExternalFunctions;
 
+
+            void addTaintMetaData(Instruction* Inst) {
+                LLVMContext& C = Inst->getContext();
+                MDNode* N = MDNode::get(C, MDString::get(C, "maybe-taint"));
+                Inst->setMetadata("MAYBE-TAINT", N);
+            }
+
             void doVFADirect(Value* work, std::vector<Value*>& sinkSites,
                     std::vector<Value*>& workList, std::vector<Value*>& processedList);
 
@@ -76,6 +83,8 @@ namespace {
             std::vector<InstructionReplacement*> ReplacementCheckList;
 
             std::vector<PAGNode*> SensitiveObjList; // We maintain the PAGNodes here to record field sensitivity
+            std::set<PAGNode*> InitSensitiveTaintedObjSet;
+
 
             std::vector<Value*> SensitiveLoadPtrList; // Any pointer that points to sensitive location
             std::vector<Value*> SensitiveLoadList;
@@ -368,6 +377,10 @@ void EncryptionPass::collectLoadStoreStats(Module& M) {
     errs() << "Statistics: \n";
     errs() << "% of Loads accessing sensitive memory regions: " << format("%.3f\n", ((double)getDecCount)/((double)getDecCount+loadCount)*100.0) << "\n";
     errs() << "% of Stores accessing sensitive memory regions: " << format("%.3f\n", ((double)setEncCount)/((double)(setEncCount+storeCount))*100.0) << "\n";
+    long totalEncDecCount = getDecCount + setEncCount;
+    long totalMemOpCount = totalEncDecCount + loadCount + storeCount;
+    errs() << "% of Mem. Ops instrumented: " << format("%.3f\n", ((double)totalEncDecCount/(double)totalMemOpCount)*100.0) << "\n";
+
 }
 
 bool EncryptionPass::containsSet(llvm::Value* V, std::set<llvm::Value*>& L) {
@@ -886,6 +899,10 @@ void EncryptionPass::doVFAIndirect(Value* work, std::vector<Value*>& sinkSites,
             for (User* loadUser: loadInst->users()) {
                 if (StoreInst* storeInst = dyn_cast<StoreInst>(loadUser)) {
                     if (storeInst->getValueOperand() == loadInst) {
+                        // This store location *might* be sensitive. 
+                        // We can only say for sure, at runtime
+                        // Add meta-data and leave it for DFSan to figure it out.
+                        addTaintMetaData(storeInst);
                         Value* storeLocation = storeInst->getPointerOperand();
                         handleSink(storeLocation, sinkSites, workList, processedList);
                     }
@@ -903,6 +920,11 @@ void EncryptionPass::doVFADirect(Value* work, std::vector<Value*>& sinkSites,
             for (User* loadUser: loadInst->users()) {
                 if (StoreInst* storeInst = dyn_cast<StoreInst>(loadUser)) {
                     if (storeInst->getValueOperand() == loadInst) {
+                        // This store location *might* be sensitive. 
+                        // We can only say for sure, at runtime
+                        // Add meta-data and leave it for DFSan to figure it out.
+                        addTaintMetaData(storeInst);
+
                         // Handle different types of sinks
                         Value* storeLocation = storeInst->getPointerOperand();
                         handleSink(storeLocation, sinkSites, workList, processedList);
@@ -3846,7 +3868,7 @@ void EncryptionPass::initializeSensitiveGlobalVariables(Module& M) {
     Function* EncryptGlobalFunction = Function::Create(FTypeDec, Function::ExternalLinkage, "encrypt_globals", &M);
     Function* PopulateKeysFunction = Function::Create(FTypePopKey, Function::ExternalLinkage, "populate_keys", &M);
 
-    DataLayout dataLayout = M.getDataLayout();
+    const DataLayout& dataLayout = M.getDataLayout();
     // Find the main function
     std::string entryFunctions[] = {"main"};
     Function* mainFunction = nullptr;
@@ -3951,6 +3973,7 @@ void EncryptionPass::initializeSensitiveGlobalVariables(Module& M) {
             }
             Type* globalType = globalTypePtr->getPointerElementType();
             uint64_t sizeOfGlobalType = dataLayout.getTypeAllocSize(globalType);
+            errs() << "size of global type: " << *globalType << ": " << sizeOfGlobalType << "\n";
             ConstantInt* sizeOfConstant = ConstantInt::get(longType, sizeOfGlobalType, false);
             // Send it off to encryptGlobal routine to encrypt
             std::vector<Value*> encryptGlobalArgs;
@@ -4150,10 +4173,12 @@ void EncryptionPass::addPAGNodesFromSensitiveObjects(std::vector<Value*>& sensit
                     // If this is a sub-type struct, then we have a problem and should
                     // abort
                     assert(!isa<StructType>(subType) && "Don't support structs in a sensitive struct yet");
+                    /*
                     if (isa<PointerType>(subType) || isa<ArrayType>(subType)) {
                         // Skip!
                         continue;
                     }
+                    */
                 }
                 SensitiveObjList.push_back(fldNode);
             } else {
@@ -4416,6 +4441,10 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     addPAGNodesFromSensitiveObjects(sensitiveMemAllocCalls);
 
+    for (PAGNode* node: SensitiveObjList) {
+        InitSensitiveTaintedObjSet.insert(node);
+    }
+
     if (!skipVFA) {
         performSourceSinkAnalysis(M);
     }
@@ -4475,6 +4504,11 @@ bool EncryptionPass::runOnModule(Module &M) {
     std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
     errs() << "After adding sensitive objects from PointsFromSet: " << SensitiveObjList.size() << " memory objects found\n";
 
+    if (!Partitioning) {
+        for (PAGNode* sensitiveNode: *SensitiveObjSet) {
+            errs() << "After points-from analysis ensitive node: " << *sensitiveNode << "\n";
+        }
+    }
 
     if (Confidentiality) {
         AESCache.initializeAes(M);
@@ -4488,7 +4522,7 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     if(Partitioning){
         //Set Labels for Sensitive objects
-        AESCache.setLabelsForSensitiveObjects(M, SensitiveObjSet, ptsToMap, ptsFromMap);
+        AESCache.setLabelsForSensitiveObjects(M, &InitSensitiveTaintedObjSet, ptsToMap, ptsFromMap);
         AESCache.trackDownAllRecursiveSensitiveAllocations(M);
         AESCache.unsetLabelsForCriticalFreeWrapperFunctions(M, CriticalFreeWrapperFunctions);
     }
@@ -4578,7 +4612,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     }
 
     if (skipVFA) {
-        errs() << "************* ANALYZED WITH VALUE FLOW ANALYSIS SKIPPED! *********************\n";
+        errs() << "************* STOP!!!!!!!!!!!!! ANALYZED WITH VALUE FLOW ANALYSIS SKIPPED! *********************\n";
     }
     return true;
 }
