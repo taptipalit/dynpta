@@ -1,3 +1,4 @@
+#include <malloc.h>
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdint.h>
@@ -889,7 +890,7 @@ void* aes_malloc(long size) {
     
     //printf("AES_malloc size %ld\n",roundedSize);
     void* Ptr = aligned_alloc(16, roundedSize);
-    //printf( "Malloc ptr = %p for size = %d bytes.\n", Ptr, roundedSize);
+    fprintf(stderr, "Malloc ptr = %p for size = %d bytes.\n", Ptr, roundedSize);
     return Ptr;
 }
 
@@ -918,7 +919,7 @@ void* aes_calloc(long nmem, long elem_size) {
     //printf("AES_calloc size %ld\n",roundedSize);
     void* Ptr = aligned_alloc(16, roundedSize);
     memset(Ptr, 0, roundedSize);
-    //fprintf(stderr, "Calloc ptr = %p\n", Ptr);
+    fprintf(stderr, "Calloc ptr = %p\n", Ptr);
     //printf("AES_calloc size %d\n",roundedSize);
     return Ptr;
 }
@@ -1017,3 +1018,16 @@ int vasprintf128(char **strp, const char *fmt, va_list arg) {
     *strp = retptr;
     return ret;
 }
+
+void annotate(void* ptr, int bytes) {
+/*
+    fprintf(stderr, "annotating ptr at: %p\n", ptr);
+    if (ptr == 0x0) return;
+    size_t noOfByte = malloc_usable_size(ptr);
+    noOfByte -=8; // some alignment stuff
+    dfsan_set_label(1, ptr, noOfByte);
+    //dividing noOfByte by 128 since we multiplied by 128 during memory allocation
+    encryptArrayForLibCall(ptr, noOfByte);
+*/
+}
+

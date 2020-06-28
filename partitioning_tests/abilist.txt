@@ -1,6 +1,9 @@
 fun:main=uninstrumented
 fun:main=discard
 
+fun:annotate=uninstrumented
+fun:annotate=discard
+
 ###############################################################################
 # DFSan interface functions
 ###############################################################################
@@ -178,6 +181,50 @@ fun:socketpair=discard
 fun:stat=discard
 fun:time=discard
 
+fun:nist*=discard
+fun:nist*=uninstrumented
+
+fun:BN*=discard
+fun:BN*=uninstrumented
+
+fun:EC*=uninstrumented
+fun:EC*=discard
+
+fun:ec*=uninstrumented
+fun:ec*=discard
+
+fun:SSL*=uninstrumented
+fun:SSL*=discard
+
+fun:ssl*=uninstrumented
+fun:ssl*=discard
+
+fun:BIO*=uninstrumented
+fun:BIO*=discard
+
+fun:CRYPTO*=uninstrumented
+fun:CRYPTO*=discard
+
+
+fun:EC_KEY_generate_key=discard
+fun:EC_KEY_generate_key=uninstrumented
+fun:BN_nist_mod_256=discard
+fun:ec_GFp_nist_field_sqr=discard
+fun:ec_GFp_simple_dbl=discard
+fun:EC_POINT_dbl=discard
+fun:ec_mul_consttime=discard
+fun:ec_wNAF_mul=discard
+fun:EC_POINTs_mul=discard
+fun:EC_POINT_mul=discard
+
+fun:BN_nist_mod_256=uninstrumented
+fun:ec_GFp_nist_field_sqr=uninstrumented
+fun:ec_GFp_simple_dbl=uninstrumented
+fun:EC_POINT_dbl=uninstrumented
+fun:ec_mul_consttime=uninstrumented
+fun:ec_wNAF_mul=uninstrumented
+fun:EC_POINTs_mul=uninstrumented
+fun:EC_POINT_mul=uninstrumented
 # Functions that produce an output that depend on the input (propagate the
 # shadow manually).
 fun:ctime_r=discard

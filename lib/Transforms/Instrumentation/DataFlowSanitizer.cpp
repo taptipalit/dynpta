@@ -775,6 +775,9 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
   std::vector<Function *> FnsToInstrument;
   SmallPtrSet<Function *, 2> FnsWithNativeABI;
   for (Function &i : M) {
+      if (i.getName() == "BN_nist_mod_256") {
+          continue;
+      }
     if (!i.isIntrinsic() &&
         &i != DFSanUnionFn &&
         &i != DFSanCheckedUnionFn &&
@@ -826,6 +829,7 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
                               FT->getReturnType()->isVoidTy());
 
     if (isInstrumented(&F)) {
+        errs() << "Instrumenting: "<< F.getName() << "\n";
       // Instrumented functions get a 'dfs$' prefix.  This allows us to more
       // easily identify cases of mismatching ABIs.
       if (getInstrumentedABI() == IA_Args && !IsZeroArgsVoidRet) {

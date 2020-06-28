@@ -4526,9 +4526,9 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     if(Partitioning){
         //Set Labels for Sensitive objects
-        AESCache.setLabelsForSensitiveObjects(M, &InitSensitiveTaintedObjSet, ptsToMap, ptsFromMap);
-        AESCache.trackDownAllRecursiveSensitiveAllocations(M);
-        AESCache.unsetLabelsForCriticalFreeWrapperFunctions(M, CriticalFreeWrapperFunctions);
+        //AESCache.setLabelsForSensitiveObjects(M, &InitSensitiveTaintedObjSet, ptsToMap, ptsFromMap);
+        //AESCache.trackDownAllRecursiveSensitiveAllocations(M);
+        //AESCache.unsetLabelsForCriticalFreeWrapperFunctions(M, CriticalFreeWrapperFunctions);
     }
     dbgs() << "Initialized AES, widened buffers to multiples of 128 bits\n";
 
