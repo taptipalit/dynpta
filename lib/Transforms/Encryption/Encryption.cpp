@@ -2199,6 +2199,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             }
             //externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
         } else if (externalFunction->getName() == "calloc" || externalFunction->getName() == "aes_calloc" ) {
+            /*
             Function* instrumentFunction = M.getFunction("encryptArrayForLibCall");
             std::vector<Value*> ArgList;
             Value* numElements = externalCallInst->getArgOperand(0);
@@ -2210,6 +2211,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             // Insert call instruction to call the function
             CallInst* CInst = CallInst::Create(instrumentFunction, ArgList);
             CInst->insertAfter(externalCallInst);
+            */
         } /*else if (externalFunction->getName() == "realloc" ) {
             Function* instrumentFunction = M.getFunction("encryptArrayForLibCall");
             std::vector<Value*> ArgList;
