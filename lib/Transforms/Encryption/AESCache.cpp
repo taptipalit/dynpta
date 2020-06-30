@@ -591,6 +591,7 @@ namespace external {
                                     }
                                     /* widening memory allocation for context sensitive malloc calls*/
                                     // skip if wrapper does not have any argument
+                                    /*
                                     if(callInst->getNumOperands() > 1){
                                         IRBuilder<> builder(callInst);
                                         ConstantInt* multiplier1 = builder.getInt32(128);
@@ -598,6 +599,7 @@ namespace external {
                                         Value* mul = builder.CreateMul(arg, dyn_cast<Value>(multiplier1));
                                         callInst->setOperand(0,mul);
                                     }
+                                    */
                                     Builder.CreateCall(this->setLabelForContextSensitiveCallsFn, {argVal});
                                     continue;
                                 }else {
@@ -781,6 +783,25 @@ namespace external {
                 if (I->getName() != "llvm.global.annotations") {
                     GlobalVariable* GV = cast<GlobalVariable>(I);
                     GV->setAlignment(16);
+                }
+            }
+
+            // Do processing for all globalvariables
+            for (GlobalVariable& gVar: M.getGlobalList()) {
+                if (gVar.hasInitializer()) {
+                    Constant* init = gVar.getInitializer();
+                    if (Function* function = dyn_cast<Function>(init)) {
+                        if (function->getName() == "malloc") {
+                            // Change this to aes_malloc
+                            gVar.setInitializer(aesMallocFunction);
+                        } else if (function->getName() == "calloc") {
+                            gVar.setInitializer(aesCallocFunction);
+                        } else if (function->getName() == "realloc") {
+                            gVar.setInitializer(aesReallocFunction);
+                        } else if (function->getName() == "strdup") {
+                            gVar.setInitializer(aesStrdupFunction);
+                        }
+                    }
                 }
             }
 

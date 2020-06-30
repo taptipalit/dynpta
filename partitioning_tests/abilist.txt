@@ -4,6 +4,9 @@ fun:main=discard
 fun:annotate=uninstrumented
 fun:annotate=discard
 
+fun:malloc_usable_size=uninstrumented
+fun:malloc_usable_size=discard
+
 ###############################################################################
 # DFSan interface functions
 ###############################################################################
