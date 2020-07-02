@@ -1,5 +1,6 @@
 #include <malloc.h>
 #define _GNU_SOURCE
+#include <execinfo.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -30,8 +31,35 @@ void encrypt_memory(void*);
 void encrypt_debug(void*);
 void decrypt_debug(void*);
 
+
+#define BT_BUF_SIZE 100
+
+void myfunc3(void)
+{
+	int j, nptrs;
+	void *buffer[BT_BUF_SIZE];
+	char **strings;
+
+	nptrs = backtrace(buffer, BT_BUF_SIZE);
+	printf("backtrace() returned %d addresses\n", nptrs);
+
+	/* The call backtrace_symbols_fd(buffer, nptrs, STDOUT_FILENO)
+	   would produce similar output to the following: */
+
+	strings = backtrace_symbols(buffer, nptrs);
+	if (strings == NULL) {
+		perror("backtrace_symbols");
+		exit(EXIT_FAILURE);
+	}
+
+	for (j = 0; j < nptrs; j++)
+		printf("%s\n", strings[j]);
+
+	free(strings);
+}
+
 void writeback_cache() {
-    if (lastAddr > 0 && dirty) {
+	if (lastAddr > 0 && dirty) {
         encrypt_cache((void*)lastAddr);
     }
     lastAddr = 0x0;
@@ -853,7 +881,7 @@ void setLabelForContextSensitiveCalls(void* ptr){
 }
 
 void aes_free(void* ptr) {
-//    printf( "free Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
+    //fprintf(stderr, "free Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
     size_t noOfByte = malloc_usable_size(ptr);
     dfsan_set_label(0, ptr, noOfByte);
     free(ptr);
@@ -881,7 +909,7 @@ void* aes_freeWithBitcast(void* ptr) {
 }
 
 void* aes_malloc(long size) {
-    size = size*16; // hack to fix widening
+    size = size*128; // hack to fix widening
     long roundedSize = -1;
     if (size % 16 == 0) {
         roundedSize = size;
@@ -891,7 +919,8 @@ void* aes_malloc(long size) {
     
     //printf("AES_malloc size %ld\n",roundedSize);
     void* Ptr = aligned_alloc(16, roundedSize);
-    fprintf(stderr, "Malloc ptr = %p for size = %d bytes.\n", Ptr, roundedSize);
+    //fprintf(stderr, "Malloc ptr = %p for size = %d bytes.\n", Ptr, roundedSize);
+	//myfunc3();
     return Ptr;
 }
 
@@ -920,12 +949,12 @@ void* aes_calloc(long nmem, long elem_size) {
     //printf("AES_calloc size %ld\n",roundedSize);
     void* Ptr = aligned_alloc(16, roundedSize);
     memset(Ptr, 0, roundedSize);
-    fprintf(stderr, "Calloc ptr = %p\n", Ptr);
+    //fprintf(stderr, "Calloc ptr = %p\n", Ptr);
 //    printf("AES_calloc size %d\n",roundedSize);
     return Ptr;
 }
 void* aes_realloc(void* ptr, long size) {
-    size = size*16; // hack to fix widening
+    size = size*128; // hack to fix widening
     long roundedSize = -1;
     if (size % 16 == 0) {
         roundedSize = size;
@@ -1020,13 +1049,14 @@ int vasprintf128(char **strp, const char *fmt, va_list arg) {
     return ret;
 }
 
+int count = 0;
 void annotate(void* ptr, int bytes) {
     fprintf(stderr, "annotating ptr at: %p\n", ptr);
     if (ptr == 0x0) return;
     size_t noOfByte = malloc_usable_size(ptr);
     noOfByte -=8; // some alignment stuff
     fprintf(stderr, "no of bytes: %d\n", noOfByte);
-    dfsan_set_label(1, ptr, noOfByte);
-    encryptArrayForLibCall(ptr, noOfByte);
+    dfsan_set_label(1, ptr, noOfByte/16);
+    encryptArrayForLibCall(ptr, noOfByte/16);
 }
 

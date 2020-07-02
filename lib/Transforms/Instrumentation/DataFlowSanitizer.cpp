@@ -775,7 +775,11 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
   std::vector<Function *> FnsToInstrument;
   SmallPtrSet<Function *, 2> FnsWithNativeABI;
   for (Function &i : M) {
+      // Temporary hacks, will fix later
       if (i.getName() == "BN_nist_mod_256") {
+          continue;
+      }
+      if (i.getName() =="BN_copy" || i.getName() == "BN_MONT_CTX_set") {
           continue;
       }
     if (!i.isIntrinsic() &&
