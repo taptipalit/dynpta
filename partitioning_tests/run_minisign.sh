@@ -44,8 +44,8 @@ fi
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $file.bc 
-$LLVMROOT/opt -encryption -steens-fast -skip-csa=false -skip-vfa -callsite-threshold=10 -optimized-check=false -confidentiality=true -partitioning=true  $file.bc -o $fileinst.bc
-$LLVMROOT/opt --dfsan $fileinst.bc -o $filedfsan.bc
+$LLVMROOT/opt -encryption -steens-fast -skip-csa=false -skip-vfa=false -callsite-threshold=10 -optimized-check=false -confidentiality=true -partitioning=true  $file.bc -o $fileinst.bc
+$LLVMROOT/opt --dfsan -dfsan-abilist=./abilist.txt $fileinst.bc -o $filedfsan.bc
 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc

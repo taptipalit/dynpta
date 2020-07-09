@@ -1060,3 +1060,10 @@ void annotate(void* ptr, int bytes) {
     encryptArrayForLibCall(ptr, noOfByte/16);
 }
 
+void annotate1(void* ptr, int bytes) {
+    fprintf(stderr, "annotating ptr at: %p\n", ptr);
+    if (ptr == 0x0) return;
+    dfsan_set_label(1, ptr, bytes);
+    encryptArrayForLibCall(ptr, bytes);
+
+}

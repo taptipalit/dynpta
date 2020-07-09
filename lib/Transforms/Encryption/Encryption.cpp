@@ -14,6 +14,7 @@
 using namespace llvm;
 
 namespace {
+cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl::init(true), cl::Hidden);
 
     struct InstructionReplacement {
         Instruction* OldInstruction;
@@ -39,9 +40,11 @@ namespace {
 
 
             void addTaintMetaData(Instruction* Inst) {
-                LLVMContext& C = Inst->getContext();
-                MDNode* N = MDNode::get(C, MDString::get(C, "maybe-taint"));
-                Inst->setMetadata("MAYBE-TAINT", N);
+                if (!skipVFA) {
+                    LLVMContext& C = Inst->getContext();
+                    MDNode* N = MDNode::get(C, MDString::get(C, "maybe-taint"));
+                    Inst->setMetadata("MAYBE-TAINT", N);
+                }
             }
 
             void doVFADirect(Value* work, std::vector<Value*>& sinkSites,
@@ -250,7 +253,6 @@ namespace {
 char EncryptionPass::ID = 0;
 
 //cl::opt<bool> NullEnc("null-enc", cl::desc("XOR Encryption"), cl::init(false), cl::Hidden);
-cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl::init(true), cl::Hidden);
 cl::opt<bool> Partitioning("partitioning", cl::desc("Partitioning"), cl::init(false), cl::Hidden);
 cl::opt<bool> OptimizedCheck("optimized-check", cl::desc("Reduce no of Checks needed"), cl::init(false), cl::Hidden);
 cl::opt<bool> ReadFromFile("read-from-file", cl::desc("Read from file"), cl::init(false), cl::Hidden);
@@ -1936,6 +1938,12 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
             // Check get the decrypted value
             decryptionCount++;
             Value* decryptedValue = nullptr;
+            if (IntegerType* intType = dyn_cast<IntegerType>(LdInst->getType())) {
+                // Fix this
+                if (intType->getBitWidth() > 64) {
+                    continue;
+                }
+            }
             decryptedValue = AESCache.getDecryptedValueCachedDfsan(LdInst);
             PHINode* phi = dyn_cast<PHINode>(decryptedValue);
             if (phi) {
