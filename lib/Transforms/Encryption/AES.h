@@ -108,8 +108,19 @@ namespace external{
             llvm::Module* M;
             void findReturnInstsOfFunction(llvm::Function*, std::vector<ReturnInst*>&);
 
+            bool skipVFA;
+
+            void addTaintMetaData(llvm::Instruction* Inst) {
+                if (!skipVFA) {
+                    LLVMContext& C = Inst->getContext();
+                    MDNode* N = MDNode::get(C, MDString::get(C, "maybe-taint"));
+                    Inst->setMetadata("MAYBE-TAINT", N);
+                }
+            }
+
+
         public:
-            void initializeAes(llvm::Module&);
+            void initializeAes(llvm::Module&, bool);
 
             void clearLabelForSensitiveObjects(llvm::Module&, std::vector<PAGNode*>&);
             bool allFieldsSensitive(StructType*);

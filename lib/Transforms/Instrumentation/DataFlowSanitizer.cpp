@@ -952,7 +952,9 @@ bool DataFlowSanitizer::runOnModule(Module &M) {
                         || cInst->getCalledFunction()->getName() == "getDecryptedValueDWord"
                         || cInst->getCalledFunction()->getName() == "getDecryptedValueQWord")) {
                     // Call instructions
-                    DFSanVisitor(DFSF).visit(Inst);
+                    if (cInst->getMetadata("MAYBE-TAINT")) {
+                        DFSanVisitor(DFSF).visit(Inst);
+                    }
                 }
             } else if (StoreInst* stInst = dyn_cast<StoreInst>(Inst)) {
                 if (stInst->getMetadata("MAYBE-TAINT")) {

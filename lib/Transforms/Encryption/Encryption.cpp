@@ -4471,6 +4471,9 @@ bool EncryptionPass::runOnModule(Module &M) {
     errs() << "Total sensitive allocation sites: " << SensitiveObjSet->size() << "\n";
     for (PAGNode* sensitiveNode: *SensitiveObjSet) {
         errs() << "Sensitive node: " << *(sensitiveNode->getValue()) << "\n";
+        if (const Instruction* inst = dyn_cast<Instruction>(sensitiveNode->getValue())) {
+            errs() << "Function: " << inst->getParent()->getParent()->getName() << "\n";
+        }
     }
     SensitiveObjList.clear();
     std::copy(SensitiveObjSet->begin(), SensitiveObjSet->end(), std::back_inserter(SensitiveObjList));
@@ -4525,7 +4528,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     }
 
     if (Confidentiality) {
-        AESCache.initializeAes(M);
+        AESCache.initializeAes(M, skipVFA);
         AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
     }
 

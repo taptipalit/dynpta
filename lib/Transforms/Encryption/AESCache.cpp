@@ -226,10 +226,11 @@ namespace external {
         this->memcpySensDstFunction = Function::Create(FTypeMemcpy, Function::ExternalLinkage, "memcpy_sens_dst", &M);
     }
 
-    void AESCache::initializeAes(Module &M) {
+    void AESCache::initializeAes(Module &M, bool skip) {
         I128Ty = IntegerType::get(M.getContext(), 128);
         this->M = &M;
         addExternAESFuncDecls(M);
+        skipVFA = skip;
     }
 
     bool AESCache::findTrueOffset(StructType* topLevelType, int topLevelOffset, int* beginOffset, StructType** nestedTypePtr, int* nestedOffsetPtr) {
@@ -1609,15 +1610,27 @@ namespace external {
                 switch(INCREMENT) {
                     case 1:
                         retVal = Builder.CreateCall(this->decryptLoopByteFunction, decryptArgList);
+                        if (CallInst* cInst = dyn_cast<CallInst>(retVal)) {
+                            addTaintMetaData(cInst);
+                        }
                         break;
                     case 2:
                         retVal = Builder.CreateCall(this->decryptLoopWordFunction, decryptArgList);
+                        if (CallInst* cInst = dyn_cast<CallInst>(retVal)) {
+                            addTaintMetaData(cInst);
+                        }
                         break;
                     case 4:
                         retVal = Builder.CreateCall(this->decryptLoopDWordFunction, decryptArgList);
+                        if (CallInst* cInst = dyn_cast<CallInst>(retVal)) {
+                            addTaintMetaData(cInst);
+                        }
                         break;
                     case 8:
                         retVal = Builder.CreateCall(this->decryptLoopQWordFunction, decryptArgList);
+                        if (CallInst* cInst = dyn_cast<CallInst>(retVal)) {
+                            addTaintMetaData(cInst);
+                        }
                         break;
                     case 16:
                         retVal = Builder.CreateCall(this->decryptLoopVectorFunction, decryptArgList);
