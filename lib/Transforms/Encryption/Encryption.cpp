@@ -1886,6 +1886,10 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
     for (std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementList.begin() ; 
             ReplacementIt != ReplacementList.end(); ++ReplacementIt) {
         InstructionReplacement* Repl = *ReplacementIt;
+        if (Repl->OldInstruction->getParent()->getParent()->getName() == "apr_thread_create") {
+            errs() << "Skipping\n";
+            continue;
+        }
         if (Repl->Type == LOAD) {
             IRBuilder<> Builder(Repl->NextInstruction); // Insert before "next" instruction
             LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
@@ -1931,6 +1935,10 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
     for (std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementCheckList.begin() ;
             ReplacementIt != ReplacementCheckList.end(); ++ReplacementIt) {
         InstructionReplacement* Repl = *ReplacementIt;
+        if (Repl->OldInstruction->getParent()->getParent()->getName() == "apr_thread_create") {
+            errs() << "Skipping\n";
+            continue;
+        }
         if (Repl->Type == LOAD) {
             IRBuilder<> Builder(Repl->NextInstruction); // Insert before "next" instruction
             LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
@@ -2061,6 +2069,10 @@ inline void EncryptionPass::externalFunctionHandlerForPartitioning(Module &M, Ca
     }
 
     Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
+    if (externalCallInst->getParent()->getParent()->getName() == "apr_thread_create") {
+        return;
+    }
+    errs() << "Inserting dfsan_read_label for function: " << externalCallInst->getParent()->getParent()->getName() << "\n";
 
     CallInst* readLabel = nullptr;
     ConstantInt* noOfByte = Builder.getInt64(1);
@@ -4152,11 +4164,12 @@ void EncryptionPass::fixupSizeOfOperators(Module& M) {
 
                                     errs() << "Should have fixed up callinst: " << *CI << " for type : " << *(sizeOfType) << "\n";
                                     ConstantInt* constInt = dyn_cast<ConstantInt>(CI->getOperand(argIndex));
-                                    assert(constInt && "Broken index of sizeof constant in call instruction");
-                                    int updatedSize = M.getDataLayout().getTypeAllocSize(sizeOfType);
-                                    errs() << "New size = " << updatedSize << "\n";
-                                    ConstantInt* updatedSizeConst = ConstantInt::get(IntegerType::get(M.getContext(), constInt->getBitWidth()), updatedSize);
-                                    CI->setOperand(argIndex, updatedSizeConst);
+                                    if (constInt) {
+                                        int updatedSize = M.getDataLayout().getTypeAllocSize(sizeOfType);
+                                        errs() << "New size = " << updatedSize << "\n";
+                                        ConstantInt* updatedSizeConst = ConstantInt::get(IntegerType::get(M.getContext(), constInt->getBitWidth()), updatedSize);
+                                        CI->setOperand(argIndex, updatedSizeConst);
+                                    }
                                 }
                             }
                         }
