@@ -1050,7 +1050,18 @@ int vasprintf128(char **strp, const char *fmt, va_list arg) {
 }
 
 int count = 0;
+
+void annotateStr(void* ptr) {
+    int len = strlen(ptr);
+    dfsan_set_label(1, ptr, len);
+    encryptStringAfterLibCall(ptr);
+}
+
 void annotate(void* ptr, int bytes) {
+    if (bytes == 0) {
+        annotateStr(ptr);
+        return;
+    }
     fprintf(stderr, "annotating ptr at: %p\n", ptr);
     if (ptr == 0x0) return;
     size_t noOfByte = malloc_usable_size(ptr);
