@@ -25,6 +25,7 @@ unsigned long aes_enc_count = 0;
 unsigned long aes_dec_count = 0;
 unsigned long taint_dec_count = 0;
 unsigned long taint_lookup_count = 0;
+unsigned long fn_call_count = 0;
 
 ADDRINT taintLookupFnAddr = 0;
 
@@ -32,7 +33,7 @@ ADDRINT taintLookupFnAddr = 0;
 VOID RecordMemRead(VOID * ip, VOID * addr)
 {
     mem_read_count++;
-    if (mem_read_count % 10 == 0) {
+    if (mem_read_count % 100 == 0) {
         fprintf(trace, "mem read: %lu\n", mem_read_count);
     }
 }
@@ -41,30 +42,37 @@ VOID RecordMemRead(VOID * ip, VOID * addr)
 VOID RecordMemWrite(VOID * ip, VOID * addr)
 {
     mem_write_count++;
-    if (mem_write_count % 10 == 0) {
+    if (mem_write_count % 100 == 0) {
         fprintf(trace, "mem write: %lu\n", mem_write_count);
     }
 }
 
 VOID RecordAesEnc(VOID * ip) {
     aes_enc_count++;
-    //if (aes_enc_count % 1000 == 0) {
+    if (aes_enc_count % 100 == 0) {
         fprintf(trace, "aes encryptions: %lu\n", aes_enc_count); 
-    //}
+    }
 }
 
 VOID RecordAesDec(VOID * ip) {
     aes_dec_count++;
-    //if (aes_dec_count % 1000 == 0) {
+    if (aes_dec_count % 100 == 0) {
         fprintf(trace, "aes decryptions: %lu\n", aes_dec_count); 
-    //}
+    }
 }
 
 VOID RecordTaintLookupCall(VOID * ip) {
     taint_lookup_count++;
-    //if (aes_dec_count % 1000 == 0) {
+    if (taint_lookup_count % 1000 == 0) {
         fprintf(trace, "taint lookups: %lu\n", taint_lookup_count); 
-    //}
+    }
+}
+
+VOID RecordFnCall(VOID * ip) {
+    fn_call_count++;
+    if (fn_call_count % 10 == 0) {
+        fprintf(trace, "fn calls: %lu\n", fn_call_count); 
+    }
 }
 
 VOID Image(IMG img, VOID *v)
@@ -94,13 +102,16 @@ VOID Instruction(INS ins, VOID *v)
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordAesDec, IARG_INST_PTR, IARG_END);
     } else if (XED_ICLASS_AESENC == INS_Opcode(ins)) {
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordAesEnc, IARG_INST_PTR, IARG_END);
-    } else if (INS_IsDirectCall(ins)) {
+    } else if (INS_IsCall(ins)) {
 
-        ADDRINT targetCallAddr = INS_DirectControlFlowTargetAddress(ins);
-        // What's the symbol at this address?
-        if (taintLookupFnAddr == targetCallAddr) {
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordTaintLookupCall, IARG_INST_PTR, IARG_END);
+        if (INS_IsDirectCall(ins)) {
+            ADDRINT targetCallAddr = INS_DirectControlFlowTargetAddress(ins);
+            // What's the symbol at this address?
+            if (taintLookupFnAddr == targetCallAddr) {
+                INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordTaintLookupCall, IARG_INST_PTR, IARG_END);
+            }
         }
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordFnCall, IARG_INST_PTR, IARG_END);
     }
     // Iterate over each memory operand of the instruction.
     for (UINT32 memOp = 0; memOp < memOperands; memOp++)
