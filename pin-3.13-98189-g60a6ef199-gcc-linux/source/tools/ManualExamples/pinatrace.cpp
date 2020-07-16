@@ -25,9 +25,85 @@ unsigned long aes_enc_count = 0;
 unsigned long aes_dec_count = 0;
 unsigned long taint_dec_count = 0;
 unsigned long taint_lookup_count = 0;
+unsigned long writeback_count = 0;
 unsigned long fn_call_count = 0;
 
+unsigned long encrypt_cache_count = 0;
+unsigned long decrypt_cache_count = 0;
+unsigned long encrypt_external_count = 0;
+unsigned long decrypt_external_count = 0;
+
+
 ADDRINT taintLookupFnAddr = 0;
+ADDRINT writebackFnAddr = 0;
+ADDRINT encryptCacheFnAddr = 0;
+ADDRINT decryptCacheFnAddr = 0;
+ADDRINT encryptExternalFnAddr = 0;
+ADDRINT decryptExternalFnAddr = 0;
+
+ADDRINT setEncryptedValueByteFnAddr = 0;
+ADDRINT setEncryptedValueWordFnAddr = 0;
+ADDRINT setEncryptedValueDWordFnAddr = 0;
+ADDRINT setEncryptedValueQWordFnAddr = 0;
+
+
+ADDRINT getDecryptedValueByteFnAddr = 0;
+ADDRINT getDecryptedValueWordFnAddr = 0;
+ADDRINT getDecryptedValueDWordFnAddr = 0;
+ADDRINT getDecryptedValueQWordFnAddr = 0;
+
+VOID RecordDecryptExternCall(VOID *ip, VOID * addr) {
+    decrypt_external_count++;
+    if (decrypt_external_count % 10 == 0) {
+        fprintf(trace, "decrypt_external: %lu\n", decrypt_external_count);
+    }
+}
+
+VOID RecordEncryptExternCall(VOID *ip, VOID * addr) {
+    encrypt_external_count++;
+    if (encrypt_external_count % 10 == 0) {
+        fprintf(trace, "encrypt_external: %lu\n", encrypt_external_count);
+    }
+}
+
+VOID RecordEncryptCacheCall(VOID *ip, VOID * addr) {
+    /*
+    encrypt_cache_count++;
+    if (encrypt_cache_count % 10 == 0) {
+        fprintf(trace, "encrypt_cache: %lu\n", encrypt_cache_count);
+    }
+    */
+}
+
+VOID RecordDecryptCacheCall(VOID *ip, VOID * addr) {
+    /*
+    decrypt_cache_count++;
+    if (decrypt_cache_count % 10 == 0) {
+        fprintf(trace, "decrypt_cache: %lu\n", decrypt_cache_count);
+    }
+    */
+}
+
+VOID RecordCacheDecryptCall(VOID *ip, VOID *addr) {
+    decrypt_cache_count++;
+    if (decrypt_cache_count % 10 == 0) {
+        fprintf(trace, "getDecXXXX: %lu\n", decrypt_cache_count);
+    }
+}
+
+VOID RecordCacheEncryptCall(VOID* ip, VOID *addr) {
+    encrypt_cache_count++;
+    if (encrypt_cache_count % 10 == 0) {
+        fprintf(trace, "setEncXXXX: %lu\n", encrypt_cache_count);
+    }
+}
+
+VOID RecordWritebackCall(VOID *ip, VOID * addr) {
+    writeback_count++;
+    if (writeback_count % 100 == 0) {
+        fprintf(trace, "writeback: %lu\n", writeback_count);
+    }
+}
 
 // Print a memory read record
 VOID RecordMemRead(VOID * ip, VOID * addr)
@@ -77,13 +153,88 @@ VOID RecordFnCall(VOID * ip) {
 
 VOID Image(IMG img, VOID *v)
 {
+    fprintf(trace, "img type: %d\n", IMG_Type(img));
     // Instrument the malloc() and free() functions.  Print the input argument
     // of each malloc() or free(), and the return value of malloc().
     //
     //  Find the malloc() function.
     RTN taintLookupFn = RTN_FindByName(img, "dfsan_read_label");
+    RTN writebackFn = RTN_FindByName(img, "writeback_cache"); 
+    RTN encryptCacheFn = RTN_FindByName(img, "encrypt_cache");
+    RTN decryptCacheFn = RTN_FindByName(img, "decrypt_cache");
+    RTN encryptExternalFn = RTN_FindByName(img, "encryptArrayForLibCall");
+    RTN decryptExternalFn = RTN_FindByName(img, "decryptArrayForLibCall");
+
+    // The get/set cache routines
+    RTN setEncryptedValueByteFn = RTN_FindByName(img, "setEncryptedValueByte");
+    RTN setEncryptedValueWordFn = RTN_FindByName(img, "setEncryptedValueWord");
+    RTN setEncryptedValueDWordFn = RTN_FindByName(img, "setEncryptedValueDWord");
+    RTN setEncryptedValueQWordFn = RTN_FindByName(img, "setEncryptedValueQWord");
+
+    RTN getDecryptedValueByteFn = RTN_FindByName(img, "getDecryptedValueByte");
+    RTN getDecryptedValueWordFn = RTN_FindByName(img, "getDecryptedValueWord");
+    RTN getDecryptedValueDWordFn = RTN_FindByName(img, "getDecryptedValueDWord");
+    RTN getDecryptedValueQWordFn = RTN_FindByName(img, "getDecryptedValueQWord");
+
     if (RTN_Valid(taintLookupFn)) {
         taintLookupFnAddr = RTN_Address(taintLookupFn);
+    }
+    if (RTN_Valid(writebackFn)) {
+        writebackFnAddr = RTN_Address(writebackFn);
+    }
+    if (RTN_Valid(encryptCacheFn)) {
+        fprintf(trace, "Found encrypt_cache fn\n");
+        encryptCacheFnAddr = RTN_Address(encryptCacheFn);
+        fprintf(trace, "Address: %lx\n", encryptCacheFnAddr);
+    }
+    if (RTN_Valid(decryptCacheFn)) {
+        fprintf(trace, "Found decrypt_cache fn\n");
+        decryptCacheFnAddr = RTN_Address(decryptCacheFn);
+        fprintf(trace, "Address: %lx\n", decryptCacheFnAddr);
+
+    }
+    if (RTN_Valid(encryptExternalFn)) {
+        fprintf(trace, "Found decryptArray fn\n");
+        encryptExternalFnAddr = RTN_Address(encryptExternalFn);
+        fprintf(trace, "Address: %lx\n", encryptExternalFnAddr);
+    }
+    if (RTN_Valid(decryptExternalFn)) {
+        fprintf(trace, "Found encryptArray fn\n");
+        decryptExternalFnAddr = RTN_Address(decryptExternalFn);
+    }
+
+    if (RTN_Valid(setEncryptedValueByteFn)) {
+        fprintf(trace, "Found setEncryptedValueByte fn\n");
+        setEncryptedValueByteFnAddr = RTN_Address(setEncryptedValueByteFn);
+    }
+    if (RTN_Valid(setEncryptedValueWordFn)) {
+        fprintf(trace, "Found setEncryptedValueWord fn\n");
+        setEncryptedValueWordFnAddr = RTN_Address(setEncryptedValueWordFn);
+    }
+    if (RTN_Valid(setEncryptedValueDWordFn)) {
+        fprintf(trace, "Found setEncryptedValueDWord fn\n");
+        setEncryptedValueDWordFnAddr = RTN_Address(setEncryptedValueDWordFn);
+    }
+    if (RTN_Valid(setEncryptedValueQWordFn)) {
+        fprintf(trace, "Found setEncryptedValueQword fn\n");
+        setEncryptedValueQWordFnAddr = RTN_Address(setEncryptedValueQWordFn);
+    }
+
+    if (RTN_Valid(getDecryptedValueByteFn)) {
+        fprintf(trace, "Found getDecryptedValueByte fn\n");
+        getDecryptedValueByteFnAddr = RTN_Address(getDecryptedValueByteFn);
+    }
+    if (RTN_Valid(getDecryptedValueWordFn)) {
+        fprintf(trace, "Found getDecryptedValueWord fn\n");
+        getDecryptedValueWordFnAddr = RTN_Address(getDecryptedValueWordFn);
+    }
+    if (RTN_Valid(getDecryptedValueDWordFn)) {
+        fprintf(trace, "Found getDecryptedValueDWord fn\n");
+        getDecryptedValueDWordFnAddr = RTN_Address(getDecryptedValueDWordFn);
+    }
+    if (RTN_Valid(getDecryptedValueQWordFn)) {
+        fprintf(trace, "Found getDecryptedValueQword fn\n");
+        getDecryptedValueQWordFnAddr = RTN_Address(getDecryptedValueQWordFn);
     }
 }
  
@@ -109,6 +260,27 @@ VOID Instruction(INS ins, VOID *v)
             // What's the symbol at this address?
             if (taintLookupFnAddr == targetCallAddr) {
                 INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordTaintLookupCall, IARG_INST_PTR, IARG_END);
+            }
+            if (writebackFnAddr == targetCallAddr) {
+                INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordWritebackCall, IARG_INST_PTR, IARG_END);
+            }
+            if (encryptCacheFnAddr == targetCallAddr) {
+                INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordEncryptCacheCall, IARG_INST_PTR, IARG_END);
+            }
+            if (decryptCacheFnAddr == targetCallAddr) {
+                INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordDecryptCacheCall, IARG_INST_PTR, IARG_END);
+            }
+            if (encryptExternalFnAddr == targetCallAddr) {
+                INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordEncryptExternCall, IARG_INST_PTR, IARG_END);
+            }
+            if (decryptExternalFnAddr == targetCallAddr) {
+                INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordDecryptExternCall, IARG_INST_PTR, IARG_END);
+            }
+            if (getDecryptedValueByteFnAddr == targetCallAddr || getDecryptedValueWordFnAddr == targetCallAddr || getDecryptedValueDWordFnAddr == targetCallAddr || getDecryptedValueQWordFnAddr == targetCallAddr) {
+                INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordCacheDecryptCall, IARG_INST_PTR, IARG_END);
+            }
+            if (setEncryptedValueByteFnAddr == targetCallAddr || setEncryptedValueWordFnAddr == targetCallAddr || setEncryptedValueDWordFnAddr == targetCallAddr || setEncryptedValueQWordFnAddr == targetCallAddr) {
+                INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordCacheEncryptCall, IARG_INST_PTR, IARG_END);
             }
         }
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordFnCall, IARG_INST_PTR, IARG_END);
