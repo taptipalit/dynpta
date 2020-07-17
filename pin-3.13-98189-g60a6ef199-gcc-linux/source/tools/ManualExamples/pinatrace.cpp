@@ -15,9 +15,14 @@
 
 #include <stdio.h>
 #include "pin.H"
+#include <map>
+#include <string>
 
 
 FILE * trace;
+
+std::map<ADDRINT, int> taintMap;
+std::map<ADDRINT, const char*> lookupCallerMap;
 
 unsigned long mem_read_count = 0;
 unsigned long mem_write_count = 0;
@@ -202,6 +207,10 @@ VOID RecordTaintSetCall(VOID * ip) {
     */
 }
 
+VOID buildTaintLookupProfile(VOID * ip) {
+    taintMap[(ADDRINT)ip]++;
+}
+
 VOID RecordFnCall(VOID * ip) {
     fn_call_count++;
     /*
@@ -307,6 +316,20 @@ VOID Image(IMG img, VOID *v)
     }
 }
  
+VOID InstrumentDfsanReadLabel(INS ins, VOID *v) {
+    if (INS_IsDirectCall(ins)) {
+        ADDRINT targetCallAddr = INS_DirectControlFlowTargetAddress(ins);
+        RTN caller = INS_Rtn(ins);
+        // What's the symbol at this address?
+        if (taintLookupFnAddr == targetCallAddr) {
+            char * funcName = (char*)malloc(strlen(RTN_Name(caller).c_str()));
+            strcpy(funcName, RTN_Name(caller).c_str());
+            lookupCallerMap[INS_Address(ins)] = funcName;
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)buildTaintLookupProfile, IARG_INST_PTR, IARG_END);
+        }
+    }
+}
+
 // Is called for every instruction and instruments reads and writes
 VOID Instruction(INS ins, VOID *v)
 {
@@ -390,6 +413,15 @@ VOID Instruction(INS ins, VOID *v)
 
 VOID Fini(INT32 code, VOID *v)
 {
+    /*
+    for (auto const& x: lookupCallerMap) {
+        fprintf(trace, "%lx: %s\n", x.first, x.second);
+    }
+    */
+    for (auto const& x : taintMap) {
+        fprintf(trace, "----> %lx: %s: %d\n", x.first, lookupCallerMap[x.first], x.second);
+    }
+
     fprintf(trace, "inst_count: %lu\n", inst_count);
     fprintf(trace, "decrypt_external: %lu\n", decrypt_external_count);
     fprintf(trace, "encrypt_external: %lu\n", encrypt_external_count);
@@ -435,6 +467,7 @@ int main(int argc, char *argv[])
     IMG_AddInstrumentFunction(Image, 0);
 
     INS_AddInstrumentFunction(Instruction, 0);
+    INS_AddInstrumentFunction(InstrumentDfsanReadLabel, 0);
     PIN_AddFiniFunction(Fini, 0);
 
     // Never returns
