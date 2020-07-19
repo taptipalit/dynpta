@@ -418,9 +418,11 @@ VOID Fini(INT32 code, VOID *v)
         fprintf(trace, "%lx: %s\n", x.first, x.second);
     }
     */
+    /*
     for (auto const& x : taintMap) {
         fprintf(trace, "----> %lx: %s: %d\n", x.first, lookupCallerMap[x.first], x.second);
     }
+    */
 
     fprintf(trace, "inst_count: %lu\n", inst_count);
     fprintf(trace, "decrypt_external: %lu\n", decrypt_external_count);

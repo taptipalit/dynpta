@@ -2201,7 +2201,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         int numArgs = externalCallInst->getNumArgOperands();
 
         // In case of AES cache encryption, write back the cache
-        AESCache.writeback(externalCallInst);
+        //AESCache.writeback(externalCallInst);
 
         if (externalFunction->getName() == "select") {
             // TODO - Handle all arguments
@@ -4339,6 +4339,27 @@ bool EncryptionPass::runOnModule(Module &M) {
     PAG* pag = getAnalysis<WPAPass>().getPAG();
     // Set up the external functions handled
 
+    instrumentedExternalFunctions.push_back("strtol");
+    instrumentedExternalFunctions.push_back("strcpy");
+    instrumentedExternalFunctions.push_back("strncpy");
+    instrumentedExternalFunctions.push_back("strcasecmp");
+    instrumentedExternalFunctions.push_back("strlen");
+    instrumentedExternalFunctions.push_back("strrchr");
+    instrumentedExternalFunctions.push_back("aes_strdup");
+    instrumentedExternalFunctions.push_back("strstr");
+    instrumentedExternalFunctions.push_back("strcasestr");
+
+    instrumentedExternalFunctions.push_back("llvm.memcpy");
+    instrumentedExternalFunctions.push_back("bzero");
+    instrumentedExternalFunctions.push_back("llvm.memset");
+    instrumentedExternalFunctions.push_back("memset");
+
+    instrumentedExternalFunctions.push_back("memcmp");
+    instrumentedExternalFunctions.push_back("memchr");
+    instrumentedExternalFunctions.push_back("memrchr");
+
+
+    /*
     instrumentedExternalFunctions.push_back("select");
     instrumentedExternalFunctions.push_back("calloc");
     instrumentedExternalFunctions.push_back("aes_calloc");
@@ -4416,6 +4437,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     instrumentedExternalFunctions.push_back("uname");
     instrumentedExternalFunctions.push_back("mk_string_build");
     instrumentedExternalFunctions.push_back("fopen64");
+    */
 
     //M.print(errs(), nullptr);
     LLVM_DEBUG (
