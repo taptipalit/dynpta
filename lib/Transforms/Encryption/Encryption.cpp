@@ -76,6 +76,8 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
             external::ASMParser asmParser;
 
 
+            std::set<Function*> writebackCacheFunctions;
+
             /* Hacky code to handle function pointers */
             std::vector<Function*> MallocFunctions;
 
@@ -1043,6 +1045,15 @@ void EncryptionPass::performSourceSinkAnalysis(Module& M) {
     // Put it back in PAG-world
     for (Value* sinkVal: sinkSites) {
         SensitiveObjList.push_back(pag->getPAGNode(pag->getObjectNode(sinkVal)));
+    }
+    // Set up the writeback functions
+    // Pull these from SensitiveObjList not sinkSites because sinkSites don't
+    // have the original sensitive objects
+    for (PAGNode* pagNode: SensitiveObjList) {
+        Value* sensitiveValue = const_cast<Value*>(pagNode->getValue());
+        if (AllocaInst* allocInst = dyn_cast<AllocaInst>(sensitiveValue)) {
+            writebackCacheFunctions.insert(allocInst->getParent()->getParent());
+        }
     }
 }
 
@@ -4541,7 +4552,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     }
 
     if (Confidentiality) {
-        AESCache.initializeAes(M, skipVFA);
+        AESCache.initializeAes(M, skipVFA, writebackCacheFunctions);
         AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
     }
 

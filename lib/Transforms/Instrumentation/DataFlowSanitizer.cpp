@@ -1472,6 +1472,7 @@ void DFSanFunction::performConditionalEncryption(Value *Addr, uint64_t Size, uin
 
 void DFSanFunction::storeShadow(Value *Addr, uint64_t Size, uint64_t Align,
                                 Value *Shadow, Instruction *Pos) {
+    //errs() << "Store shadown with width: " << Size << "\n";
   if (AllocaInst *AI = dyn_cast<AllocaInst>(Addr)) {
     const auto i = AllocaShadowMap.find(AI);
     if (i != AllocaShadowMap.end()) {

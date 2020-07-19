@@ -226,11 +226,12 @@ namespace external {
         this->memcpySensDstFunction = Function::Create(FTypeMemcpy, Function::ExternalLinkage, "memcpy_sens_dst", &M);
     }
 
-    void AESCache::initializeAes(Module &M, bool skip) {
+    void AESCache::initializeAes(Module &M, bool skip, std::set<Function*>& writebackCacheFunctions) {
         I128Ty = IntegerType::get(M.getContext(), 128);
         this->M = &M;
         addExternAESFuncDecls(M);
         skipVFA = skip;
+        this->wbCFs = &writebackCacheFunctions;
     }
 
     bool AESCache::findTrueOffset(StructType* topLevelType, int topLevelOffset, int* beginOffset, StructType** nestedTypePtr, int* nestedOffsetPtr) {
@@ -835,9 +836,12 @@ namespace external {
                                             } else if (strdupStr.equals(function->getName())) {
                                                 callInst->setCalledFunction(aesStrdupFunction);
                                             } else if (freeStr.equals(function->getName()) ) {
+                                                // No need to writeback
+                                                /*
                                                 std::vector<Value*> argList;
                                                 CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
                                                 writebackInst->insertAfter(callInst);
+                                                */
                                                 callInst->setCalledFunction(aesFreeFunction);
                                             } else if (exitStr.equals(function->getName()) ) {
                                                 IRBuilder<> Builder(callInst);
@@ -850,9 +854,13 @@ namespace external {
                                                     Value* op = castOp->getOperand(i);
                                                     if (Function* func = dyn_cast<Function>(op)) {
                                                         if (freeStr.equals(func->getName())) {
+                                                            // No need to
+                                                            // writeback 
+                                                            /*
                                                             std::vector<Value*> argList;
                                                             CallInst* writebackInst = CallInst::Create(this->writebackFunction, argList);
                                                             writebackInst->insertAfter(callInst);
+                                                            */
                                                             callInst->setCalledFunction(aesFreeWithBitcastFunction);
                                                         }
                                                     }
@@ -866,7 +874,12 @@ namespace external {
                                             std::vector<Value*> argList;
                                             Builder.CreateCall(this->getEncDecCountFunction, argList);
                                         }
-                                        writeback(retInst); // Invalidate the cache
+                                        // Only if this function is identified
+                                        // as something that needs
+                                        // writebackCacheFunctions
+                                        if (std::find(wbCFs->begin(), wbCFs->end(), retInst->getParent()->getParent()) != wbCFs->end()) {
+                                            writeback(retInst); // Invalidate the cache
+                                        }
                                     }
                                 }
                             }

@@ -117,10 +117,10 @@ namespace external{
                     Inst->setMetadata("MAYBE-TAINT", N);
                 }
             }
-
+            std::set<Function*>* wbCFs;
 
         public:
-            void initializeAes(llvm::Module&, bool);
+            void initializeAes(llvm::Module&, bool, std::set<Function*>&);
 
             void clearLabelForSensitiveObjects(llvm::Module&, std::vector<PAGNode*>&);
             bool allFieldsSensitive(StructType*);

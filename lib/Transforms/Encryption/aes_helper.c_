@@ -883,7 +883,7 @@ void setLabelForContextSensitiveCalls(void* ptr){
 void aes_free(void* ptr) {
     //fprintf(stderr, "free Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
     size_t noOfByte = malloc_usable_size(ptr);
-    dfsan_set_label(0, ptr, noOfByte);
+    //dfsan_set_label(0, ptr, noOfByte);
     free(ptr);
 }
 
@@ -903,7 +903,7 @@ void free_wrapper (void* ptr) {
 void* aes_freeWithBitcast(void* ptr) {
     //printf( "Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
     size_t noOfByte = malloc_usable_size(ptr);
-    dfsan_set_label(0, ptr, noOfByte);
+    //dfsan_set_label(0, ptr, noOfByte);
     free(ptr);
     return ptr;
 }
