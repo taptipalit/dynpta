@@ -89,7 +89,7 @@ namespace external{
 
             llvm::Function* DFSanSetLabelFn;
             llvm::Function* setLabelForContextSensitiveCallsFn;
-            llvm::Function* DFSanReadLabelFn;
+            llvm::InlineAsm* DFSanReadLabelFn;
 
             llvm::Function* aesMallocFunction;
             llvm::Function* aesCallocFunction;

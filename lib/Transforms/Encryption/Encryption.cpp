@@ -2079,7 +2079,15 @@ inline void EncryptionPass::externalFunctionHandlerForPartitioning(Module &M, Ca
         fixedArgList.push_back(ArgList[i]);
     }
 
-    Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
+    const DataLayout &DL = M.getDataLayout();
+    LLVMContext *Ctx;
+    Ctx = &M.getContext();
+    IntegerType* ShadowTy = IntegerType::get(*Ctx, 16);
+    IntegerType* IntptrTy = DL.getIntPtrType(*Ctx);
+    Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(*Ctx), IntptrTy };
+    FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
+
+    InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq $$0xffff8fffffffffff, %rax\n\t and %rax, $1 \n\t add $1, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
     if (externalCallInst->getParent()->getParent()->getName() == "apr_thread_create") {
         return;
     }
@@ -2089,7 +2097,8 @@ inline void EncryptionPass::externalFunctionHandlerForPartitioning(Module &M, Ca
     ConstantInt* noOfByte = Builder.getInt64(1);
     ConstantInt *One = Builder.getInt16(1);
 
-    assert(DFSanReadLabelFn->getType()->isPointerTy() && "We shouldn't be dealing with virtual register values here");
+    // tpalit -- this assertion makes no sense. Who added it and why? 
+    //assert(DFSanReadLabelFn->getType()->isPointerTy() && "We shouldn't be dealing with virtual register values here");
     /* If it's not a i8* cast it */
 
     Type* readLabelPtrElemType = addrForReadLabel->getType()->getPointerElementType();
@@ -2137,6 +2146,16 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
 
     std::vector<Value*> sensitivePointerValueList; // List of sensitive pointers (the pointer itself is sensitive)
     /*IntegerType* longTy = IntegerType::get(M.getContext(), 64);*/
+    const DataLayout &DL = M.getDataLayout();
+    LLVMContext *Ctx;
+    Ctx = &M.getContext();
+    IntegerType* ShadowTy = IntegerType::get(*Ctx, 16);
+    IntegerType* IntptrTy = DL.getIntPtrType(*Ctx);
+    Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(*Ctx), IntptrTy };
+    FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
+
+    InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq $$0xffff8fffffffffff, %rax\n\t and %rax, $1 \n\t add $1, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
+
 
     for (CallInst* externalCallInst : SensitiveExternalLibCallList) {
         //errs()<<"CallInst "<<*externalCallInst<<"\n";
@@ -2286,7 +2305,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 if (Partitioning){
 
                     IRBuilder<> Builder(externalCallInst);
-                    Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
 
                     CallInst* readLabel = nullptr;
                     ConstantInt* noOfByte = Builder.getInt64(1);
@@ -2451,7 +2469,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 if (Partitioning){
 
                     IRBuilder<> Builder(externalCallInst);
-                    Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
 
                     CallInst* readLabel = nullptr;
                     ConstantInt* noOfByte = Builder.getInt64(1);
@@ -2560,7 +2577,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 if (Partitioning){
 
                     IRBuilder<> Builder(externalCallInst);
-                    Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
 
                     CallInst* readLabel = nullptr;
                     ConstantInt* noOfByte = Builder.getInt64(1);
@@ -2722,7 +2738,6 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     if (isSensitiveArg(arg, ptsToMap) ) {
 
                         IRBuilder<> Builder(externalCallInst);
-                        Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
 
                         CallInst* readLabel = nullptr;
                         ConstantInt* noOfByte = Builder.getInt64(1);

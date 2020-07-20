@@ -1343,7 +1343,15 @@ void DFSanFunction::setEncryptedValueCachedDfsan(StoreInst* plainTextVal) {
     Module* M = plainTextVal->getParent()->getParent()->getParent();
     // The instrumentation phase must have already added the declarations of
     // these functions (hopefully? fingers-crossed :P)
-    Function* DFSanReadLabelFn = M->getFunction("dfsan_read_label");
+    const DataLayout &DL = M->getDataLayout();
+    LLVMContext *Ctx;
+    Ctx = &M->getContext();
+    IntegerType* ShadowTy = IntegerType::get(*Ctx, 16);
+    IntegerType* IntptrTy = DL.getIntPtrType(*Ctx);
+    Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(*Ctx), IntptrTy };
+    FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
+    InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq $$0xffff8fffffffffff, %rax\n\t and %rax, $1 \n\t add $1, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
+    //Function* DFSanReadLabelFn = M->getFunction("dfsan_read_label");
     Function* encryptLoopByteFunction = M->getFunction("setEncryptedValueByte");
     Function* encryptLoopWordFunction = M->getFunction("setEncryptedValueWord");
     Function* encryptLoopDWordFunction = M->getFunction("setEncryptedValueDWord");
