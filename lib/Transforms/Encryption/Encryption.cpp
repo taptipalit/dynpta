@@ -2227,7 +2227,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         int numArgs = externalCallInst->getNumArgOperands();
 
         // In case of AES cache encryption, write back the cache
-        //AESCache.writeback(externalCallInst);
+        AESCache.writeback(externalCallInst);
 
         if (externalFunction->getName() == "select") {
             // TODO - Handle all arguments

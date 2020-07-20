@@ -1057,6 +1057,18 @@ void annotateStr(void* ptr) {
     encryptStringAfterLibCall(ptr);
 }
 
+void annotate(void* ptr) {
+    fprintf(stderr, "annotating ptr at: %p\n", ptr);
+    if (ptr == 0x0) return;
+    size_t noOfByte = malloc_usable_size(ptr);
+    noOfByte -=8; // some alignment stuff
+    fprintf(stderr, "no of bytes: %d\n", noOfByte);
+    dfsan_set_label(1, ptr, noOfByte/16);
+    encryptArrayForLibCall(ptr, noOfByte/16);
+
+}
+
+/*
 void annotate(void* ptr, int bytes) {
     if (bytes == 0) {
         annotateStr(ptr);
@@ -1070,6 +1082,7 @@ void annotate(void* ptr, int bytes) {
     dfsan_set_label(1, ptr, noOfByte/16);
     encryptArrayForLibCall(ptr, noOfByte/16);
 }
+*/
 
 void annotate1(void* ptr, int bytes) {
     fprintf(stderr, "annotating ptr at: %p\n", ptr);
