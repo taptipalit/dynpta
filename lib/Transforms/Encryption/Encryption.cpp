@@ -2200,7 +2200,14 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 externalFunction = possFun;
                 break;
             }
+        } else {
+            if (std::find(instrumentedExternalFunctions.begin(), instrumentedExternalFunctions.end(), externalFunction->getName()) == instrumentedExternalFunctions.end()) {
+                if (!externalFunction->getName().startswith("llvm.memcpy") && !externalFunction->getName().startswith("llvm.memset") && !externalFunction->getName().startswith("llvm.memmove")) {
+                    continue;
+                }
+            }
         }
+        
         /*
            if (externalFunction->getName().equals("strlen")) {
            errs() << "1. " << externalCallInst << " : " << *externalCallInst << "\n";
@@ -4372,7 +4379,10 @@ bool EncryptionPass::runOnModule(Module &M) {
     instrumentedExternalFunctions.push_back("memcmp");
     instrumentedExternalFunctions.push_back("memchr");
     instrumentedExternalFunctions.push_back("memrchr");
+    instrumentedExternalFunctions.push_back("llvm.memmove");
 
+
+    //============== break
 
     /*
     instrumentedExternalFunctions.push_back("select");
