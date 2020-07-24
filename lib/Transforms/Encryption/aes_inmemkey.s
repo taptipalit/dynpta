@@ -813,7 +813,16 @@ encrypt_debug:
 	movdqu %xmm10, (%rdi)
 	retq
 
+.align 4096
+.globl _load_shadow_base
+_load_shadow_base:
+    movq $0xffff8fffffffffff, %rax
+    movq %rax, %mm0
+    retq
+
+.align 4096
 .globl populate_keys
 populate_keys:
     retq
+
 

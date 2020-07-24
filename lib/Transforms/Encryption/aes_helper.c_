@@ -12,6 +12,9 @@
 #include <immintrin.h>
 #include <sanitizer/dfsan_interface.h>
 
+#include <sys/mman.h>
+
+
 uint64_t rbp, rsp;
 uint64_t lastAddr __attribute__ ((aligned (16)));
 int dirty __attribute__ ((aligned (16)));
@@ -22,6 +25,7 @@ long long enc = 0;
 long long dec = 0;
 long aesenccount, aesdeccount;
 
+void _load_shadow_base();
 void encrypt_cache(void*);
 void decrypt_cache(void*);
 void encrypt_memory(void*);
@@ -1065,7 +1069,6 @@ void annotate(void* ptr) {
     fprintf(stderr, "no of bytes: %d\n", noOfByte);
     dfsan_set_label(1, ptr, noOfByte/16);
     encryptArrayForLibCall(ptr, noOfByte/16);
-
 }
 
 /*
@@ -1090,4 +1093,11 @@ void annotate1(void* ptr, int bytes) {
     dfsan_set_label(1, ptr, bytes);
     encryptArrayForLibCall(ptr, bytes);
 
+}
+
+void load_shadow_base() {
+    _load_shadow_base();
+    void* ptr = _load_shadow_base;
+    mprotect(ptr, 400, PROT_WRITE);
+    //memset(ptr, 0,400);
 }

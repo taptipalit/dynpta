@@ -5,6 +5,7 @@
 #include "ASMParser.h"
 #include "llvm/Support/Format.h"
 #include <llvm/IR/Metadata.h>
+#include "llvm/Analysis/LoopInfo.h"
 
 #define DEBUG_TYPE "encryption"
 
@@ -37,7 +38,6 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
 
             std::set<Value*> ExtraSensitivePtrs;
             std::vector<string> instrumentedExternalFunctions;
-
 
             void addTaintMetaData(Instruction* Inst) {
                 if (!skipVFA) {
@@ -240,6 +240,7 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
                 AU.addRequired<SensitiveMemAllocTrackerPass>();
                 AU.addRequired<WPAPass>();
                 AU.addRequired<ContextSensitivityAnalysisPass>();
+                AU.addRequired<LoopInfoWrapperPass>();
                 //AU.setPreservesAll();
             }
             inline void externalFunctionHandlerForPartitioning(Module& , CallInst*, Function*, Function*, Value*, std::vector<Value*>&);
@@ -249,6 +250,13 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
             void collectSensitivePointers();
             void collectSensitiveObjectsForWidening();
 
+            void performTaintCheckLICM(Module&);
+
+            void handleLoop(Loop*);
+
+            bool isInLoopBody(Instruction*);
+
+            void loadShadowBase(Module& M);
     };
 }
 
@@ -1875,7 +1883,6 @@ void EncryptionPass::updateSensitiveState(Value* oldVal, Value* newVal, std::map
 
 }
 
-
 void EncryptionPass::resetInstructionLists(Function *F) {
     ReplacementList.clear();
     ReplacementCheckList.clear();
@@ -1898,9 +1905,13 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
             ReplacementIt != ReplacementList.end(); ++ReplacementIt) {
         InstructionReplacement* Repl = *ReplacementIt;
         if (Repl->OldInstruction->getParent()->getParent()->getName() == "apr_thread_create") {
-            errs() << "Skipping\n";
             continue;
         }
+        /*
+        if (isInLoopBody(Repl->OldInstruction)) {
+            continue;
+        }
+        */
         if (Repl->Type == LOAD) {
             IRBuilder<> Builder(Repl->NextInstruction); // Insert before "next" instruction
             LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
@@ -1950,6 +1961,12 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
             errs() << "Skipping\n";
             continue;
         }
+        /*
+        if (isInLoopBody(Repl->OldInstruction)) {
+            continue;
+        }
+        */
+ 
         if (Repl->Type == LOAD) {
             IRBuilder<> Builder(Repl->NextInstruction); // Insert before "next" instruction
             LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
@@ -2087,7 +2104,8 @@ inline void EncryptionPass::externalFunctionHandlerForPartitioning(Module &M, Ca
     Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(*Ctx), IntptrTy };
     FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
 
-    InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq $$0xffff8fffffffffff, %rax\n\t and %rax, $1 \n\t add $1, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
+    InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
+    //Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
     if (externalCallInst->getParent()->getParent()->getName() == "apr_thread_create") {
         return;
     }
@@ -2158,6 +2176,11 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
 
 
     for (CallInst* externalCallInst : SensitiveExternalLibCallList) {
+        /*
+        if (isInLoopBody(externalCallInst)) {
+            continue;
+        }
+        */
         //errs()<<"CallInst "<<*externalCallInst<<"\n";
         Function* externalFunction = externalCallInst->getCalledFunction();
         if (!externalFunction) {
@@ -4340,6 +4363,127 @@ void EncryptionPass::collectSensitiveObjectsForWidening() {
     }
 }
 
+bool EncryptionPass::isInLoopBody(Instruction* inst) {
+    return false;
+    Function* F = inst->getParent()->getParent();
+    LoopInfo& loopInfo = getAnalysis<LoopInfoWrapperPass>(*F).getLoopInfo();
+    for (Loop* loop: loopInfo.getLoopsInPreorder()) {
+        BasicBlock* header = loop->getHeader();
+        int inlineAsmCount = 0;
+        for (BasicBlock* succ: successors(header)) {
+            if (succ != loop->getExitBlock()) {
+                for (BasicBlock::iterator BBIterator = succ->begin(); BBIterator != succ->end(); BBIterator++) {
+                    if (auto *I = dyn_cast<Instruction>(BBIterator)) {
+                        if (inst == &*I) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+void EncryptionPass::handleLoop(Loop* loop) {
+    errs() << "loop depth: " << loop->getLoopDepth() << "\n";
+    bool hasSubLoops = false;
+    for (Loop* subLoop: loop->getSubLoops()) {
+        hasSubLoops = true;
+        handleLoop(subLoop);
+    }
+    if (!hasSubLoops) {
+        BasicBlock* header = loop->getHeader();
+        int inlineAsmCount = 0;
+        // Where do the headers flow to? 
+        for (BasicBlock* succ: successors(header)) {
+            if (succ != loop->getExitBlock()) {
+                for (BasicBlock::iterator BBIterator = succ->begin(); BBIterator != succ->end(); BBIterator++) {
+                    if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                        if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
+                            Value* calledValue = callInst->getCalledValue();
+                            if (InlineAsm* iasm = dyn_cast<InlineAsm>(calledValue)) {
+                                inlineAsmCount++;
+                                // What do we know about the loop invariance
+                                // of its operands?
+                                Value* op1 = callInst->getArgOperand(0);
+                                if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(op1)) {
+                                    // Get the base
+                                    Type* srcElemType = gep->getSourceElementType();
+                                    if (PointerType* ptrTy = dyn_cast<PointerType>(srcElemType)) {
+                                        srcElemType = ptrTy->getPointerElementType();
+                                    }
+                                    if (!isa<StructType>(srcElemType)) {
+                                        op1 = gep->getPointerOperand();
+                                    }
+                                }
+                                if (LoadInst* ldInst = dyn_cast<LoadInst>(op1)) {
+                                    Value* pointerOp = ldInst->getPointerOperand();
+                                    // If this pointer operand came from
+                                    // outside the basic block, then we can
+                                    // move this outside of the basic block
+                                    // too
+                                    if (Instruction* pointerInst = dyn_cast<Instruction>(pointerOp)) {
+                                        if (pointerInst->getParent() != succ) {
+                                            errs() << "Can hoist\n";
+                                        }
+                                    } else {
+                                        errs() << "Can hoist\n";
+                                    }
+                                }
+                                errs() << "operand: " << *op1 << "\n";
+                                errs() << "is loop invariant: " << loop->isLoopInvariant(op1) << "\n";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // how many inline asms do we have?
+        errs() << "Inline asm count: " << inlineAsmCount << "\n";
+    }
+}
+
+void EncryptionPass::performTaintCheckLICM(Module &M) {
+    for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+        if (auto *F = dyn_cast<Function>(MIterator)) {
+            if (F->isDeclaration()) {
+                continue;
+            }
+            LoopInfo& loopInfo = getAnalysis<LoopInfoWrapperPass>(*F).getLoopInfo();
+            for (Loop* loop: loopInfo.getLoopsInPreorder()) {
+                handleLoop(loop);
+            }
+        }
+    }
+}
+
+void EncryptionPass::loadShadowBase(Module& M) {
+    const DataLayout &DL = M.getDataLayout();
+    LLVMContext *Ctx;
+    Ctx = &M.getContext();
+    FunctionType* FTypeInit = FunctionType::get(Type::getVoidTy(*Ctx), false);
+
+    Function* loadShadowBaseFn = Function::Create(FTypeInit, Function::ExternalLinkage, "load_shadow_base", &M);
+
+    //InlineAsm* loadMM0Asm = InlineAsm::get(FTypeInit, "movq $$0xffff8fffffffffff, %mm0\n\t", "", true, false);
+
+    Function* mainFunction = M.getFunction("main");
+    Instruction* insertionPoint = nullptr;
+    
+    for (inst_iterator I = inst_begin(*mainFunction), E = inst_end(*mainFunction); I != E; ++I) {
+        Instruction* inst = &*I;
+        insertionPoint = inst;
+        if (!isa<AllocaInst>(inst)) {
+            break;
+        }
+    }
+
+    IRBuilder<> Builder(insertionPoint);
+    Builder.CreateCall(loadShadowBaseFn);
+
+}
+
 bool EncryptionPass::runOnModule(Module &M) {
     this->mod = &M;
     checkAuthenticationCount = 0;
@@ -4669,6 +4813,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     }
 
     if (Confidentiality) {
+        loadShadowBase(M);
         unConstantifySensitiveAllocSites(M);
         initializeSensitiveGlobalVariables(M);
         collectSensitiveExternalLibraryCalls(M, ptsToMap);
@@ -4702,12 +4847,15 @@ bool EncryptionPass::runOnModule(Module &M) {
     if (skipVFA) {
         errs() << "************* STOP!!!!!!!!!!!!! ANALYZED WITH VALUE FLOW ANALYSIS SKIPPED! *********************\n";
     }
+
+    //performTaintCheckLICM(M);
     return true;
 }
 
 INITIALIZE_PASS_BEGIN(EncryptionPass, "encryption", "Identify and instrument sensitive variables", false, true)
 INITIALIZE_PASS_DEPENDENCY(SensitiveMemAllocTrackerPass);
 INITIALIZE_PASS_DEPENDENCY(WPAPass);
+INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass);
 INITIALIZE_PASS_END(EncryptionPass, "encryption", "Identify and instrument sensitive variables", false, true)
 
 ModulePass* llvm::createEncryptionPass() { return new EncryptionPass(); }

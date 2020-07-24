@@ -101,7 +101,7 @@ namespace external {
 
         this->setLabelForContextSensitiveCallsFn = Function::Create(FTypeSetLabelForContextSensitiveCalls, Function::ExternalLinkage, "setLabelForContextSensitiveCalls", &M);
 
-        this->DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq $$0xffff8fffffffffff, %rax\n\t and %rax, $1 \n\t add $1, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
+        this->DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
         //this->DFSanReadLabelFn = Function::Create(FTypeReadLabel, Function::ExternalLinkage, "dfsan_read_label", &M);
         //adding zeroext for return type
         if (Function *F = dyn_cast<Function>(DFSanReadLabelFn)) {

@@ -1274,4 +1274,7 @@ fun:strcasecmp=discard
 fun:strtok=discard
 fun:toupper=discard
 fun:__xpg_basename=discard
+fun:load_shadow_base=discard
+fun:load_shadow_base=uninstrumented
+
 
