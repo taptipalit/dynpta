@@ -258,10 +258,26 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
             //void handleLoop(Loop*);
 
             //bool isInLoopBody(Instruction*);
-            Loop* findEnclosingLoopBody(Instruction*, LoopInfo**, DominatorTree**);
+            Value* getBaseValueForMemOp(Instruction*, Loop*);
+            bool isCandidateForHoisting(Instruction*, Value** baseMemLoc, Loop**, LoopInfo**, DominatorTree**);
 
-            bool handleTaintCheckInLoop(LoopInfo*, DominatorTree*, Loop*, Instruction*);
+            //bool handleTaintCheckInLoop(LoopInfo*, DominatorTree*, Loop*, Instruction*);
+            bool specializeLoopAndHoist(LoopInfo*, DominatorTree*, Loop*, Instruction*, Value*);
             void loadShadowBase(Module& M);
+
+            void resetInstructions(BasicBlock* bb, ValueToValueMapTy& VMap) {
+                for (BasicBlock::iterator BBIterator = bb->begin(); BBIterator != bb->end(); BBIterator++) {
+                    if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                        for (int i = 0; i < Inst->getNumOperands(); i++) {
+                            Value* op = Inst->getOperand(i);
+                            auto it = VMap.find(op);
+                            if (it != VMap.end()) {
+                                Inst->setOperand(i, it->second);
+                            }
+                        }
+                    }
+                }
+            }
     };
 }
 
@@ -1964,10 +1980,11 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
         
         LoopInfo* LI = nullptr;
         DominatorTree* DT = nullptr;
-        Loop* loop = findEnclosingLoopBody(Repl->OldInstruction, &LI, &DT); 
-        if (loop) {
-            // Break it up
-            if (handleTaintCheckInLoop(LI, DT, loop, Repl->OldInstruction)) {
+        Value* baseMemLoc = nullptr;
+        Loop* loop = nullptr;
+        bool canHoist = isCandidateForHoisting(Repl->OldInstruction, &baseMemLoc, &loop, &LI, &DT); 
+        if (canHoist) {
+            if (specializeLoopAndHoist(LI, DT, loop, Repl->OldInstruction, baseMemLoc)) {
                 continue;
             }
         }
@@ -4368,27 +4385,108 @@ void EncryptionPass::collectSensitiveObjectsForWidening() {
     }
 }
 
-Loop* EncryptionPass::findEnclosingLoopBody(Instruction* inst, LoopInfo** LI, DominatorTree** DT) {
+/**
+ * Find the base of the memory operation operand
+ * that is outside the Loop
+ */
+Value* EncryptionPass::getBaseValueForMemOp(Instruction* inst, Loop* loop) {
+    GetElementPtrInst* gep = nullptr;
+
+    if (LoadInst* ldInst = dyn_cast<LoadInst>(inst)) {
+        gep = dyn_cast<GetElementPtrInst>(ldInst->getPointerOperand());
+    } else if (StoreInst* stInst = dyn_cast<StoreInst>(inst)) {
+        gep = dyn_cast<GetElementPtrInst>(stInst->getPointerOperand());
+    }
+    assert(gep && "Can't get base value of anything other than geps");
+    Value* gepBase = gep->getPointerOperand();
+    Value* trueBase = nullptr;
+    // We handle two cases --
+    // 1. Where the base is a local operand be it a pointer or a variable
+    // 2. Where the base is an argument
+    if (Argument* arg = dyn_cast<Argument>(gepBase)) {
+        trueBase = arg;
+    } else if (LoadInst* loadInst = dyn_cast<LoadInst>(gepBase)){
+        trueBase = loadInst->getPointerOperand();
+    }
+    if (trueBase) {
+        // Verify that this trueBase is outside of the loop
+        bool inLoop = false;
+        if (Instruction* trueBaseInst = dyn_cast<Instruction>(trueBase)) {
+            BasicBlock* trueBaseBB = trueBaseInst->getParent();
+            for (BasicBlock* bb: loop->getBlocks()) {
+                if (bb == trueBaseBB) {
+                    inLoop = true;
+                    break;
+                }            
+            }
+            if (inLoop) {
+                return nullptr;
+            } else {
+                return trueBase;
+            }
+        } else {
+            // If it's an argument or a global variable, it is outside the
+            // loop anyway
+            return trueBase;
+        }
+
+    }
+    return nullptr;
+}
+
+/**
+ * A partially sensitive memory operation is a candidate for hoisting only iff
+ * 1. It's a gep instruction operating on a string / array
+ * 2. And, the base of that gep instruction is computed outside of the loop
+ * the gep pointer is accessed
+ */
+bool EncryptionPass::isCandidateForHoisting(Instruction* inst, Value** baseMemLoc,
+        Loop** outLoop, LoopInfo** LI, DominatorTree** DT) {
+    if (StoreInst* stInst = dyn_cast<StoreInst>(inst)) {
+        if (!isa<GetElementPtrInst>(stInst->getPointerOperand())) {
+            return false;
+        }
+    }
+    if (LoadInst* ldInst = dyn_cast<LoadInst>(inst)) {
+        if (!isa<GetElementPtrInst>(ldInst->getPointerOperand())) {
+            return false;
+        }
+    }
     Function* F = inst->getParent()->getParent();
+    BasicBlock* potentialBB = inst->getParent();
     LoopInfo& loopInfo = getAnalysis<LoopInfoWrapperPass>(*F).getLoopInfo();
     for (Loop* loop: loopInfo.getLoopsInPreorder()) {
+        if (!loop->empty()) {
+            continue;
+        }
+        if (!loop->isSafeToClone()) {
+            continue;
+        }
         BasicBlock* header = loop->getHeader();
-        int inlineAsmCount = 0;
         for (BasicBlock* succ: successors(header)) {
             if (succ != loop->getExitBlock()) {
-                for (BasicBlock::iterator BBIterator = succ->begin(); BBIterator != succ->end(); BBIterator++) {
-                    if (auto *I = dyn_cast<Instruction>(BBIterator)) {
-                        if (inst == &*I) {
-                            *LI = &loopInfo;
-                            *DT = &(getAnalysis<DominatorTreeWrapperPass>(*F).getDomTree());
-                            return loop;
-                        }
+                if (potentialBB == succ) {
+                    if (!loop->empty() || !loop->isSafeToClone()) {
+                        continue;
+                    }
+                    // Now, check if the base satisfies the conditions
+                    Value* base = getBaseValueForMemOp(inst, loop);
+                    if (base) {
+                        *baseMemLoc = base;
+                        *LI = &loopInfo;
+                        *DT = &(getAnalysis<DominatorTreeWrapperPass>(*F).getDomTree());
+                        *outLoop = loop;
+                        return true;
+                    } else {
+                        // The base is inside loop or couldn't determine the
+                        // base, give up!
+                        return false;
                     }
                 }
             }
         }
     }
-    return nullptr;
+    return false;
 }
 
 /*
@@ -4418,17 +4516,11 @@ Loop* EncryptionPass::findEnclosingLoopBody(Instruction* inst, LoopInfo** LI, Do
  *      }
  * }
  */
-bool EncryptionPass::handleTaintCheckInLoop(LoopInfo* LI, DominatorTree* DT, Loop* loop, Instruction* partiallySenMemInst) {
+bool EncryptionPass::specializeLoopAndHoist(LoopInfo* LI, DominatorTree* DT, Loop* loop, Instruction* partiallySenMemInst, Value* baseMemLoc) {
     LLVMContext& ctx = partiallySenMemInst->getContext();
-    if (!loop->empty()) {
-        // We handle only the innermost loops
-        return false;
-    }
-
-    if (!loop->isSafeToClone()) {
-        return false;
-    }
-
+    assert(!loop->empty() && "Can only handle innermost loops");
+    assert(loop->isSafeToCloen() && "Can't clone loop");
+    
     BasicBlock* oldPH = loop->getLoopPreheader();
     BasicBlock* loopHeader = loop->getHeader();
 
@@ -4446,13 +4538,7 @@ bool EncryptionPass::handleTaintCheckInLoop(LoopInfo* LI, DominatorTree* DT, Loo
                 branchInst->setSuccessor(i, NewPH); 
             }
         }
-        // Now, set a single branch instruction to the loopHeader in the NewPH
-        BranchInst* branchToLoopHeader = BranchInst::Create(loopHeader);
 
-        if (ParentLoop) {
-            ParentLoop->addBasicBlockToLoop(NewPH, *LI);
-        }
-        NewPH->getInstList().push_back(branchToLoopHeader);
         VMap[oldPH] = NewPH; // Needed to update the dominator relationships
 
         DT->addNewBlock(NewPH, oldPH);
@@ -4474,8 +4560,13 @@ bool EncryptionPass::handleTaintCheckInLoop(LoopInfo* LI, DominatorTree* DT, Loo
             LI->addTopLevelLoop(NewLoop);
 
         for (BasicBlock *BB : OrigLoop->getBlocks()) {
-            BasicBlock *NewBB = CloneBasicBlock(BB, VMap, "", F);
+            ValueToValueMapTy VMap2;
+            BasicBlock *NewBB = CloneBasicBlock(BB, VMap2, "", F);
+            resetInstructions(NewBB, VMap2);
+
             VMap[BB] = NewBB;
+            errs() << "Cloned bb is: \n";
+            NewBB->dump();
 
             // Update LoopInfo.
             NewLoop->addBasicBlockToLoop(NewBB, *LI);
@@ -4516,9 +4607,10 @@ bool EncryptionPass::handleTaintCheckInLoop(LoopInfo* LI, DominatorTree* DT, Loo
 
         // Now, retrieve the sensitive pointer and call dfsan_read_label
         
-        Value* addrForReadLabel = nullptr; // TODO -- find the base
+        Value* addrForReadLabel = baseMemLoc;
         IRBuilder<> Builder(NewPH);
 
+        Module& M = *(partiallySenMemInst->getParent()->getParent()->getParent());
         const DataLayout &DL = M.getDataLayout();
         LLVMContext *Ctx = &M.getContext();
         IntegerType* ShadowTy = IntegerType::get(*Ctx, 16);
@@ -4532,7 +4624,7 @@ bool EncryptionPass::handleTaintCheckInLoop(LoopInfo* LI, DominatorTree* DT, Loo
         ConstantInt* noOfByte = Builder.getInt64(1);
         ConstantInt *One = Builder.getInt16(1);
 
-        /* If it's not a i8* cast it */
+        // If it's not a i8* cast it
 
         Type* readLabelPtrElemType = addrForReadLabel->getType()->getPointerElementType();
         IntegerType* intType = dyn_cast<IntegerType>(readLabelPtrElemType);
@@ -4549,13 +4641,16 @@ bool EncryptionPass::handleTaintCheckInLoop(LoopInfo* LI, DominatorTree* DT, Loo
 
         // Then depending on the result, branch to the orginal or the new
         // loop. 
-        TerminatorInst* termInst = NewPH->getTerminator();
+        /*
+        termInst = NewPH->getTerminator();
         termInst->removeFromParent();
+        */
 
-        BranchInst* branchInst = Builder.CreateCondBr(cmpInst, OrigLoop->getHeader(), NewLoop->getHeader());
+        branchInst = Builder.CreateCondBr(cmpInst, OrigLoop->getHeader(), NewLoop->getHeader());
 
         // Turn the new loop depending on the code we need
         // TODO
+
 
         return true;
     } else {
@@ -4564,83 +4659,6 @@ bool EncryptionPass::handleTaintCheckInLoop(LoopInfo* LI, DominatorTree* DT, Loo
     }
 
 }
-
-/*
-void EncryptionPass::handleLoop(Loop* loop) {
-    errs() << "loop depth: " << loop->getLoopDepth() << "\n";
-    bool hasSubLoops = false;
-    for (Loop* subLoop: loop->getSubLoops()) {
-        hasSubLoops = true;
-        handleLoop(subLoop);
-    }
-    if (!hasSubLoops) {
-        BasicBlock* header = loop->getHeader();
-        int inlineAsmCount = 0;
-        // Where do the headers flow to? 
-        for (BasicBlock* succ: successors(header)) {
-            if (succ != loop->getExitBlock()) {
-                for (BasicBlock::iterator BBIterator = succ->begin(); BBIterator != succ->end(); BBIterator++) {
-                    if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-                        if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
-                            Value* calledValue = callInst->getCalledValue();
-                            if (InlineAsm* iasm = dyn_cast<InlineAsm>(calledValue)) {
-                                inlineAsmCount++;
-                                // What do we know about the loop invariance
-                                // of its operands?
-                                Value* op1 = callInst->getArgOperand(0);
-                                if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(op1)) {
-                                    // Get the base
-                                    Type* srcElemType = gep->getSourceElementType();
-                                    if (PointerType* ptrTy = dyn_cast<PointerType>(srcElemType)) {
-                                        srcElemType = ptrTy->getPointerElementType();
-                                    }
-                                    if (!isa<StructType>(srcElemType)) {
-                                        op1 = gep->getPointerOperand();
-                                    }
-                                }
-                                if (LoadInst* ldInst = dyn_cast<LoadInst>(op1)) {
-                                    Value* pointerOp = ldInst->getPointerOperand();
-                                    // If this pointer operand came from
-                                    // outside the basic block, then we can
-                                    // move this outside of the basic block
-                                    // too
-                                    if (Instruction* pointerInst = dyn_cast<Instruction>(pointerOp)) {
-                                        if (pointerInst->getParent() != succ) {
-                                            errs() << "Can hoist\n";
-                                        }
-                                    } else {
-                                        errs() << "Can hoist\n";
-                                    }
-                                }
-                                errs() << "operand: " << *op1 << "\n";
-                                errs() << "is loop invariant: " << loop->isLoopInvariant(op1) << "\n";
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        // how many inline asms do we have?
-        errs() << "Inline asm count: " << inlineAsmCount << "\n";
-    }
-}
-*/
-
-/*
-void EncryptionPass::performTaintCheckLICM(Module &M) {
-    for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
-        if (auto *F = dyn_cast<Function>(MIterator)) {
-            if (F->isDeclaration()) {
-                continue;
-            }
-            LoopInfo& loopInfo = getAnalysis<LoopInfoWrapperPass>(*F).getLoopInfo();
-            for (Loop* loop: loopInfo.getLoopsInPreorder()) {
-                handleLoop(loop);
-            }
-        }
-    }
-}
-*/
 
 void EncryptionPass::loadShadowBase(Module& M) {
     const DataLayout &DL = M.getDataLayout();
