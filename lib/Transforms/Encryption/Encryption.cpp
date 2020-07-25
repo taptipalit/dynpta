@@ -4515,9 +4515,46 @@ bool EncryptionPass::handleTaintCheckInLoop(LoopInfo* LI, DominatorTree* DT, Loo
         }
 
         // Now, retrieve the sensitive pointer and call dfsan_read_label
+        
+        Value* addrForReadLabel = nullptr; // TODO -- find the base
+        IRBuilder<> Builder(NewPH);
+
+        const DataLayout &DL = M.getDataLayout();
+        LLVMContext *Ctx = &M.getContext();
+        IntegerType* ShadowTy = IntegerType::get(*Ctx, 16);
+        IntegerType* IntptrTy = DL.getIntPtrType(*Ctx);
+        Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(*Ctx), IntptrTy };
+        FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
+
+        InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
+
+        CallInst* readLabel = nullptr;
+        ConstantInt* noOfByte = Builder.getInt64(1);
+        ConstantInt *One = Builder.getInt16(1);
+
+        /* If it's not a i8* cast it */
+
+        Type* readLabelPtrElemType = addrForReadLabel->getType()->getPointerElementType();
+        IntegerType* intType = dyn_cast<IntegerType>(readLabelPtrElemType);
+        if (!(intType && intType->getBitWidth() == 8)) {
+            // Create the cast
+            Type* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+            addrForReadLabel = Builder.CreateBitCast(addrForReadLabel, voidPtrType);
+        }
+
+        readLabel = Builder.CreateCall(DFSanReadLabelFn,{addrForReadLabel , noOfByte});
+        readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+
+        Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+
         // Then depending on the result, branch to the orginal or the new
         // loop. 
-        // Turn the original or the new loop depending on the code we need
+        TerminatorInst* termInst = NewPH->getTerminator();
+        termInst->removeFromParent();
+
+        BranchInst* branchInst = Builder.CreateCondBr(cmpInst, OrigLoop->getHeader(), NewLoop->getHeader());
+
+        // Turn the new loop depending on the code we need
         // TODO
 
         return true;
