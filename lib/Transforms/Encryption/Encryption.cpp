@@ -6,6 +6,8 @@
 #include "llvm/Support/Format.h"
 #include <llvm/IR/Metadata.h>
 #include "llvm/Analysis/LoopInfo.h"
+#include <llvm/Transforms/Utils/Cloning.h>
+#include "llvm/IR/Dominators.h"
 
 #define DEBUG_TYPE "encryption"
 
@@ -241,6 +243,7 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
                 AU.addRequired<WPAPass>();
                 AU.addRequired<ContextSensitivityAnalysisPass>();
                 AU.addRequired<LoopInfoWrapperPass>();
+                AU.addRequired<DominatorTreeWrapperPass>();
                 //AU.setPreservesAll();
             }
             inline void externalFunctionHandlerForPartitioning(Module& , CallInst*, Function*, Function*, Value*, std::vector<Value*>&);
@@ -250,12 +253,14 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
             void collectSensitivePointers();
             void collectSensitiveObjectsForWidening();
 
-            void performTaintCheckLICM(Module&);
+            //void performTaintCheckLICM(Module&);
 
-            void handleLoop(Loop*);
+            //void handleLoop(Loop*);
 
-            bool isInLoopBody(Instruction*);
+            //bool isInLoopBody(Instruction*);
+            Loop* findEnclosingLoopBody(Instruction*, LoopInfo**, DominatorTree**);
 
+            bool handleTaintCheckInLoop(LoopInfo*, DominatorTree*, Loop*, Instruction*);
             void loadShadowBase(Module& M);
     };
 }
@@ -1907,11 +1912,6 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
         if (Repl->OldInstruction->getParent()->getParent()->getName() == "apr_thread_create") {
             continue;
         }
-        /*
-        if (isInLoopBody(Repl->OldInstruction)) {
-            continue;
-        }
-        */
         if (Repl->Type == LOAD) {
             IRBuilder<> Builder(Repl->NextInstruction); // Insert before "next" instruction
             LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
@@ -1961,11 +1961,16 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
             errs() << "Skipping\n";
             continue;
         }
-        /*
-        if (isInLoopBody(Repl->OldInstruction)) {
-            continue;
+        
+        LoopInfo* LI = nullptr;
+        DominatorTree* DT = nullptr;
+        Loop* loop = findEnclosingLoopBody(Repl->OldInstruction, &LI, &DT); 
+        if (loop) {
+            // Break it up
+            if (handleTaintCheckInLoop(LI, DT, loop, Repl->OldInstruction)) {
+                continue;
+            }
         }
-        */
  
         if (Repl->Type == LOAD) {
             IRBuilder<> Builder(Repl->NextInstruction); // Insert before "next" instruction
@@ -4363,8 +4368,7 @@ void EncryptionPass::collectSensitiveObjectsForWidening() {
     }
 }
 
-bool EncryptionPass::isInLoopBody(Instruction* inst) {
-    return false;
+Loop* EncryptionPass::findEnclosingLoopBody(Instruction* inst, LoopInfo** LI, DominatorTree** DT) {
     Function* F = inst->getParent()->getParent();
     LoopInfo& loopInfo = getAnalysis<LoopInfoWrapperPass>(*F).getLoopInfo();
     for (Loop* loop: loopInfo.getLoopsInPreorder()) {
@@ -4375,16 +4379,156 @@ bool EncryptionPass::isInLoopBody(Instruction* inst) {
                 for (BasicBlock::iterator BBIterator = succ->begin(); BBIterator != succ->end(); BBIterator++) {
                     if (auto *I = dyn_cast<Instruction>(BBIterator)) {
                         if (inst == &*I) {
-                            return true;
+                            *LI = &loopInfo;
+                            *DT = &(getAnalysis<DominatorTreeWrapperPass>(*F).getDomTree());
+                            return loop;
                         }
                     }
                 }
             }
         }
     }
-    return false;
+    return nullptr;
 }
 
+/*
+ * We handle situations like --
+ * for (....) {
+ *      ...
+ *      if (read_taint(ptr)) {
+ *          encrypt(ptr);
+ *      } else {
+ *          decrypt(ptr);
+ *      }
+ *      ...
+ * }
+ *
+ * We transform this to --
+ * if (read_taint(ptr)) {
+ *      for (....) {
+ *          ...
+ *          encrypt(ptr);
+ *          ...
+ *      }
+ * } else {
+ *      for (....) {
+ *          ...
+ *          encrypt(ptr);
+ *          ...
+ *      }
+ * }
+ */
+bool EncryptionPass::handleTaintCheckInLoop(LoopInfo* LI, DominatorTree* DT, Loop* loop, Instruction* partiallySenMemInst) {
+    LLVMContext& ctx = partiallySenMemInst->getContext();
+    if (!loop->empty()) {
+        // We handle only the innermost loops
+        return false;
+    }
+
+    if (!loop->isSafeToClone()) {
+        return false;
+    }
+
+    BasicBlock* oldPH = loop->getLoopPreheader();
+    BasicBlock* loopHeader = loop->getHeader();
+
+    Loop* ParentLoop = loop->getParentLoop();
+    // Create a new preheader, where we'll stick our if checks
+    if (oldPH) {
+        ValueToValueMapTy VMap;
+        BasicBlock* NewPH = BasicBlock::Create(ctx, "hoist.PH", oldPH->getParent(), loopHeader);
+        // the oldPH should lead to NewPH
+        Instruction* termInst = oldPH->getTerminator();
+        BranchInst* branchInst = dyn_cast<BranchInst>(termInst);
+        assert(branchInst && "Can't handle anything but branch instruction here");
+        for (int i = 0; i < branchInst->getNumSuccessors(); i++) {
+            if (branchInst->getSuccessor(i) == loopHeader) {
+                branchInst->setSuccessor(i, NewPH); 
+            }
+        }
+        // Now, set a single branch instruction to the loopHeader in the NewPH
+        BranchInst* branchToLoopHeader = BranchInst::Create(loopHeader);
+
+        if (ParentLoop) {
+            ParentLoop->addBasicBlockToLoop(NewPH, *LI);
+        }
+        NewPH->getInstList().push_back(branchToLoopHeader);
+        VMap[oldPH] = NewPH; // Needed to update the dominator relationships
+
+        DT->addNewBlock(NewPH, oldPH);
+
+        // Clone the loop
+        llvm::SmallVector<BasicBlock*, 10> ClonedLoopBlocks;
+
+        Loop* OrigLoop = loop;
+        Function *F = OrigLoop->getHeader()->getParent();
+
+        // Create new loop
+        BasicBlock* Before = loop->getHeader();
+        assert(Before && "Should have only one exit block");
+        ParentLoop = OrigLoop->getParentLoop();
+        Loop *NewLoop = LI->AllocateLoop();
+        if (ParentLoop)
+            ParentLoop->addChildLoop(NewLoop);
+        else
+            LI->addTopLevelLoop(NewLoop);
+
+        for (BasicBlock *BB : OrigLoop->getBlocks()) {
+            BasicBlock *NewBB = CloneBasicBlock(BB, VMap, "", F);
+            VMap[BB] = NewBB;
+
+            // Update LoopInfo.
+            NewLoop->addBasicBlockToLoop(NewBB, *LI);
+
+            // Add DominatorTree node. After seeing all blocks, update to correct IDom.
+            DT->addNewBlock(NewBB, NewPH);
+
+        }
+
+        for (BasicBlock *BB : OrigLoop->getBlocks()) {
+            // Update DominatorTree.
+            BasicBlock *IDomBB = DT->getNode(BB)->getIDom()->getBlock();
+            DT->changeImmediateDominator(cast<BasicBlock>(VMap[BB]),
+                    cast<BasicBlock>(VMap[IDomBB]));
+        }
+
+        // Move them physically from the end of the block list.
+        F->getBasicBlockList().splice(Before->getIterator(), F->getBasicBlockList(),
+                NewPH);
+        F->getBasicBlockList().splice(Before->getIterator(), F->getBasicBlockList(),
+                NewLoop->getHeader()->getIterator(), F->end());
+
+        // Now, let's reset the instructions
+        for (BasicBlock* newBB: NewLoop->getBlocks()) {
+            for (BasicBlock::iterator BBIterator = newBB->begin(); BBIterator != newBB->end(); BBIterator++) {
+                if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                    if (BranchInst* branchInst = dyn_cast<BranchInst>(Inst)) {
+                        for (int i = 0; i < branchInst->getNumSuccessors(); i++) {
+                            BasicBlock* succ = branchInst->getSuccessor(i);
+                            if (succ != OrigLoop->getExitBlock()) {
+                                branchInst->setSuccessor(i, cast<BasicBlock>(VMap[succ])); 
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Now, retrieve the sensitive pointer and call dfsan_read_label
+        // Then depending on the result, branch to the orginal or the new
+        // loop. 
+        // Turn the original or the new loop depending on the code we need
+        // TODO
+
+        return true;
+    } else {
+        errs() << "Didn't have a preheader ... but do I really need one?\n";
+        return false;
+    }
+
+}
+
+/*
 void EncryptionPass::handleLoop(Loop* loop) {
     errs() << "loop depth: " << loop->getLoopDepth() << "\n";
     bool hasSubLoops = false;
@@ -4443,7 +4587,9 @@ void EncryptionPass::handleLoop(Loop* loop) {
         errs() << "Inline asm count: " << inlineAsmCount << "\n";
     }
 }
+*/
 
+/*
 void EncryptionPass::performTaintCheckLICM(Module &M) {
     for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
         if (auto *F = dyn_cast<Function>(MIterator)) {
@@ -4457,6 +4603,7 @@ void EncryptionPass::performTaintCheckLICM(Module &M) {
         }
     }
 }
+*/
 
 void EncryptionPass::loadShadowBase(Module& M) {
     const DataLayout &DL = M.getDataLayout();
@@ -4849,6 +4996,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     }
 
     //performTaintCheckLICM(M);
+    M.dump();
     return true;
 }
 
@@ -4856,6 +5004,7 @@ INITIALIZE_PASS_BEGIN(EncryptionPass, "encryption", "Identify and instrument sen
 INITIALIZE_PASS_DEPENDENCY(SensitiveMemAllocTrackerPass);
 INITIALIZE_PASS_DEPENDENCY(WPAPass);
 INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass);
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass);
 INITIALIZE_PASS_END(EncryptionPass, "encryption", "Identify and instrument sensitive variables", false, true)
 
 ModulePass* llvm::createEncryptionPass() { return new EncryptionPass(); }
