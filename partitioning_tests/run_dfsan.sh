@@ -45,7 +45,7 @@ fi
 
 $LLVMROOT/llvm-dis $file.bc -o $file.ll
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $file.bc 
-$LLVMROOT/opt -encryption -confidentiality -steens-fast -skip-csa=true -skip-vfa=false -optimized-check=true -partitioning=true  $file.bc -o $fileinst.bc
+$LLVMROOT/opt -encryption -confidentiality -steens-fast -skip-csa=true -skip-vfa=false -optimized-check=true -partitioning=true -hoist-taint-checks=true  $file.bc -o $fileinst.bc
 #$LLVMROOT/opt -encryption -steens-fast -skip-csa=true -optimized-check=true -partitioning=true  $file.bc -o $fileinst.bc
 $LLVMROOT/opt --dfsan -dfsan-abilist=./abilist.txt $fileinst.bc -o $filedfsan.bc
 

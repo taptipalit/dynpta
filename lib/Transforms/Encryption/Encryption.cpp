@@ -253,21 +253,26 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
             void collectSensitivePointers();
             void collectSensitiveObjectsForWidening();
 
+            void performHoistOptimization();
+            bool hasSenBB(Loop*, std::set<BasicBlock*>&);
+            bool hasPartialSenMemAccess(BasicBlock*, std::set<Instruction*>&);
+            bool hasFunctionCallInBody(Loop*);
+            bool allSameMemBase(Loop*, Value**, std::set<Instruction*>&, std::set<Instruction*>&);
             //void performTaintCheckLICM(Module&);
 
             //void handleLoop(Loop*);
 
             //bool isInLoopBody(Instruction*);
             Value* getBaseValueForMemOp(Instruction*, Loop*);
-            bool isCandidateForHoisting(Instruction*, Value** baseMemLoc, Loop**, LoopInfo**, DominatorTree**);
+            //bool isCandidateForHoisting(Instruction*, Value** baseMemLoc, Loop**, LoopInfo**, DominatorTree**);
 
             //bool handleTaintCheckInLoop(LoopInfo*, DominatorTree*, Loop*, Instruction*);
-            bool specializeLoopAndHoist(LoopInfo*, DominatorTree*, Loop*, Instruction*, Value*);
+            bool specializeLoopAndHoist(LoopInfo*, DominatorTree*, Loop*, std::set<Instruction*>&, Value*);
             void loadShadowBase(Module& M);
 
             BasicBlock* insertNewPH(LLVMContext&, DominatorTree*, Loop*, ValueToValueMapTy&);
             Loop* cloneAndInsertLoop(DominatorTree*, LoopInfo*, Loop*, BasicBlock*, ValueToValueMapTy&);
-            void addTaintCheck(Loop*, Loop*, BasicBlock*, Value*, Instruction*);
+            void addTaintCheck(Loop*, Loop*, BasicBlock*, Value*);
 
             void transformSensitiveMemInst(Instruction*);
 
@@ -289,6 +294,7 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
 
 char EncryptionPass::ID = 0;
 
+cl::opt<bool> HoistChecks("hoist-taint-checks", cl::desc("Hoist Taint Checks"), cl::init(false), cl::Hidden);
 //cl::opt<bool> NullEnc("null-enc", cl::desc("XOR Encryption"), cl::init(false), cl::Hidden);
 cl::opt<bool> Partitioning("partitioning", cl::desc("Partitioning"), cl::init(false), cl::Hidden);
 cl::opt<bool> OptimizedCheck("optimized-check", cl::desc("Reduce no of Checks needed"), cl::init(false), cl::Hidden);
@@ -1976,6 +1982,11 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
             StInst->eraseFromParent();
         }
     }
+    // Handle the hoistable taint checks
+    if (HoistChecks) {
+        performHoistOptimization();
+    }
+
     for (std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementCheckList.begin() ;
             ReplacementIt != ReplacementCheckList.end(); ++ReplacementIt) {
         InstructionReplacement* Repl = *ReplacementIt;
@@ -1984,16 +1995,20 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
             continue;
         }
         
+        /*
         LoopInfo* LI = nullptr;
         DominatorTree* DT = nullptr;
         Value* baseMemLoc = nullptr;
         Loop* loop = nullptr;
-        bool canHoist = isCandidateForHoisting(Repl->OldInstruction, &baseMemLoc, &loop, &LI, &DT); 
-        if (canHoist) {
-            if (specializeLoopAndHoist(LI, DT, loop, Repl->OldInstruction, baseMemLoc)) {
-                continue;
+        if (HoistChecks) {
+            bool canHoist = isCandidateForHoisting(Repl->OldInstruction, &baseMemLoc, &loop, &LI, &DT); 
+            if (canHoist) {
+                if (specializeLoopAndHoist(LI, DT, loop, Repl->OldInstruction, baseMemLoc)) {
+                    continue;
+                }
             }
         }
+        */
  
         if (Repl->Type == LOAD) {
             IRBuilder<> Builder(Repl->NextInstruction); // Insert before "next" instruction
@@ -4462,17 +4477,14 @@ BasicBlock* EncryptionPass::insertNewPH(LLVMContext& ctx, DominatorTree* DT, Loo
     return NewPH;
 }
 
-void EncryptionPass::addTaintCheck(Loop* OrigLoop, Loop* NewLoop, BasicBlock* NewPH, Value* baseMemLoc, 
-        Instruction* partiallySenMemInst) {
+void EncryptionPass::addTaintCheck(Loop* OrigLoop, Loop* NewLoop, BasicBlock* NewPH, Value* baseMemLoc) {
     Value* addrForReadLabel = baseMemLoc;
     IRBuilder<> Builder(NewPH);
 
-    Module& M = *(partiallySenMemInst->getParent()->getParent()->getParent());
-    const DataLayout &DL = M.getDataLayout();
-    LLVMContext *Ctx = &M.getContext();
-    IntegerType* ShadowTy = IntegerType::get(*Ctx, 16);
-    IntegerType* IntptrTy = DL.getIntPtrType(*Ctx);
-    Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(*Ctx), IntptrTy };
+    LLVMContext& Ctx = baseMemLoc->getContext();
+    IntegerType* ShadowTy = IntegerType::get(Ctx, 16);
+    IntegerType* IntptrTy = IntegerType::get(Ctx, 64);
+    Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(Ctx), IntptrTy };
     FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
 
     InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
@@ -4493,7 +4505,7 @@ void EncryptionPass::addTaintCheck(Loop* OrigLoop, Loop* NewLoop, BasicBlock* Ne
 
     if (!(intType && intType->getBitWidth() == 8)) {
         // Create the cast
-        Type* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+        Type* voidPtrType = PointerType::get(IntegerType::get(Ctx, 8), 0);
         addrForReadLabel = Builder.CreateBitCast(addrForReadLabel, voidPtrType);
     }
 
@@ -4551,16 +4563,14 @@ Loop* EncryptionPass::cloneAndInsertLoop(DominatorTree* DT, LoopInfo* LI, Loop* 
     F->getBasicBlockList().splice(Before->getIterator(), F->getBasicBlockList(),
             NewLoop->getHeader()->getIterator(), F->end());
 
-    // Now, let's reset the instructions
+    // Now, let's reset the instructions on the parent
     for (BasicBlock* newBB: NewLoop->getBlocks()) {
         for (BasicBlock::iterator BBIterator = newBB->begin(); BBIterator != newBB->end(); BBIterator++) {
             if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-                if (BranchInst* branchInst = dyn_cast<BranchInst>(Inst)) {
-                    for (int i = 0; i < branchInst->getNumSuccessors(); i++) {
-                        BasicBlock* succ = branchInst->getSuccessor(i);
-                        if (succ != OrigLoop->getExitBlock()) {
-                            branchInst->setSuccessor(i, cast<BasicBlock>(VMap[succ])); 
-                        }
+                for (int i = 0; i < Inst->getNumOperands(); i++) {
+                    Value* op = Inst->getOperand(i);
+                    if (VMap.find(op) != VMap.end()) {
+                        Inst->setOperand(i, VMap[op]);
                     }
                 }
             }
@@ -4569,12 +4579,8 @@ Loop* EncryptionPass::cloneAndInsertLoop(DominatorTree* DT, LoopInfo* LI, Loop* 
     return NewLoop;
 }
 
-/**
- * A partially sensitive memory operation is a candidate for hoisting only iff
- * 1. It's a gep instruction operating on a string / array
- * 2. And, the base of that gep instruction is computed outside of the loop
- * the gep pointer is accessed
- */
+
+/*
 bool EncryptionPass::isCandidateForHoisting(Instruction* inst, Value** baseMemLoc,
         Loop** outLoop, LoopInfo** LI, DominatorTree** DT) {
     if (StoreInst* stInst = dyn_cast<StoreInst>(inst)) {
@@ -4627,36 +4633,175 @@ bool EncryptionPass::isCandidateForHoisting(Instruction* inst, Value** baseMemLo
     }
     return false;
 }
+*/
 
-/*
- * We handle situations like --
- * for (....) {
- *      ...
- *      if (read_taint(ptr)) {
- *          encrypt(ptr);
- *      } else {
- *          decrypt(ptr);
- *      }
- *      ...
- * }
- *
- * We transform this to --
- * if (read_taint(ptr)) {
- *      for (....) {
- *          ...
- *          encrypt(ptr);
- *          ...
- *      }
- * } else {
- *      for (....) {
- *          ...
- *          encrypt(ptr);
- *          ...
- *      }
- * }
- */
-bool EncryptionPass::specializeLoopAndHoist(LoopInfo* LI, DominatorTree* DT, Loop* OrigLoop, Instruction* partiallySenMemInst, Value* baseMemLoc) {
-    LLVMContext& ctx = partiallySenMemInst->getContext();
+bool EncryptionPass::hasPartialSenMemAccess(BasicBlock* bb, std::set<Instruction*>& candidateInsns) {
+    for (BasicBlock::iterator BBIterator = bb->begin(); BBIterator != bb->end(); BBIterator++) {
+        if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+            if (std::find(candidateInsns.begin(), candidateInsns.end(), Inst) != candidateInsns.end()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool EncryptionPass::hasFunctionCallInBody(Loop* loop) {
+    for (BasicBlock* bb: loop->getBlocks()) {
+        if (bb != loop->getHeader() && bb != loop->getExitingBlock()) {
+            for (BasicBlock::iterator BBIterator = bb->begin(); BBIterator != bb->end(); BBIterator++) {
+                if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                    if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
+                        if (callInst->getCalledFunction() && callInst->getCalledFunction()->getName() == "printf") {
+                            continue;
+                        }
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool EncryptionPass::hasSenBB(Loop* loop, std::set<BasicBlock*>& senBBs) {
+    for (BasicBlock* bb: loop->getBlocks()) {
+        if (std::find(senBBs.begin(), senBBs.end(), bb) != senBBs.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool EncryptionPass::allSameMemBase(Loop* loop, Value** baseMemLoc, std::set<Instruction*>& candidateInsns, std::set<Instruction*>& outInsns) {
+    *baseMemLoc = nullptr;
+    for (BasicBlock* bb: loop->getBlocks()) {
+        if (bb == loop->getHeader() || bb == loop->getExitingBlock()) {
+            continue;
+        }
+        for (BasicBlock::iterator BBIterator = bb->begin(); BBIterator != bb->end(); BBIterator++) {
+            if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                if (std::find(candidateInsns.begin(), candidateInsns.end(), Inst) != candidateInsns.end()) {
+                    // If one of these is not a gep instruction, then return
+                    // false. Too much work to continue this
+                    GetElementPtrInst* gep = nullptr;
+                    if (LoadInst* ldInst = dyn_cast<LoadInst>(Inst)) {
+                        gep = dyn_cast<GetElementPtrInst>(ldInst->getPointerOperand());
+                        if (!gep) {
+                            return false;
+                        }
+                    }
+                    if (StoreInst* stInst = dyn_cast<StoreInst>(Inst)) {
+                        gep = dyn_cast<GetElementPtrInst>(stInst->getPointerOperand());
+                        if (!gep) {
+                            return false;
+                        }
+                    }
+                    // This is a sensitive memory location
+                    Value* thisBaseMem = getBaseValueForMemOp(Inst, loop);
+                    if ((*baseMemLoc != nullptr) && (thisBaseMem != *baseMemLoc)) {
+                        return false;
+                    }
+                    outInsns.insert(Inst);
+                    *baseMemLoc = thisBaseMem;
+                }
+            }
+        }
+    }
+    if (*baseMemLoc) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void EncryptionPass::performHoistOptimization() {
+    std::set<Function*> candidateFns;
+    std::set<BasicBlock*> candidateBBs;
+    std::set<Instruction*> candidateInsns;
+
+    for (std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementCheckList.begin() ;
+            ReplacementIt != ReplacementCheckList.end(); ++ReplacementIt) {
+        InstructionReplacement* Repl = *ReplacementIt;
+        Instruction* partiallySenMemInst = Repl->OldInstruction;
+        candidateFns.insert(partiallySenMemInst->getParent()->getParent());
+        candidateBBs.insert(partiallySenMemInst->getParent());
+        candidateInsns.insert(partiallySenMemInst);
+    }
+
+    // Now, for each function, find the Loops in it
+    for (Function* candidateFn: candidateFns) {
+        if (candidateFn->getName() == "salsa20_8") {
+            errs() << "Found sasla20_8\n";
+        }
+        std::set<Loop*> candidateLoops;
+        // We care about only tightloops, that run multiple times 
+        LoopInfo& loopInfo = getAnalysis<LoopInfoWrapperPass>(*candidateFn).getLoopInfo();
+        for (Loop* loop: loopInfo.getLoopsInPreorder()) {
+            // Can handle only innermost loops that are safe to clone, and
+            // have a preheader
+            if (!loop->empty() || !loop->isSafeToClone() || !loop->getLoopPreheader()) {
+                continue;
+            }
+            BasicBlock* header = loop->getHeader();
+            BasicBlock* exitingBlock = loop->getExitingBlock();
+            // Check that this loop has a single exit block for now
+            // TODO -- do we need this? 
+            if (!loop->getExitingBlock()) {
+                continue;
+            }
+
+            // Check that this is a loop that is interesting
+            if (!hasSenBB(loop, candidateBBs)) {
+                continue;
+            }
+            // Check that the header and the exit condition doesn't have any
+            // partially sensitive memory access
+            if (hasPartialSenMemAccess(header, candidateInsns) || hasPartialSenMemAccess(exitingBlock, candidateInsns)) {
+                continue;
+            }
+            if (hasFunctionCallInBody(loop)) {
+                continue;
+            }
+
+            Value* baseMem = nullptr;
+            std::set<Instruction*> partiallySenMemInsts;
+
+            if (!allSameMemBase(loop, &baseMem, candidateInsns, partiallySenMemInsts)) {
+                continue;
+            }
+
+            LoopInfo* LI = &(getAnalysis<LoopInfoWrapperPass>(*candidateFn).getLoopInfo());
+
+            DominatorTree* DT = &(getAnalysis<DominatorTreeWrapperPass>(*candidateFn).getDomTree());
+
+            specializeLoopAndHoist(LI, DT, loop, partiallySenMemInsts, baseMem);
+            errs() << "Specialized loop and hoisted check in function: " << candidateFn->getName() << "\n";
+
+            // Remove the handled partially sensitive mem instructions
+            for (Instruction* inst: partiallySenMemInsts) {
+                std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementCheckList.begin();
+                while (ReplacementIt != ReplacementCheckList.end()) {
+                    InstructionReplacement* Repl = *ReplacementIt;
+                    Instruction* partiallySenMemInst = Repl->OldInstruction;
+                    if (partiallySenMemInst == inst) {
+                        ReplacementIt = ReplacementCheckList.erase(ReplacementIt);
+                        if (ReplacementIt == ReplacementCheckList.end()) {
+                            break; // done
+                        }
+                    } else {
+                        ReplacementIt++;
+                    }
+                }
+            }
+
+        }
+    }
+}
+
+
+bool EncryptionPass::specializeLoopAndHoist(LoopInfo* LI, DominatorTree* DT, Loop* OrigLoop, std::set<Instruction*>& partiallySenMemInstSet, Value* baseMemLoc) {
+    LLVMContext& ctx = baseMemLoc->getContext();
 
     // Following conditions should've been checked already
     assert(OrigLoop->empty() && "Can only handle innermost loops");
@@ -4671,10 +4816,12 @@ bool EncryptionPass::specializeLoopAndHoist(LoopInfo* LI, DominatorTree* DT, Loo
 
     // Now, retrieve the sensitive pointer and call dfsan_read_label
 
-    addTaintCheck(OrigLoop, NewLoop, NewPH, baseMemLoc, partiallySenMemInst);
+    addTaintCheck(OrigLoop, NewLoop, NewPH, baseMemLoc);
 
 
-    transformSensitiveMemInst(partiallySenMemInst);
+    for (Instruction* partiallySenMemInst: partiallySenMemInstSet) {
+        transformSensitiveMemInst(partiallySenMemInst);
+    }
     return true;
 }
 
