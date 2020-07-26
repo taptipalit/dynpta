@@ -265,6 +265,12 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
             bool specializeLoopAndHoist(LoopInfo*, DominatorTree*, Loop*, Instruction*, Value*);
             void loadShadowBase(Module& M);
 
+            BasicBlock* insertNewPH(LLVMContext&, DominatorTree*, Loop*, ValueToValueMapTy&);
+            Loop* cloneAndInsertLoop(DominatorTree*, LoopInfo*, Loop*, BasicBlock*, ValueToValueMapTy&);
+            void addTaintCheck(Loop*, Loop*, BasicBlock*, Value*, Instruction*);
+
+            void transformSensitiveMemInst(Instruction*);
+
             void resetInstructions(BasicBlock* bb, ValueToValueMapTy& VMap) {
                 for (BasicBlock::iterator BBIterator = bb->begin(); BBIterator != bb->end(); BBIterator++) {
                     if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
@@ -4434,6 +4440,135 @@ Value* EncryptionPass::getBaseValueForMemOp(Instruction* inst, Loop* loop) {
     return nullptr;
 }
 
+BasicBlock* EncryptionPass::insertNewPH(LLVMContext& ctx, DominatorTree* DT, Loop* loop, ValueToValueMapTy& VMap) {
+    BasicBlock* oldPH = loop->getLoopPreheader();
+    BasicBlock* loopHeader = loop->getHeader();
+
+    Loop* ParentLoop = loop->getParentLoop();
+    // Create a new preheader, where we'll stick our if checks
+    BasicBlock* NewPH = BasicBlock::Create(ctx, "hoist.PH", oldPH->getParent(), loopHeader);
+    // the oldPH should lead to NewPH
+    Instruction* termInst = oldPH->getTerminator();
+    BranchInst* branchInst = dyn_cast<BranchInst>(termInst);
+    assert(branchInst && "Can't handle anything but branch instruction here");
+    for (int i = 0; i < branchInst->getNumSuccessors(); i++) {
+        if (branchInst->getSuccessor(i) == loopHeader) {
+            branchInst->setSuccessor(i, NewPH); 
+        }
+    }
+
+    VMap[oldPH] = NewPH; // Needed to update the dominator relationships
+    DT->addNewBlock(NewPH, oldPH);
+    return NewPH;
+}
+
+void EncryptionPass::addTaintCheck(Loop* OrigLoop, Loop* NewLoop, BasicBlock* NewPH, Value* baseMemLoc, 
+        Instruction* partiallySenMemInst) {
+    Value* addrForReadLabel = baseMemLoc;
+    IRBuilder<> Builder(NewPH);
+
+    Module& M = *(partiallySenMemInst->getParent()->getParent()->getParent());
+    const DataLayout &DL = M.getDataLayout();
+    LLVMContext *Ctx = &M.getContext();
+    IntegerType* ShadowTy = IntegerType::get(*Ctx, 16);
+    IntegerType* IntptrTy = DL.getIntPtrType(*Ctx);
+    Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(*Ctx), IntptrTy };
+    FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
+
+    InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
+
+    CallInst* readLabel = nullptr;
+    ConstantInt* noOfByte = Builder.getInt64(1);
+    ConstantInt *One = Builder.getInt16(1);
+
+    // If it's not a i8* cast it
+
+    Type* readLabelPtrElemType = addrForReadLabel->getType()->getPointerElementType();
+    IntegerType* intType = dyn_cast<IntegerType>(readLabelPtrElemType);
+
+    if (readLabelPtrElemType->isPointerTy()) {
+        // Create a Load to load the IR pointer
+        addrForReadLabel = Builder.CreateLoad(readLabelPtrElemType, addrForReadLabel);
+    }
+
+    if (!(intType && intType->getBitWidth() == 8)) {
+        // Create the cast
+        Type* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
+        addrForReadLabel = Builder.CreateBitCast(addrForReadLabel, voidPtrType);
+    }
+
+    readLabel = Builder.CreateCall(DFSanReadLabelFn,{addrForReadLabel , noOfByte});
+    readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
+
+    Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
+
+    BranchInst* branchInst = Builder.CreateCondBr(cmpInst, OrigLoop->getHeader(), NewLoop->getHeader());
+}
+
+Loop* EncryptionPass::cloneAndInsertLoop(DominatorTree* DT, LoopInfo* LI, Loop* loop, BasicBlock* NewPH,
+        ValueToValueMapTy& VMap) {
+    // Clone the loop
+    Loop* OrigLoop = loop;
+    Function *F = OrigLoop->getHeader()->getParent();
+
+    // Create new loop
+    BasicBlock* Before = loop->getHeader();
+    assert(Before && "Should have only one exit block");
+    Loop* ParentLoop = OrigLoop->getParentLoop();
+    Loop *NewLoop = LI->AllocateLoop();
+    if (ParentLoop)
+        ParentLoop->addChildLoop(NewLoop);
+    else
+        LI->addTopLevelLoop(NewLoop);
+
+    for (BasicBlock *BB : OrigLoop->getBlocks()) {
+        ValueToValueMapTy VMap2;
+        BasicBlock *NewBB = CloneBasicBlock(BB, VMap2, "", F);
+        resetInstructions(NewBB, VMap2);
+
+        VMap[BB] = NewBB;
+        errs() << "Cloned bb is: \n";
+        NewBB->dump();
+
+        // Update LoopInfo.
+        NewLoop->addBasicBlockToLoop(NewBB, *LI);
+
+        // Add DominatorTree node. After seeing all blocks, update to correct IDom.
+        DT->addNewBlock(NewBB, NewPH);
+
+    }
+
+    for (BasicBlock *BB : OrigLoop->getBlocks()) {
+        // Update DominatorTree.
+        BasicBlock *IDomBB = DT->getNode(BB)->getIDom()->getBlock();
+        DT->changeImmediateDominator(cast<BasicBlock>(VMap[BB]),
+                cast<BasicBlock>(VMap[IDomBB]));
+    }
+
+    // Move them physically from the end of the block list.
+    F->getBasicBlockList().splice(Before->getIterator(), F->getBasicBlockList(),
+            NewPH);
+    F->getBasicBlockList().splice(Before->getIterator(), F->getBasicBlockList(),
+            NewLoop->getHeader()->getIterator(), F->end());
+
+    // Now, let's reset the instructions
+    for (BasicBlock* newBB: NewLoop->getBlocks()) {
+        for (BasicBlock::iterator BBIterator = newBB->begin(); BBIterator != newBB->end(); BBIterator++) {
+            if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                if (BranchInst* branchInst = dyn_cast<BranchInst>(Inst)) {
+                    for (int i = 0; i < branchInst->getNumSuccessors(); i++) {
+                        BasicBlock* succ = branchInst->getSuccessor(i);
+                        if (succ != OrigLoop->getExitBlock()) {
+                            branchInst->setSuccessor(i, cast<BasicBlock>(VMap[succ])); 
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return NewLoop;
+}
+
 /**
  * A partially sensitive memory operation is a candidate for hoisting only iff
  * 1. It's a gep instruction operating on a string / array
@@ -4466,8 +4601,12 @@ bool EncryptionPass::isCandidateForHoisting(Instruction* inst, Value** baseMemLo
         for (BasicBlock* succ: successors(header)) {
             if (succ != loop->getExitBlock()) {
                 if (potentialBB == succ) {
-                    if (!loop->empty() || !loop->isSafeToClone()) {
+                    if (!loop->empty()) {
                         continue;
+                    }
+                    // Not sure why I need it to have a preheader
+                    if (!loop->isSafeToClone() || (loop->getLoopPreheader() == nullptr)) {
+                        return false;
                     }
                     // Now, check if the base satisfies the conditions
                     Value* base = getBaseValueForMemOp(inst, loop);
@@ -4516,146 +4655,67 @@ bool EncryptionPass::isCandidateForHoisting(Instruction* inst, Value** baseMemLo
  *      }
  * }
  */
-bool EncryptionPass::specializeLoopAndHoist(LoopInfo* LI, DominatorTree* DT, Loop* loop, Instruction* partiallySenMemInst, Value* baseMemLoc) {
+bool EncryptionPass::specializeLoopAndHoist(LoopInfo* LI, DominatorTree* DT, Loop* OrigLoop, Instruction* partiallySenMemInst, Value* baseMemLoc) {
     LLVMContext& ctx = partiallySenMemInst->getContext();
-    assert(!loop->empty() && "Can only handle innermost loops");
-    assert(loop->isSafeToCloen() && "Can't clone loop");
+
+    // Following conditions should've been checked already
+    assert(OrigLoop->empty() && "Can only handle innermost loops");
+    assert(OrigLoop->isSafeToClone() && "Can't clone loop");
+    assert(OrigLoop->getLoopPreheader() && "loop doesn't have a preheader");
     
-    BasicBlock* oldPH = loop->getLoopPreheader();
-    BasicBlock* loopHeader = loop->getHeader();
+    ValueToValueMapTy VMap;
 
-    Loop* ParentLoop = loop->getParentLoop();
-    // Create a new preheader, where we'll stick our if checks
-    if (oldPH) {
-        ValueToValueMapTy VMap;
-        BasicBlock* NewPH = BasicBlock::Create(ctx, "hoist.PH", oldPH->getParent(), loopHeader);
-        // the oldPH should lead to NewPH
-        Instruction* termInst = oldPH->getTerminator();
-        BranchInst* branchInst = dyn_cast<BranchInst>(termInst);
-        assert(branchInst && "Can't handle anything but branch instruction here");
-        for (int i = 0; i < branchInst->getNumSuccessors(); i++) {
-            if (branchInst->getSuccessor(i) == loopHeader) {
-                branchInst->setSuccessor(i, NewPH); 
-            }
+    BasicBlock* NewPH = insertNewPH(ctx, DT, OrigLoop, VMap);
+
+    Loop* NewLoop = cloneAndInsertLoop(DT, LI, OrigLoop, NewPH, VMap);
+
+    // Now, retrieve the sensitive pointer and call dfsan_read_label
+
+    addTaintCheck(OrigLoop, NewLoop, NewPH, baseMemLoc, partiallySenMemInst);
+
+
+    transformSensitiveMemInst(partiallySenMemInst);
+    return true;
+}
+
+void EncryptionPass::transformSensitiveMemInst(Instruction* partiallySenMemInst) {
+    std::map<PAGNode*, std::set<PAGNode*>> ptsToMap = getAnalysis<WPAPass>().getPAGPtsToMap();
+
+    if (LoadInst* LdInst = dyn_cast<LoadInst>(partiallySenMemInst)) {
+        IRBuilder<> Builder(LdInst); // Insert before "next" instruction
+        // Check get the decrypted value
+        decryptionCount++;
+        Value* decryptedValue = nullptr;
+        decryptedValue = AESCache.getDecryptedValueCached(LdInst);
+        updateSensitiveState(LdInst, decryptedValue, ptsToMap);
+        // Can't blindly replace all uses of the old loaded value, because it includes the InlineASM
+        std::vector<User*> LoadInstUsers;
+        for (User *U : LdInst->users()) {
+            LoadInstUsers.push_back(U);
         }
-
-        VMap[oldPH] = NewPH; // Needed to update the dominator relationships
-
-        DT->addNewBlock(NewPH, oldPH);
-
-        // Clone the loop
-        llvm::SmallVector<BasicBlock*, 10> ClonedLoopBlocks;
-
-        Loop* OrigLoop = loop;
-        Function *F = OrigLoop->getHeader()->getParent();
-
-        // Create new loop
-        BasicBlock* Before = loop->getHeader();
-        assert(Before && "Should have only one exit block");
-        ParentLoop = OrigLoop->getParentLoop();
-        Loop *NewLoop = LI->AllocateLoop();
-        if (ParentLoop)
-            ParentLoop->addChildLoop(NewLoop);
-        else
-            LI->addTopLevelLoop(NewLoop);
-
-        for (BasicBlock *BB : OrigLoop->getBlocks()) {
-            ValueToValueMapTy VMap2;
-            BasicBlock *NewBB = CloneBasicBlock(BB, VMap2, "", F);
-            resetInstructions(NewBB, VMap2);
-
-            VMap[BB] = NewBB;
-            errs() << "Cloned bb is: \n";
-            NewBB->dump();
-
-            // Update LoopInfo.
-            NewLoop->addBasicBlockToLoop(NewBB, *LI);
-
-            // Add DominatorTree node. After seeing all blocks, update to correct IDom.
-            DT->addNewBlock(NewBB, NewPH);
-
-        }
-
-        for (BasicBlock *BB : OrigLoop->getBlocks()) {
-            // Update DominatorTree.
-            BasicBlock *IDomBB = DT->getNode(BB)->getIDom()->getBlock();
-            DT->changeImmediateDominator(cast<BasicBlock>(VMap[BB]),
-                    cast<BasicBlock>(VMap[IDomBB]));
-        }
-
-        // Move them physically from the end of the block list.
-        F->getBasicBlockList().splice(Before->getIterator(), F->getBasicBlockList(),
-                NewPH);
-        F->getBasicBlockList().splice(Before->getIterator(), F->getBasicBlockList(),
-                NewLoop->getHeader()->getIterator(), F->end());
-
-        // Now, let's reset the instructions
-        for (BasicBlock* newBB: NewLoop->getBlocks()) {
-            for (BasicBlock::iterator BBIterator = newBB->begin(); BBIterator != newBB->end(); BBIterator++) {
-                if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-                    if (BranchInst* branchInst = dyn_cast<BranchInst>(Inst)) {
-                        for (int i = 0; i < branchInst->getNumSuccessors(); i++) {
-                            BasicBlock* succ = branchInst->getSuccessor(i);
-                            if (succ != OrigLoop->getExitBlock()) {
-                                branchInst->setSuccessor(i, cast<BasicBlock>(VMap[succ])); 
-                            }
-                        }
+        for (User *U: LoadInstUsers) {
+            if (U != decryptedValue) {
+                int i, NumOperands = U->getNumOperands();
+                for (i = 0; i < NumOperands; i++) {
+                    if (U->getOperand(i) == LdInst) {
+                        U->setOperand(i, decryptedValue);
                     }
                 }
             }
         }
+        // Remove the Load instruction
+        LdInst->eraseFromParent();
+    } else	if (StoreInst* StInst = dyn_cast<StoreInst>(partiallySenMemInst)) {
+        IRBuilder<> Builder(StInst);
 
-        // Now, retrieve the sensitive pointer and call dfsan_read_label
-        
-        Value* addrForReadLabel = baseMemLoc;
-        IRBuilder<> Builder(NewPH);
-
-        Module& M = *(partiallySenMemInst->getParent()->getParent()->getParent());
-        const DataLayout &DL = M.getDataLayout();
-        LLVMContext *Ctx = &M.getContext();
-        IntegerType* ShadowTy = IntegerType::get(*Ctx, 16);
-        IntegerType* IntptrTy = DL.getIntPtrType(*Ctx);
-        Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(*Ctx), IntptrTy };
-        FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
-
-        InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
-
-        CallInst* readLabel = nullptr;
-        ConstantInt* noOfByte = Builder.getInt64(1);
-        ConstantInt *One = Builder.getInt16(1);
-
-        // If it's not a i8* cast it
-
-        Type* readLabelPtrElemType = addrForReadLabel->getType()->getPointerElementType();
-        IntegerType* intType = dyn_cast<IntegerType>(readLabelPtrElemType);
-        if (!(intType && intType->getBitWidth() == 8)) {
-            // Create the cast
-            Type* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
-            addrForReadLabel = Builder.CreateBitCast(addrForReadLabel, voidPtrType);
-        }
-
-        readLabel = Builder.CreateCall(DFSanReadLabelFn,{addrForReadLabel , noOfByte});
-        readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
-
-        Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
-
-        // Then depending on the result, branch to the orginal or the new
-        // loop. 
-        /*
-        termInst = NewPH->getTerminator();
-        termInst->removeFromParent();
-        */
-
-        branchInst = Builder.CreateCondBr(cmpInst, OrigLoop->getHeader(), NewLoop->getHeader());
-
-        // Turn the new loop depending on the code we need
-        // TODO
-
-
-        return true;
-    } else {
-        errs() << "Didn't have a preheader ... but do I really need one?\n";
-        return false;
+        LLVM_DEBUG (
+                dbgs() << "Replacing Store Instruction : ";
+                StInst->dump();
+                );
+        encryptionCount++;
+        AESCache.setEncryptedValueCached(StInst);
+        // Remove the Store instruction
+        StInst->eraseFromParent();
     }
 
 }
