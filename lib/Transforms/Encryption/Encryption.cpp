@@ -1033,6 +1033,8 @@ void EncryptionPass::getPtsTo(Value* ptr, std::vector<Value*>& ptsToVec) {
     }
 }
 
+cl::opt<int> VFALimit("vfa-limit", cl::desc("Limit VFA Iterations: debug purposes only"), cl::init(100), cl::Hidden);
+
 void EncryptionPass::performSourceSinkAnalysis(Module& M) {
     PAG* pag = getAnalysis<WPAPass>().getPAG();
 
@@ -1062,6 +1064,10 @@ void EncryptionPass::performSourceSinkAnalysis(Module& M) {
     int iter = 0;
     do {
         tempWorkList.clear();
+        iter ++;
+        if ( iter >= VFALimit) {
+            break;
+        }
         while (!workList.empty()) {
             Value* work = workList.back();
             workList.pop_back();
@@ -1082,6 +1088,7 @@ void EncryptionPass::performSourceSinkAnalysis(Module& M) {
             done = true;
         }
     } while (!done);
+    errs() << "VFA iter: " << iter << "\n";
 
     // Put it back in PAG-world
     for (Value* sinkVal: sinkSites) {
@@ -4527,7 +4534,7 @@ Loop* EncryptionPass::cloneAndInsertLoop(DominatorTree* DT, LoopInfo* LI, Loop* 
 
     // Create new loop
     BasicBlock* Before = loop->getHeader();
-    assert(Before && "Should have only one exit block");
+    assert(Before && "Should have a header!");
     Loop* ParentLoop = OrigLoop->getParentLoop();
     Loop *NewLoop = LI->AllocateLoop();
     if (ParentLoop)
@@ -4542,8 +4549,10 @@ Loop* EncryptionPass::cloneAndInsertLoop(DominatorTree* DT, LoopInfo* LI, Loop* 
         resetInstructions(NewBB, VMap);
 
         VMap[BB] = NewBB;
+        /*
         errs() << "Cloned bb is: \n";
         NewBB->dump();
+        */
 
         // Update LoopInfo.
         NewLoop->addBasicBlockToLoop(NewBB, *LI);
@@ -4748,20 +4757,24 @@ void EncryptionPass::performHoistOptimization() {
 
     // Now, for each function, find the Loops in it
     for (Function* candidateFn: candidateFns) {
+        /*
         if (candidateFn->getName() == "stream_ref.257") {
             errs() << "Found stream_ref.257\n";
         }
+        */
         std::set<Loop*> candidateLoops;
         // We care about only tightloops, that run multiple times 
-        LoopInfo& loopInfo = getAnalysis<LoopInfoWrapperPass>(*candidateFn).getLoopInfo();
+        LoopInfo* LI = &(getAnalysis<LoopInfoWrapperPass>(*candidateFn).getLoopInfo());
+        DominatorTree* DT = &(getAnalysis<DominatorTreeWrapperPass>(*candidateFn).getDomTree());
+
         std::vector<Loop*> loopsInPreorder;
-        for (Loop* loop: loopInfo.getLoopsInPreorder()) {
+        for (Loop* loop: LI->getLoopsInPreorder()) {
             loopsInPreorder.push_back(loop);
         }
         for (Loop* loop: loopsInPreorder) {
             // Can handle only innermost loops that are safe to clone, and
             // have a preheader
-            if (!loop->empty() || !loop->isSafeToClone() || (loop->getParentLoop() != nullptr) || (loop->getLoopPreheader() == nullptr)) {
+            if (!loop->empty() || !loop->isSafeToClone() || (loop->getLoopPreheader() == nullptr)) {
                 continue;
             }
             BasicBlock* header = loop->getHeader();
@@ -4792,10 +4805,7 @@ void EncryptionPass::performHoistOptimization() {
                 continue;
             }
 
-            LoopInfo* LI = &(getAnalysis<LoopInfoWrapperPass>(*candidateFn).getLoopInfo());
-
-            DominatorTree* DT = &(getAnalysis<DominatorTreeWrapperPass>(*candidateFn).getDomTree());
-
+            
             specializeLoopAndHoist(LI, DT, loop, partiallySenMemInsts, baseMem);
             errs() << "Specialized loop and hoisted check in function: " << candidateFn->getName() << "\n";
 
@@ -5279,7 +5289,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     }
 
     //performTaintCheckLICM(M);
-    M.dump();
+    //    M.dump();
     return true;
 }
 
