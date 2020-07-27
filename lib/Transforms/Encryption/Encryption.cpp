@@ -4428,6 +4428,8 @@ Value* EncryptionPass::getBaseValueForMemOp(Instruction* inst, Loop* loop) {
         trueBase = arg;
     } else if (LoadInst* loadInst = dyn_cast<LoadInst>(gepBase)){
         trueBase = loadInst->getPointerOperand();
+    } else if (AllocaInst* allocInst = dyn_cast<AllocaInst>(gepBase)) {
+        trueBase = allocInst;
     }
     if (trueBase) {
         // Verify that this trueBase is outside of the loop
@@ -4534,9 +4536,10 @@ Loop* EncryptionPass::cloneAndInsertLoop(DominatorTree* DT, LoopInfo* LI, Loop* 
         LI->addTopLevelLoop(NewLoop);
 
     for (BasicBlock *BB : OrigLoop->getBlocks()) {
-        ValueToValueMapTy VMap2;
-        BasicBlock *NewBB = CloneBasicBlock(BB, VMap2, "", F);
-        resetInstructions(NewBB, VMap2);
+        // Store it all in VMap, because the PHINode is weird
+        //ValueToValueMapTy VMap2;
+        BasicBlock *NewBB = CloneBasicBlock(BB, VMap, "", F);
+        resetInstructions(NewBB, VMap);
 
         VMap[BB] = NewBB;
         errs() << "Cloned bb is: \n";
@@ -4567,10 +4570,24 @@ Loop* EncryptionPass::cloneAndInsertLoop(DominatorTree* DT, LoopInfo* LI, Loop* 
     for (BasicBlock* newBB: NewLoop->getBlocks()) {
         for (BasicBlock::iterator BBIterator = newBB->begin(); BBIterator != newBB->end(); BBIterator++) {
             if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-                for (int i = 0; i < Inst->getNumOperands(); i++) {
-                    Value* op = Inst->getOperand(i);
-                    if (VMap.find(op) != VMap.end()) {
-                        Inst->setOperand(i, VMap[op]);
+                if (PHINode* phi = dyn_cast<PHINode>(Inst)) {
+                    for (int i = 0; i < phi->getNumIncomingValues(); i++) {
+                        BasicBlock* orig = phi->getIncomingBlock(i);
+                        if (VMap.find(orig) != VMap.end()) {
+                            phi->setIncomingBlock(i, cast<BasicBlock>(VMap[orig]));
+                        }
+                        Value* val = phi->getIncomingValue(i);
+                        if (VMap.find(val) != VMap.end()) {
+                            phi->setIncomingValue(i, VMap[val]);
+                        }
+                    }
+
+                } else {
+                    for (int i = 0; i < Inst->getNumOperands(); i++) {
+                        Value* op = Inst->getOperand(i);
+                        if (VMap.find(op) != VMap.end()) {
+                            Inst->setOperand(i, VMap[op]);
+                        }
                     }
                 }
             }
@@ -4731,16 +4748,20 @@ void EncryptionPass::performHoistOptimization() {
 
     // Now, for each function, find the Loops in it
     for (Function* candidateFn: candidateFns) {
-        if (candidateFn->getName() == "salsa20_8") {
-            errs() << "Found sasla20_8\n";
+        if (candidateFn->getName() == "stream_ref.257") {
+            errs() << "Found stream_ref.257\n";
         }
         std::set<Loop*> candidateLoops;
         // We care about only tightloops, that run multiple times 
         LoopInfo& loopInfo = getAnalysis<LoopInfoWrapperPass>(*candidateFn).getLoopInfo();
+        std::vector<Loop*> loopsInPreorder;
         for (Loop* loop: loopInfo.getLoopsInPreorder()) {
+            loopsInPreorder.push_back(loop);
+        }
+        for (Loop* loop: loopsInPreorder) {
             // Can handle only innermost loops that are safe to clone, and
             // have a preheader
-            if (!loop->empty() || !loop->isSafeToClone() || !loop->getLoopPreheader()) {
+            if (!loop->empty() || !loop->isSafeToClone() || (loop->getParentLoop() != nullptr) || (loop->getLoopPreheader() == nullptr)) {
                 continue;
             }
             BasicBlock* header = loop->getHeader();
