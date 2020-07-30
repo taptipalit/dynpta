@@ -8,6 +8,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include <llvm/Transforms/Utils/Cloning.h>
 #include "llvm/IR/Dominators.h"
+#include "llvm/IR/Constants.h"
 
 #define DEBUG_TYPE "encryption"
 
@@ -258,6 +259,7 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
             bool hasPartialSenMemAccess(BasicBlock*, std::set<Instruction*>&);
             bool hasFunctionCallInBody(Loop*);
             bool allSameMemBase(Loop*, Value**, std::set<Instruction*>&, std::set<Instruction*>&);
+            bool hasNullCheck(Value*);
             //void performTaintCheckLICM(Module&);
 
             //void handleLoop(Loop*);
@@ -1046,18 +1048,6 @@ void EncryptionPass::performSourceSinkAnalysis(Module& M) {
     
     for (PAGNode* sensitiveObjNode: SensitiveObjList) {
         workList.push_back(const_cast<Value*>(sensitiveObjNode->getValue()));
-        /*
-        Type* sensitiveType = sensitiveObjNode->getValue()->getType();
-        sensitiveTypes.push_back(sensitiveType);
-        if (PointerType* sensitivePtrType = dyn_cast<PointerType>(sensitiveType)) {
-            sensitiveTypes.push_back(sensitiveType->getPointerElementType);
-        }
-        if (StructType* stType = dyn_cast<StructType>(sensitiveType)) {
-            for (int i = 0; i < stType->getNumElements(); i++) {
-                sensitiveTypes.push_back(stType->getElementType(i));
-            }
-        }
-        */
     }
 
     bool done = false;
@@ -1079,7 +1069,10 @@ void EncryptionPass::performSourceSinkAnalysis(Module& M) {
             getPtsFrom(work, ptsFromVec);
             // Indirect vfa 
             for (Value* ptr: ptsFromVec) {
-                doVFAIndirect(ptr, sinkSites, tempWorkList, processedList);
+                // It should be a pointer to a pointer? 
+                if (ptr->getType() == work->getType()) {
+                    doVFAIndirect(ptr, sinkSites, tempWorkList, processedList);
+                }
             }
         }
         errs() << "Found " << tempWorkList.size() << " new sites during VFA\n";
@@ -4804,6 +4797,10 @@ void EncryptionPass::performHoistOptimization() {
             if (!allSameMemBase(loop, &baseMem, candidateInsns, partiallySenMemInsts)) {
                 continue;
             }
+            
+            if (hasNullCheck(baseMem)) {
+                continue;
+            }
 
             
             specializeLoopAndHoist(LI, DT, loop, partiallySenMemInsts, baseMem);
@@ -4922,6 +4919,32 @@ void EncryptionPass::loadShadowBase(Module& M) {
     IRBuilder<> Builder(insertionPoint);
     Builder.CreateCall(loadShadowBaseFn);
 
+}
+
+bool EncryptionPass::hasNullCheck(Value* baseMem) {
+    for (User* user: baseMem->users()) {
+        if (LoadInst* loadInst = dyn_cast<LoadInst>(user)) {
+            for (User* ldUser: loadInst->users()) {
+                if (ICmpInst* icmp = dyn_cast<ICmpInst>(ldUser)) {
+                    for (int i = 0; i < icmp->getNumOperands(); i++) {
+                        Value* op = icmp->getOperand(i);
+                        if (ConstantPointerNull* nullptrVal = dyn_cast<ConstantPointerNull>(op)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        if (ICmpInst* icmp = dyn_cast<ICmpInst>(user)) {
+            for (int i = 0; i < icmp->getNumOperands(); i++) {
+                Value* op = icmp->getOperand(i);
+                if (ConstantPointerNull* nullptrVal = dyn_cast<ConstantPointerNull>(op)) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
 
 bool EncryptionPass::runOnModule(Module &M) {
