@@ -259,6 +259,8 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
             bool hasPartialSenMemAccess(BasicBlock*, std::set<Instruction*>&);
             bool hasFunctionCallInBody(Loop*);
             bool allSameMemBase(Loop*, Value**, std::set<Instruction*>&, std::set<Instruction*>&);
+            void getMemBases(Loop*, std::set<Instruction*>&, std::map<Value*, std::set<Instruction*>>&);
+
             bool hasNullCheck(Value*);
             //void performTaintCheckLICM(Module&);
 
@@ -266,6 +268,8 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
 
             //bool isInLoopBody(Instruction*);
             Value* getBaseValueForMemOp(Instruction*, Loop*);
+            bool sanitizeCandidatesForNullCheck(std::map<Value*, std::set<Instruction*>>&);
+
             //bool isCandidateForHoisting(Instruction*, Value** baseMemLoc, Loop**, LoopInfo**, DominatorTree**);
 
             //bool handleTaintCheckInLoop(LoopInfo*, DominatorTree*, Loop*, Instruction*);
@@ -277,6 +281,7 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
             void addTaintCheck(Loop*, Loop*, BasicBlock*, Value*);
 
             void transformSensitiveMemInst(Instruction*);
+
 
             void resetInstructions(BasicBlock* bb, ValueToValueMapTy& VMap) {
                 for (BasicBlock::iterator BBIterator = bb->begin(); BBIterator != bb->end(); BBIterator++) {
@@ -4692,6 +4697,59 @@ bool EncryptionPass::hasSenBB(Loop* loop, std::set<BasicBlock*>& senBBs) {
     return false;
 }
 
+bool EncryptionPass::sanitizeCandidatesForNullCheck(std::map<Value*, std::set<Instruction*>>& baseMemInsnMap) {
+    std::map<Value*, std::set<Instruction*>>::iterator baseMapIt = baseMemInsnMap.begin();
+    if (baseMapIt == baseMemInsnMap.end()) {
+        return false;
+    }
+
+    do
+    {
+        Value* baseMemLoc = baseMapIt->first;
+        if (hasNullCheck(baseMemLoc)) {
+            // Remove it
+            baseMapIt = baseMemInsnMap.erase(baseMapIt);
+        }
+    } while (baseMapIt != baseMemInsnMap.end());
+
+    if (baseMapIt == baseMemInsnMap.end()) {
+        return false;
+    }
+}
+
+void EncryptionPass::getMemBases(Loop* loop, std::set<Instruction*>& candidateInsns, std::map<Value*, std::set<Instruction*>>& baseMemInsnMap) {
+    for (BasicBlock* bb: loop->getBlocks()) {
+        if (bb == loop->getHeader() || bb == loop->getExitingBlock()) {
+            continue;
+        }
+        for (BasicBlock::iterator BBIterator = bb->begin(); BBIterator != bb->end(); BBIterator++) {
+            if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                if (std::find(candidateInsns.begin(), candidateInsns.end(), Inst) != candidateInsns.end()) {
+                    // If one of these is not a gep instruction, then return
+                    // false. Too much work to continue this
+                    GetElementPtrInst* gep = nullptr;
+                    if (LoadInst* ldInst = dyn_cast<LoadInst>(Inst)) {
+                        gep = dyn_cast<GetElementPtrInst>(ldInst->getPointerOperand());
+                        if (!gep) {
+                            continue;
+                        }
+                    }
+                    if (StoreInst* stInst = dyn_cast<StoreInst>(Inst)) {
+                        gep = dyn_cast<GetElementPtrInst>(stInst->getPointerOperand());
+                        if (!gep) {
+                            continue;
+                        }
+                    }
+                    // This is a sensitive memory location
+                    Value* baseMemLoc = getBaseValueForMemOp(Inst, loop);
+                    baseMemInsnMap[baseMemLoc].insert(Inst);
+                }
+            }
+        }
+    }
+
+}
+
 bool EncryptionPass::allSameMemBase(Loop* loop, Value** baseMemLoc, std::set<Instruction*>& candidateInsns, std::set<Instruction*>& outInsns) {
     *baseMemLoc = nullptr;
     for (BasicBlock* bb: loop->getBlocks()) {
@@ -4782,47 +4840,57 @@ void EncryptionPass::performHoistOptimization() {
             if (!hasSenBB(loop, candidateBBs)) {
                 continue;
             }
+
+            // @tpalit: This isn't needed, right? 
             // Check that the header and the exit condition doesn't have any
             // partially sensitive memory access
+            /*
             if (hasPartialSenMemAccess(header, candidateInsns) || hasPartialSenMemAccess(exitingBlock, candidateInsns)) {
                 continue;
             }
+            */
+
             if (hasFunctionCallInBody(loop)) {
                 continue;
             }
 
             Value* baseMem = nullptr;
-            std::set<Instruction*> partiallySenMemInsts;
+            std::map<Value*, std::set<Instruction*>> baseMemInsnMap;
 
+            getMemBases(loop, candidateInsns, baseMemInsnMap);
+            
+            sanitizeCandidatesForNullCheck(baseMemInsnMap);
+            /*
             if (!allSameMemBase(loop, &baseMem, candidateInsns, partiallySenMemInsts)) {
                 continue;
             }
-            
-            if (hasNullCheck(baseMem)) {
-                continue;
-            }
+            */
 
-            
-            specializeLoopAndHoist(LI, DT, loop, partiallySenMemInsts, baseMem);
-            errs() << "Specialized loop and hoisted check in function: " << candidateFn->getName() << "\n";
+            std::map<Value*, std::set<Instruction*>>::iterator baseMapIt = baseMemInsnMap.begin();
 
-            // Remove the handled partially sensitive mem instructions
-            for (Instruction* inst: partiallySenMemInsts) {
-                std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementCheckList.begin();
-                while (ReplacementIt != ReplacementCheckList.end()) {
-                    InstructionReplacement* Repl = *ReplacementIt;
-                    Instruction* partiallySenMemInst = Repl->OldInstruction;
-                    if (partiallySenMemInst == inst) {
-                        ReplacementIt = ReplacementCheckList.erase(ReplacementIt);
-                        if (ReplacementIt == ReplacementCheckList.end()) {
-                            break; // done
+            for (; baseMapIt != baseMemInsnMap.end(); baseMapIt++) {
+                Value* baseMem = baseMapIt->first;
+                std::set<Instruction*>& partiallySenMemInsts = baseMapIt->second;
+                specializeLoopAndHoist(LI, DT, loop, partiallySenMemInsts, baseMem);
+                errs() << "Specialized loop and hoisted check in function: " << candidateFn->getName() << "\n";
+
+                // Remove the handled partially sensitive mem instructions
+                for (Instruction* inst: partiallySenMemInsts) {
+                    std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementCheckList.begin();
+                    while (ReplacementIt != ReplacementCheckList.end()) {
+                        InstructionReplacement* Repl = *ReplacementIt;
+                        Instruction* partiallySenMemInst = Repl->OldInstruction;
+                        if (partiallySenMemInst == inst) {
+                            ReplacementIt = ReplacementCheckList.erase(ReplacementIt);
+                            if (ReplacementIt == ReplacementCheckList.end()) {
+                                break; // done
+                            }
+                        } else {
+                            ReplacementIt++;
                         }
-                    } else {
-                        ReplacementIt++;
                     }
                 }
             }
-
         }
     }
 }
@@ -5172,6 +5240,9 @@ bool EncryptionPass::runOnModule(Module &M) {
                 continue;
             if (LoadInst* ldInst = dyn_cast<LoadInst>(user)) {
                 if (ldInst->getPointerOperand() == ptrVal) {
+                    if (ldInst->getType()->isPointerTy()) {
+                        continue;
+                    }
                     if (isOptimizedOut(ldInst, ptrVal)) {
                         continue;
                     }
@@ -5179,6 +5250,10 @@ bool EncryptionPass::runOnModule(Module &M) {
                 }
             } else if (StoreInst* stInst = dyn_cast<StoreInst>(user)) {
                 if (stInst->getPointerOperand() == ptrVal) {
+                    if (stInst->getValueOperand()->getType()->isPointerTy()) {
+                        continue;
+                    }
+ 
                     if (isOptimizedOut(stInst, ptrVal)) {
                         continue;
                     }
