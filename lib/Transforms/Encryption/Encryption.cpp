@@ -4993,11 +4993,20 @@ Loop* EncryptionPass::specializeLoopAndHoist(LoopInfo* LI, DominatorTree* DT, Lo
     updateSensitiveMemLists(baseMemInsMap, baseMemLoc, VMap);
 
     // Now, retrieve the sensitive pointer and call dfsan_read_label
-
+    // If taint present, then branch to OrigLoop, if not, branch toNewLoop
     addTaintCheck(OrigLoop, NewLoop, NewPH, baseMemLoc);
 
     for (Instruction* partiallySenMemInst: partiallySenMemInstSet) {
-        transformSensitiveMemInst(partiallySenMemInst);
+        bool contains = false;
+        for (BasicBlock* bb: OrigLoop->blocks()) {
+            if (bb == partiallySenMemInst->getParent()) {
+                contains = true;
+                break;
+            } 
+        }
+        if (contains) {
+            transformSensitiveMemInst(partiallySenMemInst);
+        }
     }
     return NewLoop;
 }
