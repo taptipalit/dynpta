@@ -273,15 +273,16 @@ cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl:
             //bool isCandidateForHoisting(Instruction*, Value** baseMemLoc, Loop**, LoopInfo**, DominatorTree**);
 
             //bool handleTaintCheckInLoop(LoopInfo*, DominatorTree*, Loop*, Instruction*);
-            bool specializeLoopAndHoist(LoopInfo*, DominatorTree*, Loop*, std::set<Instruction*>&, Value*);
+            Loop* specializeLoopAndHoist(LoopInfo*, DominatorTree*, Loop*, std::set<Instruction*>&, Value*, std::map<Value*, std::set<Instruction*>>& );
             void loadShadowBase(Module& M);
 
-            BasicBlock* insertNewPH(LLVMContext&, DominatorTree*, Loop*, ValueToValueMapTy&);
+            BasicBlock* insertNewPH(LLVMContext&, DominatorTree*, LoopInfo*, Loop*, ValueToValueMapTy&);
             Loop* cloneAndInsertLoop(DominatorTree*, LoopInfo*, Loop*, BasicBlock*, ValueToValueMapTy&);
             void addTaintCheck(Loop*, Loop*, BasicBlock*, Value*);
 
             void transformSensitiveMemInst(Instruction*);
 
+            void updateSensitiveMemLists(std::map<Value*, std::set<Instruction*>>&, Value*, ValueToValueMapTy&);
 
             void resetInstructions(BasicBlock* bb, ValueToValueMapTy& VMap) {
                 for (BasicBlock::iterator BBIterator = bb->begin(); BBIterator != bb->end(); BBIterator++) {
@@ -4151,6 +4152,7 @@ Type* EncryptionPass::findTrueType(Type* topLevelType0, int topLevelOffset, int 
         }
         beginOffset++;
     }
+    return nullptr;
 }
 
 void EncryptionPass::preprocessSensitiveAnnotatedPointers(Module &M) {
@@ -4462,13 +4464,16 @@ Value* EncryptionPass::getBaseValueForMemOp(Instruction* inst, Loop* loop) {
     return nullptr;
 }
 
-BasicBlock* EncryptionPass::insertNewPH(LLVMContext& ctx, DominatorTree* DT, Loop* loop, ValueToValueMapTy& VMap) {
-    BasicBlock* oldPH = loop->getLoopPreheader();
+BasicBlock* EncryptionPass::insertNewPH(LLVMContext& ctx, DominatorTree* DT, LoopInfo* LI, Loop* loop, ValueToValueMapTy& VMap) {
+    BasicBlock* oldPH = loop->getLoopPredecessor();
     BasicBlock* loopHeader = loop->getHeader();
 
-    Loop* ParentLoop = loop->getParentLoop();
     // Create a new preheader, where we'll stick our if checks
     BasicBlock* NewPH = BasicBlock::Create(ctx, "hoist.PH", oldPH->getParent(), loopHeader);
+    Loop* ParentLoop = loop->getParentLoop();
+    if (ParentLoop) {
+        ParentLoop->addBasicBlockToLoop(NewPH, *LI);
+    }
     // the oldPH should lead to NewPH
     Instruction* termInst = oldPH->getTerminator();
     BranchInst* branchInst = dyn_cast<BranchInst>(termInst);
@@ -4479,8 +4484,11 @@ BasicBlock* EncryptionPass::insertNewPH(LLVMContext& ctx, DominatorTree* DT, Loo
         }
     }
 
-    VMap[oldPH] = NewPH; // Needed to update the dominator relationships
+//    VMap[oldPH] = NewPH; // Needed to update the dominator relationships.
+//    Not needed any more. Will update the newloop's header manually
     DT->addNewBlock(NewPH, oldPH);
+    DT->changeImmediateDominator(NewPH, oldPH);
+    DT->changeImmediateDominator(loop->getHeader(), NewPH);
     return NewPH;
 }
 
@@ -4544,6 +4552,7 @@ Loop* EncryptionPass::cloneAndInsertLoop(DominatorTree* DT, LoopInfo* LI, Loop* 
         // Store it all in VMap, because the PHINode is weird
         //ValueToValueMapTy VMap2;
         BasicBlock *NewBB = CloneBasicBlock(BB, VMap, "", F);
+       
         resetInstructions(NewBB, VMap);
 
         VMap[BB] = NewBB;
@@ -4556,11 +4565,17 @@ Loop* EncryptionPass::cloneAndInsertLoop(DominatorTree* DT, LoopInfo* LI, Loop* 
         NewLoop->addBasicBlockToLoop(NewBB, *LI);
 
         // Add DominatorTree node. After seeing all blocks, update to correct IDom.
+        // Except for the new loop header. The new loop's header is the NewPH
         DT->addNewBlock(NewBB, NewPH);
 
     }
 
+
     for (BasicBlock *BB : OrigLoop->getBlocks()) {
+        // We have already adjusted the DomTree for the headers
+        if (BB == OrigLoop->getHeader()) {
+            continue;
+        }
         // Update DominatorTree.
         BasicBlock *IDomBB = DT->getNode(BB)->getIDom()->getBlock();
         DT->changeImmediateDominator(cast<BasicBlock>(VMap[BB]),
@@ -4710,11 +4725,13 @@ bool EncryptionPass::sanitizeCandidatesForNullCheck(std::map<Value*, std::set<In
             // Remove it
             baseMapIt = baseMemInsnMap.erase(baseMapIt);
         }
+        baseMapIt++;
     } while (baseMapIt != baseMemInsnMap.end());
 
-    if (baseMapIt == baseMemInsnMap.end()) {
+    if (baseMemInsnMap.size() == 0) {
         return false;
     }
+    return true;
 }
 
 void EncryptionPass::getMemBases(Loop* loop, std::set<Instruction*>& candidateInsns, std::map<Value*, std::set<Instruction*>>& baseMemInsnMap) {
@@ -4824,11 +4841,19 @@ void EncryptionPass::performHoistOptimization() {
         }
         for (Loop* loop: loopsInPreorder) {
             // Can handle only innermost loops that are safe to clone, and
-            // have a preheader
+            // have a preheader.
+            // Important: We don't want to deal with loops without preheaders
+            // at this stage. Though later, when handling multiple sensitive
+            // arrays, we *do* handle loops that don't have a preheader
+            //
+            // From llvm:  A preheader is a (singular) loop predecessor which
+            // ends in an unconditional transfer of control to the loop
+            // header.
             if (!loop->empty() || !loop->isSafeToClone() || (loop->getLoopPreheader() == nullptr)) {
                 continue;
             }
             BasicBlock* header = loop->getHeader();
+            Function* function = header->getParent();
             BasicBlock* exitingBlock = loop->getExitingBlock();
             // Check that this loop has a single exit block for now
             // TODO -- do we need this? 
@@ -4859,7 +4884,9 @@ void EncryptionPass::performHoistOptimization() {
 
             getMemBases(loop, candidateInsns, baseMemInsnMap);
             
-            sanitizeCandidatesForNullCheck(baseMemInsnMap);
+            if (!sanitizeCandidatesForNullCheck(baseMemInsnMap)) {
+                continue;
+            }
             /*
             if (!allSameMemBase(loop, &baseMem, candidateInsns, partiallySenMemInsts)) {
                 continue;
@@ -4868,57 +4895,111 @@ void EncryptionPass::performHoistOptimization() {
 
             std::map<Value*, std::set<Instruction*>>::iterator baseMapIt = baseMemInsnMap.begin();
 
+            std::vector<Loop*> clonedLoops;
+            clonedLoops.push_back(loop);
+
             for (; baseMapIt != baseMemInsnMap.end(); baseMapIt++) {
                 Value* baseMem = baseMapIt->first;
                 std::set<Instruction*>& partiallySenMemInsts = baseMapIt->second;
-                specializeLoopAndHoist(LI, DT, loop, partiallySenMemInsts, baseMem);
-                errs() << "Specialized loop and hoisted check in function: " << candidateFn->getName() << "\n";
 
-                // Remove the handled partially sensitive mem instructions
-                for (Instruction* inst: partiallySenMemInsts) {
-                    std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementCheckList.begin();
-                    while (ReplacementIt != ReplacementCheckList.end()) {
-                        InstructionReplacement* Repl = *ReplacementIt;
-                        Instruction* partiallySenMemInst = Repl->OldInstruction;
-                        if (partiallySenMemInst == inst) {
-                            ReplacementIt = ReplacementCheckList.erase(ReplacementIt);
-                            if (ReplacementIt == ReplacementCheckList.end()) {
-                                break; // done
+                // Do this transformation for each of the cloned Loops
+                std::vector<Loop*> tempClonedLoops;
+                for (Loop* clonedLoop: clonedLoops) { 
+                    Loop* newLoop = specializeLoopAndHoist(LI, DT, clonedLoop, partiallySenMemInsts, baseMem, baseMemInsnMap);
+                    tempClonedLoops.push_back(newLoop);
+
+                    // Remove the handled partially sensitive mem instructions
+                    for (Instruction* inst: partiallySenMemInsts) {
+                        std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementCheckList.begin();
+                        while (ReplacementIt != ReplacementCheckList.end()) {
+                            InstructionReplacement* Repl = *ReplacementIt;
+                            Instruction* partiallySenMemInst = Repl->OldInstruction;
+                            if (partiallySenMemInst == inst) {
+                                ReplacementIt = ReplacementCheckList.erase(ReplacementIt);
+                                if (ReplacementIt == ReplacementCheckList.end()) {
+                                    break; // done
+                                }
+                            } else {
+                                ReplacementIt++;
                             }
-                        } else {
-                            ReplacementIt++;
                         }
                     }
+                    errs() << "Specialized loop and hoisted check in function: " << candidateFn->getName() << "\n";
+                    errs() << "Dumping function: "<< *function << "\n";
                 }
+                //clonedLoops.clear();
+                // Copy the tempClonedLoops into clonedLoops
+                std::copy(tempClonedLoops.begin(), tempClonedLoops.end(), std::back_inserter(clonedLoops));
+                //clonedLoops.begin(), clonedLoops.end(), std::back_inserter(tempClonedLoops));
             }
         }
     }
 }
 
 
-bool EncryptionPass::specializeLoopAndHoist(LoopInfo* LI, DominatorTree* DT, Loop* OrigLoop, std::set<Instruction*>& partiallySenMemInstSet, Value* baseMemLoc) {
+/* Go over every instruction in VMap. If the source is in
+ * baseMemInsMap for *other* basememlocs then, add then to the
+ * corresponding sensitive list.
+ */
+void EncryptionPass::updateSensitiveMemLists(std::map<Value*, std::set<Instruction*>>& baseMemInsMap, Value* baseMemLoc, ValueToValueMapTy& VMap) {
+    std::map<Value*, std::set<Instruction*>>::iterator baseMapIt = baseMemInsMap.begin();
+    std::vector<Instruction*> tempList; // list to temporarily store the cloned objects
+
+    for(; baseMapIt != baseMemInsMap.end(); baseMapIt++) {
+        Value* mapBaseMem = baseMapIt->first;
+        if (mapBaseMem != baseMemLoc) {
+            std::set<Instruction*>& partiallySenMemList = baseMapIt->second;
+            // Go over the VMap, updating the tempList
+            for (Instruction* partiallySenMemInst: partiallySenMemList) {
+                auto it = VMap.find(partiallySenMemInst);
+                if (it != VMap.end()) {
+                    tempList.push_back(cast<Instruction>(VMap[partiallySenMemInst]));
+                }
+            } 
+            std::copy(tempList.begin(), tempList.end(), std::inserter(partiallySenMemList, partiallySenMemList.begin()));
+        }
+    }
+}
+
+/*
+ * LI: LoopInfo to maintain sanity
+ * DT: DominatorTree to maintain sanity
+ * Loop: The original Loop being cloned
+ * partiallySenMemInstSet: The set of partially sensitive memory instructions
+ *                          corresponding to baseMemLoc
+ * baseMemLoc: The base memory
+ *
+ * baseMemInsnMap: To insert the sensitive memory instructions from the cloned
+ * loops
+ */
+Loop* EncryptionPass::specializeLoopAndHoist(LoopInfo* LI, DominatorTree* DT, Loop* OrigLoop, std::set<Instruction*>& partiallySenMemInstSet, Value* baseMemLoc, std::map<Value*, std::set<Instruction*>>& baseMemInsMap) {
     LLVMContext& ctx = baseMemLoc->getContext();
 
     // Following conditions should've been checked already
     assert(OrigLoop->empty() && "Can only handle innermost loops");
     assert(OrigLoop->isSafeToClone() && "Can't clone loop");
-    assert(OrigLoop->getLoopPreheader() && "loop doesn't have a preheader");
+    // We do handle loops without preheaders
+    //assert(OrigLoop->getLoopPreheader() && "loop doesn't have a preheader");
     
     ValueToValueMapTy VMap;
 
-    BasicBlock* NewPH = insertNewPH(ctx, DT, OrigLoop, VMap);
+    BasicBlock* NewPH = insertNewPH(ctx, DT, LI, OrigLoop, VMap);
 
     Loop* NewLoop = cloneAndInsertLoop(DT, LI, OrigLoop, NewPH, VMap);
+
+    assert(DT->getNode(OrigLoop->getHeader())->getIDom()->getBlock() == NewPH && "Inconsistent Dom Tree (orig loop)");
+    assert(DT->getNode(NewLoop->getHeader())->getIDom()->getBlock() == NewPH && "Inconsistent Dom Tree (new loop)");
+    
+    updateSensitiveMemLists(baseMemInsMap, baseMemLoc, VMap);
 
     // Now, retrieve the sensitive pointer and call dfsan_read_label
 
     addTaintCheck(OrigLoop, NewLoop, NewPH, baseMemLoc);
 
-
     for (Instruction* partiallySenMemInst: partiallySenMemInstSet) {
         transformSensitiveMemInst(partiallySenMemInst);
     }
-    return true;
+    return NewLoop;
 }
 
 void EncryptionPass::transformSensitiveMemInst(Instruction* partiallySenMemInst) {
