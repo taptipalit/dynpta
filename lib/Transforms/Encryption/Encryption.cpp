@@ -19,6 +19,7 @@ using namespace llvm;
 
 namespace {
 cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl::init(true), cl::Hidden);
+cl::opt<int> perLoopHoistLimit("per-loop-hoist-limit", cl::desc("How many individual base memory taint checks can be hoisted per loop"), cl::init(4), cl::Hidden);
 
     struct InstructionReplacement {
         Instruction* OldInstruction;
@@ -4427,6 +4428,11 @@ Value* EncryptionPass::getBaseValueForMemOp(Instruction* inst, Loop* loop) {
     }
     assert(gep && "Can't get base value of anything other than geps");
     Value* gepBase = gep->getPointerOperand();
+
+    // The pointer element should not be a struct type
+    if (isa<StructType>(findBaseType(gepBase->getType()))) {
+        return nullptr;
+    }
     Value* trueBase = nullptr;
     // We handle two cases --
     // 1. Where the base is a local operand be it a pointer or a variable
@@ -4687,7 +4693,7 @@ bool EncryptionPass::hasPartialSenMemAccess(BasicBlock* bb, std::set<Instruction
 
 bool EncryptionPass::hasFunctionCallInBody(Loop* loop) {
     for (BasicBlock* bb: loop->getBlocks()) {
-        if (bb != loop->getHeader() && bb != loop->getExitingBlock()) {
+        //if (bb != loop->getHeader() && bb != loop->getExitingBlock()) {
             for (BasicBlock::iterator BBIterator = bb->begin(); BBIterator != bb->end(); BBIterator++) {
                 if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
                     if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
@@ -4698,7 +4704,7 @@ bool EncryptionPass::hasFunctionCallInBody(Loop* loop) {
                     }
                 }
             }
-        }
+        //}
     }
     return false;
 }
@@ -4724,6 +4730,9 @@ bool EncryptionPass::sanitizeCandidatesForNullCheck(std::map<Value*, std::set<In
         if (hasNullCheck(baseMemLoc)) {
             // Remove it
             baseMapIt = baseMemInsnMap.erase(baseMapIt);
+            if (baseMapIt == baseMemInsnMap.end()) {
+                break;
+            }
         }
         baseMapIt++;
     } while (baseMapIt != baseMemInsnMap.end());
@@ -4759,7 +4768,9 @@ void EncryptionPass::getMemBases(Loop* loop, std::set<Instruction*>& candidateIn
                     }
                     // This is a sensitive memory location
                     Value* baseMemLoc = getBaseValueForMemOp(Inst, loop);
-                    baseMemInsnMap[baseMemLoc].insert(Inst);
+                    if (baseMemLoc) {
+                        baseMemInsnMap[baseMemLoc].insert(Inst);
+                    }
                 }
             }
         }
@@ -4825,6 +4836,9 @@ void EncryptionPass::performHoistOptimization() {
 
     // Now, for each function, find the Loops in it
     for (Function* candidateFn: candidateFns) {
+        if (candidateFn->getName() == "cfbr_encrypt_block") {
+            continue;
+        }
         /*
         if (candidateFn->getName() == "stream_ref.257") {
             errs() << "Found stream_ref.257\n";
@@ -4884,6 +4898,11 @@ void EncryptionPass::performHoistOptimization() {
 
             getMemBases(loop, candidateInsns, baseMemInsnMap);
             
+            errs() << "Number of independent taint-tracked base memory addresses: " << baseMemInsnMap.size() <<"\n";
+            if (baseMemInsnMap.size() > perLoopHoistLimit) {
+                continue;
+            }
+            errs() << "Proceeding ... \n";
             if (!sanitizeCandidatesForNullCheck(baseMemInsnMap)) {
                 continue;
             }
@@ -4925,7 +4944,7 @@ void EncryptionPass::performHoistOptimization() {
                         }
                     }
                     errs() << "Specialized loop and hoisted check in function: " << candidateFn->getName() << "\n";
-                    errs() << "Dumping function: "<< *function << "\n";
+                    //errs() << "Dumping function: "<< *function << "\n";
                 }
                 //clonedLoops.clear();
                 // Copy the tempClonedLoops into clonedLoops
@@ -4948,12 +4967,15 @@ void EncryptionPass::updateSensitiveMemLists(std::map<Value*, std::set<Instructi
     for(; baseMapIt != baseMemInsMap.end(); baseMapIt++) {
         Value* mapBaseMem = baseMapIt->first;
         if (mapBaseMem != baseMemLoc) {
+            tempList.clear();
             std::set<Instruction*>& partiallySenMemList = baseMapIt->second;
             // Go over the VMap, updating the tempList
             for (Instruction* partiallySenMemInst: partiallySenMemList) {
                 auto it = VMap.find(partiallySenMemInst);
                 if (it != VMap.end()) {
-                    tempList.push_back(cast<Instruction>(VMap[partiallySenMemInst]));
+                    Instruction* inst = dyn_cast<Instruction>(VMap[partiallySenMemInst]);
+                    assert(inst && "This should be an instruction");
+                    tempList.push_back(inst);
                 }
             } 
             std::copy(tempList.begin(), tempList.end(), std::inserter(partiallySenMemList, partiallySenMemList.begin()));

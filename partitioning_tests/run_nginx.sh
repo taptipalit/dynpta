@@ -45,7 +45,16 @@ fi
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $file.bc 
 $LLVMROOT/opt -encryption -steens-fast -skip-csa=false -skip-vfa=false -optimized-check=true -confidentiality=true -partitioning=true -hoist-taint-checks=true $file.bc -o $fileinst.bc
+if [ $? -ne 0 ]
+then
+    exit 1
+fi
+
 $LLVMROOT/opt --dfsan -dfsan-abilist=./abilist.txt $fileinst.bc -o $filedfsan.bc
+if [ $? -ne 0 ]
+then
+    exit 1
+fi
 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc
