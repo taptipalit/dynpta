@@ -3330,6 +3330,10 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                 }
             }
         } else if (externalFunction->getName().find("llvm.memcpy") != StringRef::npos) {
+            if (externalCallInst->getParent()->getParent()->getName() == "apr_random_add_entropy" ||
+                    externalCallInst->getParent()->getParent()->getName() == "event_open_logs") {
+                continue;
+            }
             Value* destBufferPtr = externalCallInst->getArgOperand(0);
             Value* srcBufferPtr = externalCallInst->getArgOperand(1);
             Value* numBytes = externalCallInst->getArgOperand(2);
@@ -5151,6 +5155,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     instrumentedExternalFunctions.push_back("strtol");
     instrumentedExternalFunctions.push_back("strcpy");
     instrumentedExternalFunctions.push_back("strncpy");
+    instrumentedExternalFunctions.push_back("strcmp");
     instrumentedExternalFunctions.push_back("strcasecmp");
     instrumentedExternalFunctions.push_back("strlen");
     instrumentedExternalFunctions.push_back("strrchr");
@@ -5203,7 +5208,6 @@ bool EncryptionPass::runOnModule(Module &M) {
     instrumentedExternalFunctions.push_back("fread");
     
     instrumentedExternalFunctions.push_back("strchr");
-    instrumentedExternalFunctions.push_back("strcmp");
     instrumentedExternalFunctions.push_back("strncmp");
     instrumentedExternalFunctions.push_back("strncasecmp");
 
