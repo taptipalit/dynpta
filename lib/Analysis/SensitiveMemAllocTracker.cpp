@@ -23,6 +23,34 @@ using namespace llvm;
 
 char SensitiveMemAllocTrackerPass::ID = 0;
 
+std::vector<Value*>& SensitiveMemAllocTrackerPass::findAllGepBases(Value* gepBase) {
+    Type* gepBaseType = gepBase->getType();
+    if (gepMap[gepBaseType].size() > 0) {
+        return gepMap[gepBaseType];
+    }
+    // Find all other gep instructions that have the same base type
+    for (Module::iterator MIterator = mod->begin(); MIterator != mod->end(); MIterator++) {
+        if (auto *F = dyn_cast<Function>(MIterator)) {
+            // Get the local sensitive values
+            for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+                if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+                    //outs() << "Basic block found, name : " << BB->getName() << "\n";
+                    for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+                        if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                            if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(Inst)) {
+                                if (gep->getPointerOperand()->getType() == gepBaseType) {
+                                    gepMap[gepBaseType].push_back(gep->getPointerOperand());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return gepMap[gepBaseType];
+}
+
 /**
  * The programmer annotated one gep instruction as sensitive.
  * Need to find all other geps with the same base and same offset
@@ -41,22 +69,26 @@ void SensitiveMemAllocTrackerPass::findAllSensitiveGepPtrs(Value* gepValue) {
     assert(constOffset && "How did we annotate a gep with a non-constant offset as sensitive?");
     int offset = constOffset->getZExtValue();
 
-    // Find all users (gepInsts) of the base with the same offset
-    for (User* user: gepBase->users()) {
-       if (GetElementPtrInst* otherGep = dyn_cast<GetElementPtrInst>(user)) {
-           Value* otherGepOffsetValue = otherGep->getOperand(otherGep->getNumOperands()-1);
-           ConstantInt* otherGepOffsetConst = dyn_cast<ConstantInt>(otherGepOffsetValue);
-           if (otherGepOffsetConst) {
-               int otherGepOffset = otherGepOffsetConst->getZExtValue();
-               if (otherGepOffset == offset) {
-                   sensitiveGepPtrs.push_back(otherGep);
-               }
-           }
-       }
+    std::vector<Value*> gepBases = findAllGepBases(gepBase); 
+    for (Value* gepBase: gepBases) {
+        // Find all users (gepInsts) of the base with the same offset
+        for (User* user: gepBase->users()) {
+            if (GetElementPtrInst* otherGep = dyn_cast<GetElementPtrInst>(user)) {
+                Value* otherGepOffsetValue = otherGep->getOperand(otherGep->getNumOperands()-1);
+                ConstantInt* otherGepOffsetConst = dyn_cast<ConstantInt>(otherGepOffsetValue);
+                if (otherGepOffsetConst) {
+                    int otherGepOffset = otherGepOffsetConst->getZExtValue();
+                    if (otherGepOffset == offset) {
+                        sensitiveGepPtrs.push_back(otherGep);
+                    }
+                }
+            }
+        }
     }
 }
 
 void SensitiveMemAllocTrackerPass::collectLocalSensitiveAnnotations(Module &M) {
+    this->mod = &M;
     // For each function ... 
     for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
         if (auto *F = dyn_cast<Function>(MIterator)) {
@@ -64,31 +96,20 @@ void SensitiveMemAllocTrackerPass::collectLocalSensitiveAnnotations(Module &M) {
                 // Check if it's an annotation
                 if (CallInst* CInst = dyn_cast<CallInst>(&*I)) {
                     // CallInst->getCalledValue() gives us a pointer to the Function
-                    if (CInst->getCalledValue()->getName().startswith("llvm.ptr.annotation")) {
-                        Value* SV = CInst->getArgOperand(0);
-                        for (Value::use_iterator useItr = SV->use_begin(), useEnd = SV->use_end(); useItr != useEnd; useItr++) {
-                            Value* annotationArg = dyn_cast<Value>(*useItr);
+                    if (CInst->getCalledValue()->getName() == "annotate" || CInst->getCalledValue()->getName() == "annotate1" || CInst->getCalledValue()->getName() == "annotateStr") {
+                            Value* annotationArg = CInst->getArgOperand(0);
                             // If this is a direct gep, then yay!
                             if (GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(annotationArg)) {
                                 findAllSensitiveGepPtrs(gepInst);
                             } else if (BitCastInst* bitCastInst = dyn_cast<BitCastInst>(annotationArg)) {
-                                findAllSensitiveGepPtrs(bitCastInst->getOperand(0));
-                            }
-                        }
-                    } else if (CInst->getCalledValue()->getName().startswith("llvm.var.annotation")) {
-                        Value* SV = CInst->getArgOperand(0);
-                        for (Value::use_iterator useItr = SV->use_begin(), useEnd = SV->use_end(); useItr != useEnd; useItr++) {
-                            Value* annotationArg = dyn_cast<Value>(*useItr);
-                            // If this is a direct gep, then yay!
-                            if (AllocaInst* allocaInst = dyn_cast<AllocaInst>(annotationArg)) {
-                                sensitiveAllocaPtrs.push_back(allocaInst);
-                            } else if (BitCastInst* bitCastInst = dyn_cast<BitCastInst>(annotationArg)) {
-                                // Get the first operand, if it is an alloca
-                                if (AllocaInst* allocaInst = dyn_cast<AllocaInst>(bitCastInst->getOperand(0))) {
-                                    sensitiveAllocaPtrs.push_back(allocaInst);
+                                if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(bitCastInst->getOperand(0))) {
+                                    findAllSensitiveGepPtrs(gep);
+                                } else if (LoadInst* loadInst = dyn_cast<LoadInst>(bitCastInst->getOperand(0))){
+                                    if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(loadInst->getOperand(0))) {
+                                        findAllSensitiveGepPtrs(gep);
+                                    }
                                 }
                             }
-                        }
                     }
                 }
             }
@@ -159,7 +180,12 @@ void SensitiveMemAllocTrackerPass::findMemAllocsReachingSensitivePtrs() {
         Value* value = workList.back();
         seenList.push_back(value);
         workList.pop_back();
-        if (CallInst* callInst = dyn_cast<CallInst>(value)) {
+        if (BitCastInst* bcInst = dyn_cast<BitCastInst>(value)) {
+            if (std::find(seenList.begin(), seenList.end(), bcInst->getOperand(0)) 
+                    == seenList.end()) {
+                workList.push_back(bcInst->getOperand(0));
+            }
+        } else if (CallInst* callInst = dyn_cast<CallInst>(value)) {
             if (Function* calledFunction = callInst->getCalledFunction()) {
                 if (std::find(mallocRoutines.begin(), mallocRoutines.end(), calledFunction)
                         != mallocRoutines.end()) {

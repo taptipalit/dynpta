@@ -48,6 +48,10 @@ public:
 
 private:
 
+    llvm::Module* mod;
+
+    std::map<llvm::Type*, std::vector<llvm::Value*>> gepMap;
+
     std::set<llvm::Function*> mallocRoutines;
 
     std::vector<llvm::AllocaInst*> sensitiveAllocaPtrs;
@@ -64,6 +68,8 @@ private:
     void findStoresAtSensitivePtrs();
 
     void findMemAllocsReachingSensitivePtrs();
+
+    std::vector<llvm::Value*>& findAllGepBases(llvm::Value* gepBase);
 
 };
 
