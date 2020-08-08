@@ -35,8 +35,10 @@ cl::opt<int> perLoopHoistLimit("per-loop-hoist-limit", cl::desc("How many indivi
             static const int SPECIALIZE_THRESHOLD = 50;
 
             EncryptionPass() : ModulePass(ID) {
-                decryptionCount = 0;
-                encryptionCount = 0;
+                loadStatCount = 0;
+                storeStatCount = 0;
+                decStatCount = 0;
+                encStatCount = 0;
                 initializeEncryptionPassPass(*PassRegistry::getPassRegistry());
             }
 
@@ -60,9 +62,6 @@ cl::opt<int> perLoopHoistLimit("per-loop-hoist-limit", cl::desc("How many indivi
 
             void handleSink(Value* storePtr, std::vector<Value*>& sinkSites,
                     std::vector<Value*>& workList, std::vector<Value*>& processedList);
-            // Statistics
-            long decryptionCount;
-            long encryptionCount;
             long checkAuthenticationCount;
             long computeAuthenticationCount;
 
@@ -73,6 +72,12 @@ cl::opt<int> perLoopHoistLimit("per-loop-hoist-limit", cl::desc("How many indivi
         private:
 
             Module* mod;
+
+            long loadStatCount;
+            long storeStatCount;
+
+            long decStatCount;
+            long encStatCount;
 
             external::ExtLibraryHandler ExtLibHandler;
             external::AESCache AESCache;
@@ -298,6 +303,8 @@ cl::opt<int> perLoopHoistLimit("per-loop-hoist-limit", cl::desc("How many indivi
                     }
                 }
             }
+
+            void collectInitialLoadStoreStats(Module&);
     };
 }
 
@@ -313,6 +320,28 @@ cl::opt<bool> Integrity("integrity", cl::desc("Integrity only"), cl::init(false)
 cl::opt<bool> Confidentiality("confidentiality", cl::desc("confidentiality"), cl::init(false), cl::Hidden);
 
 //cl::opt<bool> SkipVFA("skip-vfa-enc", cl::desc("Skip VFA"), cl::init(false), cl::Hidden);
+
+void EncryptionPass::collectInitialLoadStoreStats(Module& M) {
+    for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+        if (auto *F = dyn_cast<Function>(MIterator)) {
+            // Get the local sensitive values
+            for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+                if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+                    //outs() << "Basic block found, name : " << BB->getName() << "\n";
+                    for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+                        if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                            if (LoadInst* loadInst = dyn_cast<LoadInst>(Inst)) {
+                                loadStatCount++;
+                            } else if (StoreInst* storeInst = dyn_cast<StoreInst>(Inst)) {
+                                storeStatCount++;
+                            } 
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 bool EncryptionPass::isOptimizedOut(Value* userVal, Value* ptrVal) {
 
@@ -396,44 +425,12 @@ void EncryptionPass::collectSensitivePointers() {
 }
 
 void EncryptionPass::collectLoadStoreStats(Module& M) {
-    int loadCount, storeCount, getDecCount, setEncCount;
-    loadCount = storeCount = getDecCount = setEncCount = 0;
-    for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
-        if (auto *F = dyn_cast<Function>(MIterator)) {
-            // Get the local sensitive values
-            for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
-                if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
-                    //outs() << "Basic block found, name : " << BB->getName() << "\n";
-                    for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
-                        if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
-                            if (LoadInst* loadInst = dyn_cast<LoadInst>(Inst)) {
-                                loadCount++;
-                            } else if (StoreInst* storeInst = dyn_cast<StoreInst>(Inst)) {
-                                storeCount++;
-                            } else if (CallInst* callInst = dyn_cast<CallInst>(Inst)) {
-                                Function* fun = callInst->getCalledFunction();
-                                if (fun && fun->getName().find("getDec") != StringRef::npos) {
-                                    getDecCount++;
-                                } else if (fun && fun->getName().find("setEnc") != StringRef::npos) {
-                                    setEncCount++;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    if(Partitioning){
-        loadCount = loadCount - getDecCount;
-        storeCount = storeCount - setEncCount;
-    }
     errs() << "Statistics: \n";
-    errs() << "% of Loads accessing sensitive memory regions: " << format("%.3f\n", ((double)getDecCount)/((double)getDecCount+loadCount)*100.0) << "\n";
-    errs() << "% of Stores accessing sensitive memory regions: " << format("%.3f\n", ((double)setEncCount)/((double)(setEncCount+storeCount))*100.0) << "\n";
-    long totalEncDecCount = getDecCount + setEncCount;
-    long totalMemOpCount = totalEncDecCount + loadCount + storeCount;
-    errs() << "% of Mem. Ops instrumented: " << format("%.3f\n", ((double)totalEncDecCount/(double)totalMemOpCount)*100.0) << "\n";
+    errs() << "% of Loads accessing sensitive memory regions: " << format("%.3f\n", ((double)decStatCount)/((double)loadStatCount)*100.0) << "\n";
+    errs() << "% of Stores accessing sensitive memory regions: " << format("%.3f\n", ((double)encStatCount)/((double)(storeStatCount))*100.0) << "\n";
+    long totalMemOpCount = loadStatCount + storeStatCount;
+    long totalTransformCount = encStatCount + decStatCount;
+    errs() << "% of Mem. Ops instrumented: " << format("%.3f\n", ((double)totalTransformCount/(double)totalMemOpCount)*100.0) << "\n";
 
 }
 
@@ -1818,6 +1815,7 @@ void EncryptionPass::preprocessAllocaAndLoadInstructions(Instruction* Inst) {
             Replacement->NextInstruction = NextInstruction;
             Replacement->Type = LOAD;
             ReplacementList.push_back(Replacement);
+            decStatCount++;
         }
         // Keeping separate ReplacementList where we need to add check
         if(isSensitiveLoadCheckSet(LdInst)) {
@@ -1831,6 +1829,7 @@ void EncryptionPass::preprocessAllocaAndLoadInstructions(Instruction* Inst) {
             Replacement->NextInstruction = NextInstruction;
             Replacement->Type = LOAD;
             ReplacementCheckList.push_back(Replacement);
+            decStatCount++;
         }
     }
 }
@@ -1867,6 +1866,7 @@ void EncryptionPass::preprocessStoreInstructions(Instruction* Inst) {
         Replacement->OldInstruction = Inst;
         Replacement->NextInstruction = nullptr; // Don't care about the next, the decryption happens before the store
         Replacement->Type = STORE;
+        encStatCount++;
         ReplacementList.push_back(Replacement);
     }
     if (/*(pag->hasObjectNode(PointerOperand) && isSensitiveObjSet(getPAGObjNodeFromValue(PointerOperand))) || */isSensitiveLoadPtrCheckSet(PointerOperand) || isSensitiveGEPPtrCheckSet(PointerOperand)/* || sensitiveGEPCE*/) {
@@ -1878,6 +1878,7 @@ void EncryptionPass::preprocessStoreInstructions(Instruction* Inst) {
         Replacement->OldInstruction = Inst;
         Replacement->NextInstruction = nullptr; // Don't care about the next, the decryption happens before the store
         Replacement->Type = STORE;
+        encStatCount++;
         ReplacementCheckList.push_back(Replacement);
     }
 }
@@ -1952,7 +1953,6 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
             LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
 
             // Check get the decrypted value
-            decryptionCount++;
             Value* decryptedValue = nullptr;
             decryptedValue = AESCache.getDecryptedValueCached(LdInst);
             updateSensitiveState(LdInst, decryptedValue, ptsToMap);
@@ -1983,7 +1983,6 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
                 StInst->dump();
             );
 
-            encryptionCount++;
             AESCache.setEncryptedValueCached(StInst);
             // Remove the Store instruction
             StInst->eraseFromParent();
@@ -2022,7 +2021,6 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
             LoadInst* LdInst = dyn_cast<LoadInst>(Repl->OldInstruction);
 
             // Check get the decrypted value
-            decryptionCount++;
             Value* decryptedValue = nullptr;
             if (IntegerType* intType = dyn_cast<IntegerType>(LdInst->getType())) {
                 // Fix this
@@ -2065,7 +2063,6 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
                     StInst->dump();
                     );
 
-            encryptionCount++;
             AESCache.setEncryptedValueCachedDfsan(StInst);
 
             // Remove the Store instruction
@@ -5043,7 +5040,6 @@ void EncryptionPass::transformSensitiveMemInst(Instruction* partiallySenMemInst)
     if (LoadInst* LdInst = dyn_cast<LoadInst>(partiallySenMemInst)) {
         IRBuilder<> Builder(LdInst); // Insert before "next" instruction
         // Check get the decrypted value
-        decryptionCount++;
         Value* decryptedValue = nullptr;
         decryptedValue = AESCache.getDecryptedValueCached(LdInst);
         updateSensitiveState(LdInst, decryptedValue, ptsToMap);
@@ -5071,7 +5067,6 @@ void EncryptionPass::transformSensitiveMemInst(Instruction* partiallySenMemInst)
                 dbgs() << "Replacing Store Instruction : ";
                 StInst->dump();
                 );
-        encryptionCount++;
         AESCache.setEncryptedValueCached(StInst);
         // Remove the Store instruction
         StInst->eraseFromParent();
@@ -5135,6 +5130,8 @@ bool EncryptionPass::runOnModule(Module &M) {
     this->mod = &M;
     checkAuthenticationCount = 0;
     computeAuthenticationCount = 0;
+
+    collectInitialLoadStoreStats(M);
 
     // Check soundness of config options
     assert(!(Integrity && Confidentiality) && "Can't support both integrity and confidentiality right now");
@@ -5438,6 +5435,7 @@ bool EncryptionPass::runOnModule(Module &M) {
         Replacement->OldInstruction = LdInst;
         Replacement->NextInstruction = NextInstruction;
         Replacement->Type = LOAD;
+        decStatCount++;
         if(Partitioning){
             ReplacementCheckList.push_back(Replacement);
         } else {
@@ -5458,6 +5456,7 @@ bool EncryptionPass::runOnModule(Module &M) {
         Replacement->OldInstruction = StInst;
         Replacement->NextInstruction = nullptr; // Don't care about the next, the decryption happens before the store
         Replacement->Type = STORE;
+        encStatCount++;
         if(Partitioning){
             ReplacementCheckList.push_back(Replacement);
         } else {
@@ -5489,8 +5488,6 @@ bool EncryptionPass::runOnModule(Module &M) {
 
 
     if (Confidentiality) {
-        dbgs () << "Inserted " << decryptionCount << " calls to decryption routines.\n";
-        dbgs () << "Inserted " << encryptionCount << " calls to encryption routines.\n";
 
         collectLoadStoreStats(M);
     } else {
