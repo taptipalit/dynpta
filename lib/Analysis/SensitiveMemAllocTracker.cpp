@@ -97,19 +97,27 @@ void SensitiveMemAllocTrackerPass::collectLocalSensitiveAnnotations(Module &M) {
                 if (CallInst* CInst = dyn_cast<CallInst>(&*I)) {
                     // CallInst->getCalledValue() gives us a pointer to the Function
                     if (CInst->getCalledValue()->getName() == "annotate" || CInst->getCalledValue()->getName() == "annotate1" || CInst->getCalledValue()->getName() == "annotateStr") {
-                            Value* annotationArg = CInst->getArgOperand(0);
-                            // If this is a direct gep, then yay!
-                            if (GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(annotationArg)) {
-                                findAllSensitiveGepPtrs(gepInst);
-                            } else if (BitCastInst* bitCastInst = dyn_cast<BitCastInst>(annotationArg)) {
-                                if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(bitCastInst->getOperand(0))) {
+                        Value* annotationArg = CInst->getArgOperand(0);
+                        // If this is a direct gep, then yay!
+                        if (GetElementPtrInst* gepInst = dyn_cast<GetElementPtrInst>(annotationArg)) {
+                            findAllSensitiveGepPtrs(gepInst);
+                        } else if (BitCastInst* bitCastInst = dyn_cast<BitCastInst>(annotationArg)) {
+                            if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(bitCastInst->getOperand(0))) {
+                                findAllSensitiveGepPtrs(gep);
+                            } else if (LoadInst* loadInst = dyn_cast<LoadInst>(bitCastInst->getOperand(0))){
+                                if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(loadInst->getOperand(0))) {
                                     findAllSensitiveGepPtrs(gep);
-                                } else if (LoadInst* loadInst = dyn_cast<LoadInst>(bitCastInst->getOperand(0))){
-                                    if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(loadInst->getOperand(0))) {
-                                        findAllSensitiveGepPtrs(gep);
-                                    }
+                                } else if (AllocaInst* alloc = dyn_cast<AllocaInst>(loadInst->getOperand(0))) {
+                                    sensitiveAllocaPtrs.push_back(alloc);
                                 }
                             }
+                        } else if (LoadInst* loadInst = dyn_cast<LoadInst>(annotationArg)){
+                            if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(loadInst->getOperand(0))) {
+                                findAllSensitiveGepPtrs(gep);
+                            } else if (AllocaInst* alloc = dyn_cast<AllocaInst>(loadInst->getOperand(0))) {
+                                sensitiveAllocaPtrs.push_back(alloc);
+                            }
+                        }
                     }
                 }
             }
@@ -125,6 +133,7 @@ bool SensitiveMemAllocTrackerPass::runOnModule(Module& M) {
     Function* mallocFunction = M.getFunction("malloc");
     Function* callocFunction = M.getFunction("calloc");
     Function* reallocFunction = M.getFunction("realloc");
+    Function* fgetsFunction = M.getFunction("fgets");
 
     if (mallocFunction) 
         mallocRoutines.insert(mallocFunction);
@@ -132,6 +141,8 @@ bool SensitiveMemAllocTrackerPass::runOnModule(Module& M) {
         mallocRoutines.insert(callocFunction);
     if (reallocFunction)
         mallocRoutines.insert(reallocFunction);
+    if (fgetsFunction)
+        mallocRoutines.insert(fgetsFunction);
 
     errs()<<"Critical Functions in MallocTracker Pass are:\n";
     for (Function* criticalFunctions : getAnalysis<ContextSensitivityAnalysisPass>().getCriticalFunctions()){
