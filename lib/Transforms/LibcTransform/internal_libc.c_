@@ -104,16 +104,14 @@ int internal_strcmp(const char *X, const char *Y)
 	{
 		// if characters differ or end of second string is reached
         if (*X != *Y) {
-            // return the ASCII difference after converting char* to unsigned char*
-            return *(const unsigned char*)X - *(const unsigned char*)Y;
+            break;
         }
 
 		// move to next pair of characters
 		X++;
 		Y++;
 	}
-
-    return 0;
+    return *(const unsigned char*)X - *(const unsigned char*)Y;
 }
 
 

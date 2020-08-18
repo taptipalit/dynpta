@@ -9,13 +9,13 @@ set -x
 
 LLVMROOT=$LLVM_CUSTOM_PARTITION_BIN
 
-rm null_helper.c aes_inreg.s aes_inmemkey.s aes_helper.c internal_libc.c
+rm null_helper.c aes_inreg.s aes_inmemkey.s default_helper.c internal_libc.c
 #LLVMROOT=/mnt/donotuse_comparisonONLY/DataRandomization/install/bin
 
 ln -s $LLVM_CUSTOM_SRC/lib/Transforms/Encryption/null_helper.c_ null_helper.c
 ln -s $LLVM_CUSTOM_SRC/lib/Transforms/Encryption/aes_inmemkey.s aes_inmemkey.s
 ln -s $LLVM_CUSTOM_SRC/lib/Transforms/Encryption/aes_inreg.s aes_inreg.s
-ln -s $LLVM_CUSTOM_SRC/lib/Transforms/Encryption/aes_helper.c_ aes_helper.c
+ln -s $LLVM_CUSTOM_SRC/lib/Transforms/Encryption/default_helper.c_ default_helper.c
 ln -s $LLVM_CUSTOM_SRC/lib/Transforms/LibcTransform/internal_libc.c_ internal_libc.c
 
 GGDB=-ggdb 
@@ -65,7 +65,7 @@ then
 fi
 
 $LLVMROOT/clang -c -fPIC -fPIE aes_inmemkey.s -o aes.o
-$LLVMROOT/clang -c -fPIC -fPIE -march=native aes_helper.c -o aes_h.o
+$LLVMROOT/clang -c -fPIC -fPIE -march=native default_helper.c -o aes_h.o
 #$LLVMROOT/clang -fPIC -pie -fsanitize=dataflow $GGDB aes.o aes_h.o $filedfsan.o -o $file
 $LLVMROOT/clang $GGDB -O0 -fsanitize=dataflow aes.o aes_h.o $filedfsan.o -o ssl_server2.0.0.preopt.uninstrumented
 if [ $? -ne 0 ]

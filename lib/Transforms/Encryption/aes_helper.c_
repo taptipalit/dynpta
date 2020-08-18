@@ -1072,7 +1072,7 @@ int count = 0;
 
 void annotateStr(void* ptr) {
     int len = strlen(ptr);
-    dfsan_set_label(1, ptr, len);
+    dfsan_set_label(1, ptr, len+1);
     encryptStringAfterLibCall(ptr);
 }
 
