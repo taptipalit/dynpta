@@ -319,3 +319,14 @@ decrypt_memory:
     movdqu %xmm14, (%rdi)
 	retq
 
+.align 4096
+.globl _load_shadow_base
+_load_shadow_base:
+    movq $0xffff8fffffffffff, %rax
+    movq %rax, %mm0
+    retq
+
+.align 4096
+.global nop_func
+_nop_func:
+    retq

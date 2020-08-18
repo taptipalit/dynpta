@@ -9,7 +9,7 @@ typedef unsigned long size_t;
 void internal_memset(void *s, char c, size_t n, uint1_t isVolatile) __attribute__((used));
 int internal_memcmp(const void *s1, const void *s2, size_t n) __attribute__((used));
 void internal_memcpy(void *dest, const void *src, size_t n, uint1_t isVolatile) __attribute__((used));
-int internal_strlen(const char *s) __attribute__((used));
+size_t internal_strlen(const char *s) __attribute__((used));
 char* internal_strcat(char* destination, const char* source) __attribute__((used));
 char* internal_strcpy(char* destination, const char* source) __attribute__((used));
 int internal_strcmp(const char *X, const char *Y) __attribute__((used));
@@ -36,16 +36,19 @@ int internal_memcmp(const void *s1, const void *s2, size_t n) {
 }
 
 void internal_memcpy(void *dest, const void *src, size_t n, uint1_t isVolatile) {
+    memcpy(dest, src, n);
+    /*
     while (n > 0) {
-        *(char*) dest = *(char *) src;
-        dest++;
-        src++;
+        *(unsigned char*) dest = *(unsigned char *) src;
+        dest = ((char*)dest) + 1;
+        src = ((char*)src) + 1;
         n--;
     }
+    */
 }
 
-int internal_strlen(const char *s) {
-    int len = 0;
+size_t internal_strlen(const char *s) {
+    size_t len = 0;
     while (*s != '\0') {
         len++;
         s++;
@@ -100,16 +103,17 @@ int internal_strcmp(const char *X, const char *Y)
 	while(*X)
 	{
 		// if characters differ or end of second string is reached
-		if (*X != *Y)
-			break;
+        if (*X != *Y) {
+            // return the ASCII difference after converting char* to unsigned char*
+            return *(const unsigned char*)X - *(const unsigned char*)Y;
+        }
 
 		// move to next pair of characters
 		X++;
 		Y++;
 	}
 
-	// return the ASCII difference after converting char* to unsigned char*
-	return *(const unsigned char*)X - *(const unsigned char*)Y;
+    return 0;
 }
 
 

@@ -34,11 +34,11 @@ then
 fi
 
 
-#$LLVMROOT/llvm-link $file.bc internal_libc.bc  -o $file.bc #internal_libc.bc
-#if [ $? -ne 0 ]
-#then
-#    exit 1
-#fi
+$LLVMROOT/llvm-link $file.bc internal_libc.bc  -o $file.bc #internal_libc.bc
+if [ $? -ne 0 ]
+then
+    exit 1
+fi
 
 #wpa -nander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
@@ -65,17 +65,13 @@ then
     exit 1
 fi
 
-$LLVMROOT/clang -c -fPIC -fPIE -ggdb aes_inmemkey.s -o aes.o
+$LLVMROOT/clang -c -fPIC -fPIE -ggdb aes_inreg.s -o aes.o
 $LLVMROOT/clang -c -fPIC -fPIE -march=native aes_helper.c -o aes_h.o
 #$LLVMROOT/clang -fPIC -pie -fsanitize=dataflow $GGDB aes.o aes_h.o $filedfsan.o -o $file
-$LLVMROOT/clang $GGDB -O0 -fsanitize=dataflow  aes.o aes_h.o $filedfsan.o -o $file
+#$LLVMROOT/clang $GGDB -O0 -fsanitize=dataflow  aes.o aes_h.o $filedfsan.o -o $file
+./run_glibc.sh $filedfsan.o $file
 if [ $? -ne 0 ]
 then
     exit 1
 fi
 
-
-if [ $? -ne 0 ]
-then
-    exit 1
-fi

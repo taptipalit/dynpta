@@ -58,7 +58,7 @@ namespace external {
         // Definitions for creating functions for DFSan set_label and read_label
         const DataLayout &DL = M.getDataLayout();
         enum {
-            ShadowWidth = 16
+            ShadowWidth = 8
         };
         Module *Mod;
         LLVMContext *Ctx;
@@ -92,6 +92,8 @@ namespace external {
         this->decryptLoopVectorFunction = Function::Create(FTypeDecLoopVector, Function::ExternalLinkage, "getDecryptedValueVector", &M);
         this->decryptLoopVector4Function = Function::Create(FTypeDecLoopVector4, Function::ExternalLinkage, "getDecryptedValueVector4", &M);
 
+        // Create and keep for someone who might need it later
+        Function::Create(FTypeReadLabel, Function::ExternalLinkage, "dfsan_read_label", &M);
 
         this->DFSanSetLabelFn = Function::Create(FTypeSetLabel, Function::ExternalLinkage, "dfsan_set_label", &M);
         //adding zeroext for function parameter
@@ -101,9 +103,8 @@ namespace external {
 
         this->setLabelForContextSensitiveCallsFn = Function::Create(FTypeSetLabelForContextSensitiveCalls, Function::ExternalLinkage, "setLabelForContextSensitiveCalls", &M);
 
-        this->DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
-        //this->DFSanReadLabelFn = Function::Create(FTypeReadLabel, Function::ExternalLinkage, "dfsan_read_label", &M);
-        //adding zeroext for return type
+        this->DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t movb ($1), $0", "=r,r,r,~{rax}", true, false);
+                //adding zeroext for return type
         if (Function *F = dyn_cast<Function>(DFSanReadLabelFn)) {
             F->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
         }
@@ -359,7 +360,7 @@ namespace external {
         IRBuilder<> Builder(callInst);
         Builder.SetInsertPoint(callInst->getNextNode());
 
-        ConstantInt* label = Builder.getInt16(1);
+        ConstantInt* label = Builder.getInt8(1);
         ConstantInt* noOfByte = Builder.getInt64(1);
         Value* PtrOperand = nullptr;
         CallInst* setLabel = nullptr;
@@ -434,7 +435,7 @@ namespace external {
         IRBuilder<> Builder(allocInst);
         Builder.SetInsertPoint(allocInst->getNextNode());
 
-        ConstantInt* label = Builder.getInt16(1);
+        ConstantInt* label = Builder.getInt8(1);
         ConstantInt* noOfByte = Builder.getInt64(1);
         Value* PtrOperand = nullptr;
         CallInst* setLabel = nullptr;
@@ -511,7 +512,7 @@ namespace external {
                 for (ReturnInst* returnInst: returnInsts) {
                     IRBuilder<> Builder(returnInst);
 
-                    ConstantInt* label = Builder.getInt16(0); // 0 to clear
+                    ConstantInt* label = Builder.getInt8(0); // 0 to clear
                     Type* sensitiveTy = sensitiveStackVar->getAllocatedType();
                     ConstantInt* noOfBytes = Builder.getInt64(M.getDataLayout().getTypeAllocSize(sensitiveTy));
 
@@ -539,7 +540,7 @@ namespace external {
                 Builder.SetInsertPoint(I->getNextNode());
 
                 // For now, we are adding constant single label for all sensitive objects
-                ConstantInt* label = Builder.getInt16(1);
+                ConstantInt* label = Builder.getInt8(1);
                 ConstantInt* noOfByte = Builder.getInt64(1);
                 Value* PtrOperand = nullptr;
                 CallInst* setLabel = nullptr;
@@ -665,8 +666,8 @@ namespace external {
         PointerType* voidPtrType = PointerType::get(byteType, 0);
 
         ConstantInt* noOfByte = Builder.getInt64(1);
-        ConstantInt *One = Builder.getInt16(1);
-        ConstantInt* label = Builder.getInt16(1);
+        ConstantInt *One = Builder.getInt8(1);
+        ConstantInt* label = Builder.getInt8(1);
         ConstantInt* multiplier = Builder.getInt64(128);
 
         Function* function = callInst->getCalledFunction();
@@ -1347,7 +1348,7 @@ namespace external {
             int32Ty = Type::getInt32Ty(plainTextVal->getContext());
 
 
-            ConstantInt *One = Builder.getInt16(1);
+            ConstantInt *One = Builder.getInt8(1);
             Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
             Instruction* SplitBefore = cast<Instruction>(plainTextVal);
 
@@ -1608,7 +1609,7 @@ namespace external {
             int32Ty = Type::getInt32Ty(encVal->getContext());
 
 
-            ConstantInt *One = Builder.getInt16(1);
+            ConstantInt *One = Builder.getInt8(1);
             Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
             Instruction* SplitBefore = cast<Instruction>(encVal);
 

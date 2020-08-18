@@ -2146,13 +2146,13 @@ inline void EncryptionPass::externalFunctionHandlerForPartitioning(Module &M, Ca
     const DataLayout &DL = M.getDataLayout();
     LLVMContext *Ctx;
     Ctx = &M.getContext();
-    IntegerType* ShadowTy = IntegerType::get(*Ctx, 16);
+    IntegerType* ShadowTy = IntegerType::get(*Ctx, 8);
     IntegerType* IntptrTy = DL.getIntPtrType(*Ctx);
     Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(*Ctx), IntptrTy };
     FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
 
-    InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
-    //Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
+    //InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t movb ($1), $0", "=r,r,r,~{rax}", true, false);
+    Function* DFSanReadLabelFn = M.getFunction("dfsan_read_label");
     if (externalCallInst->getParent()->getParent()->getName() == "apr_thread_create") {
         return;
     }
@@ -2160,7 +2160,7 @@ inline void EncryptionPass::externalFunctionHandlerForPartitioning(Module &M, Ca
 
     CallInst* readLabel = nullptr;
     ConstantInt* noOfByte = Builder.getInt64(1);
-    ConstantInt *One = Builder.getInt16(1);
+    ConstantInt *One = Builder.getInt8(1);
 
     // tpalit -- this assertion makes no sense. Who added it and why? 
     //assert(DFSanReadLabelFn->getType()->isPointerTy() && "We shouldn't be dealing with virtual register values here");
@@ -2214,7 +2214,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
     const DataLayout &DL = M.getDataLayout();
     LLVMContext *Ctx;
     Ctx = &M.getContext();
-    IntegerType* ShadowTy = IntegerType::get(*Ctx, 16);
+    IntegerType* ShadowTy = IntegerType::get(*Ctx, 8);
     IntegerType* IntptrTy = DL.getIntPtrType(*Ctx);
     Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(*Ctx), IntptrTy };
     FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
@@ -2385,7 +2385,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
 
                     CallInst* readLabel = nullptr;
                     ConstantInt* noOfByte = Builder.getInt64(1);
-                    ConstantInt *One = Builder.getInt16(1);
+                    ConstantInt *One = Builder.getInt8(1);
                     errs()<<"StringPtr "<<*stringPtr<<"\n";
 
                     IntegerType* voidType = IntegerType::get(externalCallInst->getContext(), 8);
@@ -2549,7 +2549,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
 
                     CallInst* readLabel = nullptr;
                     ConstantInt* noOfByte = Builder.getInt64(1);
-                    ConstantInt *One = Builder.getInt16(1);
+                    ConstantInt *One = Builder.getInt8(1);
 
                     readLabel = Builder.CreateCall(DFSanReadLabelFn,{buffer , noOfByte});
                     readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
@@ -2657,7 +2657,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
 
                     CallInst* readLabel = nullptr;
                     ConstantInt* noOfByte = Builder.getInt64(1);
-                    ConstantInt *One = Builder.getInt16(1);
+                    ConstantInt *One = Builder.getInt8(1);
 
                     readLabel = Builder.CreateCall(DFSanReadLabelFn,{arg , noOfByte});
                     readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
@@ -2818,7 +2818,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
 
                         CallInst* readLabel = nullptr;
                         ConstantInt* noOfByte = Builder.getInt64(1);
-                        ConstantInt *One = Builder.getInt16(1);
+                        ConstantInt *One = Builder.getInt8(1);
 
                         readLabel = Builder.CreateCall(DFSanReadLabelFn,{arg , noOfByte});
                         readLabel->addAttribute(AttributeList::ReturnIndex, Attribute::ZExt);
@@ -4504,16 +4504,16 @@ void EncryptionPass::addTaintCheck(Loop* OrigLoop, Loop* NewLoop, BasicBlock* Ne
     IRBuilder<> Builder(NewPH);
 
     LLVMContext& Ctx = baseMemLoc->getContext();
-    IntegerType* ShadowTy = IntegerType::get(Ctx, 16);
+    IntegerType* ShadowTy = IntegerType::get(Ctx, 8);
     IntegerType* IntptrTy = IntegerType::get(Ctx, 64);
     Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(Ctx), IntptrTy };
     FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
 
-    InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
+    InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t movb ($1), $0", "=r,r,r,~{rax}", true, false);
 
     CallInst* readLabel = nullptr;
     ConstantInt* noOfByte = Builder.getInt64(1);
-    ConstantInt *One = Builder.getInt16(1);
+    ConstantInt *One = Builder.getInt8(1);
 
     // If it's not a i8* cast it
 

@@ -282,7 +282,7 @@ class DataFlowSanitizer : public ModulePass {
   friend class DFSanVisitor;
 
   enum {
-    ShadowWidth = 16
+    ShadowWidth = 8
   };
 
   /// Which ABI should be used for instrumented functions?
@@ -1346,7 +1346,7 @@ void DFSanFunction::setEncryptedValueCachedDfsan(StoreInst* plainTextVal) {
     const DataLayout &DL = M->getDataLayout();
     LLVMContext *Ctx;
     Ctx = &M->getContext();
-    IntegerType* ShadowTy = IntegerType::get(*Ctx, 16);
+    IntegerType* ShadowTy = IntegerType::get(*Ctx, 8);
     IntegerType* IntptrTy = DL.getIntPtrType(*Ctx);
     Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(*Ctx), IntptrTy };
     FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
@@ -1433,7 +1433,7 @@ void DFSanFunction::setEncryptedValueCachedDfsan(StoreInst* plainTextVal) {
     int32Ty = Type::getInt32Ty(plainTextVal->getContext());
 
 
-    ConstantInt *One = Builder.getInt16(1);
+    ConstantInt *One = Builder.getInt8(1);
     Value* cmpInst = Builder.CreateICmpEQ(readLabel, One, "cmp");
     Instruction* SplitBefore = cast<Instruction>(plainTextVal);
 

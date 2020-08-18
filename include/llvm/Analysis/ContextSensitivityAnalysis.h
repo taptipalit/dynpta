@@ -12,6 +12,7 @@
 #include <set>
 #include <map>
 #include "llvm/Analysis/CFLSteensAliasAnalysis.h"
+#include "llvm/Analysis/LibcPreprocess.h"
 
 class ContextSensitivityAnalysisPass: public llvm::ModulePass {
 
@@ -31,7 +32,8 @@ public:
     virtual inline void getAnalysisUsage(llvm::AnalysisUsage &au) const {
         // declare your dependencies here.
         /// do not intend to change the IR in this pass,
-        au.setPreservesAll();
+        //au.setPreservesAll();
+        au.addRequired<LibcPreprocessPass>();
         au.addRequiredTransitive<llvm::CFLSteensAAWrapperPass>();
     }
 

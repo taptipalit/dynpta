@@ -100,52 +100,52 @@ void setEncryptedValueByte(void* ptr, uint8_t byte_arg) {
     dirty = 1;
     switch(offset) {
         case 0:
-            asm("pinsrb $0, %0, %%xmm13  \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $0, %0, %%xmm15  \n\t":: "r"(dword_arg) : );
             break;
         case 1:
-            asm("pinsrb $1, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $1, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 2:
-            asm("pinsrb $2, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $2, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 3:
-            asm("pinsrb $3, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $3, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 4:
-            asm("pinsrb $4, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $4, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 5:
-            asm("pinsrb $5, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $5, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 6:
-            asm("pinsrb $6, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $6, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 7:
-            asm("pinsrb $7, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $7, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 8:
-            asm("pinsrb $8, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $8, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 9:
-            asm("pinsrb $9, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $9, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 10:
-            asm("pinsrb $10, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $10, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 11:
-            asm("pinsrb $11, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $11, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 12:
-            asm("pinsrb $12, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $12, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 13:
-            asm("pinsrb $13, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $13, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 14:
-            asm("pinsrb $14, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $14, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 15:
-            asm("pinsrb $15, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrb $15, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
     }
 }
@@ -177,28 +177,28 @@ void setEncryptedValueWord(void* ptr, uint16_t word_arg) {
     int dword_arg = word_arg;
     switch(offset) {
         case 0:
-            asm("pinsrw $0, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrw $0, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 1:
-            asm("pinsrw $1, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrw $1, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 2:
-            asm("pinsrw $2, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrw $2, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 3:
-            asm("pinsrw $3, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrw $3, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 4:
-            asm("pinsrw $4, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrw $4, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 5:
-            asm("pinsrw $5, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrw $5, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 6:
-            asm("pinsrw $6, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrw $6, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 7:
-            asm("pinsrw $7, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrw $7, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
     }
 }
@@ -227,28 +227,28 @@ void setEncryptedValueDWord(void* ptr, uint32_t dword_arg) {
     offset = offset/4;
     switch(offset) {
         case 0:
-            asm("pinsrd $0, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrd $0, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 1:
-            asm("pinsrd $1, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrd $1, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 2:
-            asm("pinsrd $2, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrd $2, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 3:
-            asm("pinsrd $3, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrd $3, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 4:
-            asm("pinsrd $4, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrd $4, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 5:
-            asm("pinsrd $5, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrd $5, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 6:
-            asm("pinsrd $6, %0, %%xmm13 \n\t":: "r"(dword_arg) : );
+            asm("pinsrd $6, %0, %%xmm15 \n\t":: "r"(dword_arg) : );
             break;
         case 7:
-            asm("pinsrd $7, %0, %%xmm13\n\t":: "r"(dword_arg) : );
+            asm("pinsrd $7, %0, %%xmm15\n\t":: "r"(dword_arg) : );
             break;
     }
 }
@@ -277,28 +277,28 @@ void setEncryptedValueQWord(void* ptr, uint64_t qword_arg) {
     offset = offset/8;
     switch(offset) {
         case 0:
-            asm("pinsrq $0, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+            asm("pinsrq $0, %0, %%xmm15 \n\t":: "r"(qword_arg) : );
             break;
         case 1:
-            asm("pinsrq $1, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+            asm("pinsrq $1, %0, %%xmm15 \n\t":: "r"(qword_arg) : );
             break;
         case 2:
-            asm("pinsrq $2, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+            asm("pinsrq $2, %0, %%xmm15 \n\t":: "r"(qword_arg) : );
             break;
         case 3:
-            asm("pinsrq $3, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+            asm("pinsrq $3, %0, %%xmm15 \n\t":: "r"(qword_arg) : );
             break;
         case 4:
-            asm("pinsrq $4, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+            asm("pinsrq $4, %0, %%xmm15 \n\t":: "r"(qword_arg) : );
             break;
         case 5:
-            asm("pinsrq $5, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+            asm("pinsrq $5, %0, %%xmm15 \n\t":: "r"(qword_arg) : );
             break;
         case 6:
-            asm("pinsrq $6, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+            asm("pinsrq $6, %0, %%xmm15 \n\t":: "r"(qword_arg) : );
             break;
         case 7:
-            asm("pinsrq $7, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+            asm("pinsrq $7, %0, %%xmm15 \n\t":: "r"(qword_arg) : );
             break;
     }
 }
@@ -327,10 +327,10 @@ void setEncryptedValueDouble(void* ptr, double qword_arg) {
     offset = offset/8;
     switch(offset) {
         case 0:
-            asm("pinsrq $0, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+            asm("pinsrq $0, %0, %%xmm15 \n\t":: "r"(qword_arg) : );
             break;
         case 1:
-            asm("pinsrq $1, %0, %%xmm13 \n\t":: "r"(qword_arg) : );
+            asm("pinsrq $1, %0, %%xmm15 \n\t":: "r"(qword_arg) : );
             break;
     }
 }
@@ -355,8 +355,8 @@ void setEncryptedValueVector (void* ptr, __m128i vec_arg) {
         decrypt_cache((void*)aligned_ptr);
     }
     dirty = 1;
-    asm("pinsrq $0, %0, %%xmm13 \n\t":: "r"(vecArgPtr[0]) : );
-    asm("pinsrq $1, %0, %%xmm13 \n\t":: "r"(vecArgPtr[1]) : );
+    asm("pinsrq $0, %0, %%xmm15 \n\t":: "r"(vecArgPtr[0]) : );
+    asm("pinsrq $1, %0, %%xmm15 \n\t":: "r"(vecArgPtr[1]) : );
 }
 
 void setEncryptedValueVector4(void* ptr, __m256i vec_arg) {
@@ -398,53 +398,53 @@ uint8_t getDecryptedValueByte(void* ptr) {
     }
     switch(offset) {
         case 0:
-            asm("pextrb $0, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $0, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 1:
-            asm("pextrb $1, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $1, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 2:
-            asm("pextrb $2, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $2, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 3:
-            asm("pextrb $3, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $3, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 4:
-            asm("pextrb $4, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $4, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 5:
-            asm("pextrb $5, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $5, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 6:
-            asm("pextrb $6, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $6, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 7:
-            asm("pextrb $7, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $7, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
 
         case 8:
-            asm("pextrb $8, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $8, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 9:
-            asm("pextrb $9, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $9, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 10:
-            asm("pextrb $10, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $10, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 11:
-            asm("pextrb $11, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $11, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 12:
-            asm("pextrb $12, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $12, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 13:
-            asm("pextrb $13, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $13, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 14:
-            asm("pextrb $14, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $14, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
         case 15:
-            asm("pextrb $15, %%xmm13, %0 \n\t": "=r"(result) : );
+            asm("pextrb $15, %%xmm15, %0 \n\t": "=r"(result) : );
             break;
 
     }
@@ -478,28 +478,28 @@ uint16_t getDecryptedValueWord(void* ptr) {
     offset = offset/2;
     switch(offset) {
         case 0:
-            asm("pextrw $0, %%xmm13, %0\n\t": "=r"(result) : );
+            asm("pextrw $0, %%xmm15, %0\n\t": "=r"(result) : );
             break;
         case 1:
-            asm("pextrw $1, %%xmm13, %0\n\t": "=r"(result) : );
+            asm("pextrw $1, %%xmm15, %0\n\t": "=r"(result) : );
             break;
         case 2:
-            asm("pextrw $2, %%xmm13, %0\n\t": "=r"(result) : );
+            asm("pextrw $2, %%xmm15, %0\n\t": "=r"(result) : );
             break;
         case 3:
-            asm("pextrw $3, %%xmm13, %0\n\t": "=r"(result) : );
+            asm("pextrw $3, %%xmm15, %0\n\t": "=r"(result) : );
             break;
         case 4:
-            asm("pextrw $4, %%xmm13, %0\n\t": "=r"(result) : );
+            asm("pextrw $4, %%xmm15, %0\n\t": "=r"(result) : );
             break;
         case 5:
-            asm("pextrw $5, %%xmm13, %0\n\t": "=r"(result) : );
+            asm("pextrw $5, %%xmm15, %0\n\t": "=r"(result) : );
             break;
         case 6:
-            asm("pextrw $6, %%xmm13, %0\n\t": "=r"(result) : );
+            asm("pextrw $6, %%xmm15, %0\n\t": "=r"(result) : );
             break;
         case 7:
-            asm("pextrw $7, %%xmm13, %0\n\t": "=r"(result) : );
+            asm("pextrw $7, %%xmm15, %0\n\t": "=r"(result) : );
             break;
     }
     //printf ("After decrypted : %d ",result);
@@ -535,28 +535,28 @@ uint32_t getDecryptedValueDWord(void* ptr) {
     offset = offset/4;
     switch(offset) {
         case 0:
-            asm("pextrd $0, %%xmm13, %0\n\t": "=r"(dword_result) : );
+            asm("pextrd $0, %%xmm15, %0\n\t": "=r"(dword_result) : );
             break;
         case 1:
-            asm("pextrd $1, %%xmm13, %0\n\t": "=r"(dword_result) : );
+            asm("pextrd $1, %%xmm15, %0\n\t": "=r"(dword_result) : );
             break;
         case 2:
-            asm("pextrd $2, %%xmm13, %0\n\t": "=r"(dword_result) : );
+            asm("pextrd $2, %%xmm15, %0\n\t": "=r"(dword_result) : );
             break;
         case 3:
-            asm("pextrd $3, %%xmm13, %0\n\t": "=r"(dword_result) : );
+            asm("pextrd $3, %%xmm15, %0\n\t": "=r"(dword_result) : );
             break;
         case 4:
-            asm("pextrd $4, %%xmm13, %0\n\t": "=r"(dword_result) : );
+            asm("pextrd $4, %%xmm15, %0\n\t": "=r"(dword_result) : );
             break;
         case 5:
-            asm("pextrd $5, %%xmm13, %0\n\t": "=r"(dword_result) : );
+            asm("pextrd $5, %%xmm15, %0\n\t": "=r"(dword_result) : );
             break;
         case 6:
-            asm("pextrd $6, %%xmm13, %0\n\t": "=r"(dword_result) : );
+            asm("pextrd $6, %%xmm15, %0\n\t": "=r"(dword_result) : );
             break;
         case 7:
-            asm("pextrd $7, %%xmm13, %0\n\t": "=r"(dword_result) : );
+            asm("pextrd $7, %%xmm15, %0\n\t": "=r"(dword_result) : );
             break;
     }
     //printf ("After decrypted : %d ",dword_result);
@@ -588,10 +588,10 @@ double getDecryptedValueDouble(void* ptr) {
     offset = offset/8;
     switch(offset) {
         case 0:
-            asm("pextrq $0, %%xmm13, %0\n\t": "=r"(qword_result) : );
+            asm("pextrq $0, %%xmm15, %0\n\t": "=r"(qword_result) : );
             break;
         case 1:
-            asm("pextrq $1, %%xmm13, %0\n\t": "=r"(qword_result) : );
+            asm("pextrq $1, %%xmm15, %0\n\t": "=r"(qword_result) : );
             break;
     }
     //printf ("After decrypted : %d ",qword_result);
@@ -624,28 +624,28 @@ uint64_t getDecryptedValueQWord(void* ptr) {
     offset = offset/8;
     switch(offset) {
         case 0:
-            asm("pextrq $0, %%xmm13, %0\n\t": "=r"(qword_result) : );
+            asm("pextrq $0, %%xmm15, %0\n\t": "=r"(qword_result) : );
             break;
         case 1:
-            asm("pextrq $1, %%xmm13, %0\n\t": "=r"(qword_result) : );
+            asm("pextrq $1, %%xmm15, %0\n\t": "=r"(qword_result) : );
             break;
         case 2:
-            asm("pextrq $2, %%xmm13, %0\n\t": "=r"(qword_result) : );
+            asm("pextrq $2, %%xmm15, %0\n\t": "=r"(qword_result) : );
             break;
         case 3:
-            asm("pextrq $3, %%xmm13, %0\n\t": "=r"(qword_result) : );
+            asm("pextrq $3, %%xmm15, %0\n\t": "=r"(qword_result) : );
             break;
         case 4:
-            asm("pextrq $4, %%xmm13, %0\n\t": "=r"(qword_result) : );
+            asm("pextrq $4, %%xmm15, %0\n\t": "=r"(qword_result) : );
             break;
         case 5:
-            asm("pextrq $5, %%xmm13, %0\n\t": "=r"(qword_result) : );
+            asm("pextrq $5, %%xmm15, %0\n\t": "=r"(qword_result) : );
             break;
         case 6:
-            asm("pextrq $6, %%xmm13, %0\n\t": "=r"(qword_result) : );
+            asm("pextrq $6, %%xmm15, %0\n\t": "=r"(qword_result) : );
             break;
         case 7:
-            asm("pextrq $7, %%xmm13, %0\n\t": "=r"(qword_result) : );
+            asm("pextrq $7, %%xmm15, %0\n\t": "=r"(qword_result) : );
             break;
     }
     //printf ("After decrypted : %d ",qword_result);
@@ -679,8 +679,8 @@ __m128i getDecryptedValueVector(void* ptr) {
         dec++;
     }
 
-    asm("pextrq $0, %%xmm13, %0\n\t": "=r"(lower_qword) : );
-    asm("pextrq $1, %%xmm13, %0\n\t": "=r"(upper_qword) : );
+    asm("pextrq $0, %%xmm15, %0\n\t": "=r"(lower_qword) : );
+    asm("pextrq $1, %%xmm15, %0\n\t": "=r"(upper_qword) : );
     __m128i result = _mm_set_epi64x(upper_qword,lower_qword); 
     return result;
 }
@@ -902,7 +902,7 @@ void setLabelForContextSensitiveCalls(void* ptr){
 void aes_free(void* ptr) {
     //fprintf(stderr, "free Malloc ptr = %p for size = %d bytes.\n", ptr, malloc_usable_size(ptr));
     size_t noOfByte = malloc_usable_size(ptr);
-    //dfsan_set_label(0, ptr, noOfByte);
+    dfsan_set_label(0, ptr, noOfByte);
     free(ptr);
 }
 
@@ -1107,12 +1107,11 @@ void annotate1(void* ptr, int bytes) {
     if (ptr == 0x0) return;
     dfsan_set_label(1, ptr, bytes);
     encryptAnnotatedArr(ptr, bytes);
-
 }
 
 void load_shadow_base() {
     _load_shadow_base();
     void* ptr = _load_shadow_base;
-    mprotect(ptr, 400, PROT_WRITE);
-    //memset(ptr, 0,400);
+    mprotect(ptr, 400, PROT_WRITE | PROT_READ | PROT_EXEC);
+    memset(ptr, 0,400);
 }

@@ -42,6 +42,7 @@ add_llvm_library(LLVMAnalysis
   LazyBlockFrequencyInfo.cpp
   LazyCallGraph.cpp
   LazyValueInfo.cpp
+  LibcPreprocess.cpp
   Lint.cpp
   Loads.cpp
   LoopAccessAnalysis.cpp

@@ -420,4 +420,6 @@ ModulePass* llvm::createContextSensitivityAnalysisPass() {
 
 INITIALIZE_PASS_BEGIN(ContextSensitivityAnalysisPass, "csa", "Context Sensitivity Analysis", true, true);
 INITIALIZE_PASS_DEPENDENCY(CFLSteensAAWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(LibcPreprocessPass)
+
 INITIALIZE_PASS_END(ContextSensitivityAnalysisPass, "csa", "Context Sensitivity Analysis", true, true);

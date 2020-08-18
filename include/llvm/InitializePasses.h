@@ -398,6 +398,8 @@ void initializeXRayInstrumentationPass(PassRegistry&);
 void initializeMIRCanonicalizerPass(PassRegistry&);
 void initializeFunctionPointerAnalysisPassPass(PassRegistry&);
 void initializeLibcTransformPassPass(PassRegistry&);
+void initializeLibcPreprocessPassPass(PassRegistry&);
+
 //void initializeSVFPass(PassRegistry &);
 void initializeWPAPassPass(PassRegistry&);
 void initializeEncryptionPassPass(PassRegistry&);

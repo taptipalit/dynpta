@@ -59,8 +59,8 @@ fi
 
 $LLVMROOT/clang -c -fPIC -fPIE aes_inmemkey.s -o aes.o
 $LLVMROOT/clang -c -fPIC -fPIE -march=native aes_helper.c -o aes_h.o
-#$LLVMROOT/clang -fPIC -pie -fsanitize=dataflow $GGDB aes.o aes_h.o $filedfsan.o -o $file
-$LLVMROOT/clang $GGDB -O0 -fPIC -fPIE -fsanitize=dataflow aes.o aes_h.o $filedfsan.o -lcrypt -lz -o lighttpd.uninstrumented
+#$LLVMROOT/clang $GGDB -O0 -fPIC -fPIE -fsanitize=dataflow aes.o aes_h.o $filedfsan.o -lcrypt -lz -o lighttpd.uninstrumented
+./run_glibc.sh $filedfsan.o $file
 if [ $? -ne 0 ]
 then
     exit 1
