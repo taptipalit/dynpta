@@ -265,7 +265,7 @@ cl::opt<int> perLoopHoistLimit("per-loop-hoist-limit", cl::desc("How many indivi
             bool hasPartialSenMemAccess(BasicBlock*, std::set<Instruction*>&);
             bool hasFunctionCallInBody(Loop*);
             bool allSameMemBase(Loop*, Value**, std::set<Instruction*>&, std::set<Instruction*>&);
-            void getMemBases(Loop*, std::set<Instruction*>&, std::map<Value*, std::set<Instruction*>>&);
+            void getMemBases(Loop*, std::set<Instruction*>&, std::map<Value*, std::set<Instruction*>>&, bool);
 
             bool hasNullCheck(Value*);
             //void performTaintCheckLICM(Module&);
@@ -4744,10 +4744,12 @@ bool EncryptionPass::sanitizeCandidatesForNullCheck(std::map<Value*, std::set<In
     return true;
 }
 
-void EncryptionPass::getMemBases(Loop* loop, std::set<Instruction*>& candidateInsns, std::map<Value*, std::set<Instruction*>>& baseMemInsnMap) {
+void EncryptionPass::getMemBases(Loop* loop, std::set<Instruction*>& candidateInsns, std::map<Value*, std::set<Instruction*>>& baseMemInsnMap, bool aggressive) {
     for (BasicBlock* bb: loop->getBlocks()) {
-        if (bb == loop->getHeader() || bb == loop->getExitingBlock()) {
-            continue;
+        if (!aggressive) {
+            if (bb == loop->getHeader() || bb == loop->getExitingBlock()) {
+                continue;
+            }
         }
         for (BasicBlock::iterator BBIterator = bb->begin(); BBIterator != bb->end(); BBIterator++) {
             if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
@@ -4757,8 +4759,19 @@ void EncryptionPass::getMemBases(Loop* loop, std::set<Instruction*>& candidateIn
                     GetElementPtrInst* gep = nullptr;
                     if (LoadInst* ldInst = dyn_cast<LoadInst>(Inst)) {
                         gep = dyn_cast<GetElementPtrInst>(ldInst->getPointerOperand());
-                        if (!gep) {
-                            continue;
+                        if (aggressive) {
+                            if (LoadInst* ldPtrInst = dyn_cast<LoadInst>(ldInst->getPointerOperand())) {
+                                // Who's the base of this? 
+                                Value* baseValue = ldPtrInst->getPointerOperand();
+                                if (isa<Argument>(baseValue)) {
+                                    baseMemInsnMap[baseValue].insert(Inst);
+                                }
+                                continue;
+                            }
+                        } else {
+                            if (!gep) {
+                                continue;
+                            }
                         }
                     }
                     if (StoreInst* stInst = dyn_cast<StoreInst>(Inst)) {
@@ -4835,8 +4848,14 @@ void EncryptionPass::performHoistOptimization() {
         candidateInsns.insert(partiallySenMemInst);
     }
 
+    bool aggressive = false;
     // Now, for each function, find the Loops in it
     for (Function* candidateFn: candidateFns) {
+        if (candidateFn->getName().startswith("tlibc_internal")) {
+            aggressive = true;
+        } else {
+            aggressive = false;
+        }
         if (candidateFn->getName() == "cfbr_encrypt_block") {
             continue;
         }
@@ -4872,8 +4891,10 @@ void EncryptionPass::performHoistOptimization() {
             BasicBlock* exitingBlock = loop->getExitingBlock();
             // Check that this loop has a single exit block for now
             // TODO -- do we need this? 
-            if (!loop->getExitingBlock()) {
-                continue;
+            if (!aggressive) {
+                if (!loop->getExitingBlock()) {
+                    continue;
+                }
             }
 
             // Check that this is a loop that is interesting
@@ -4897,7 +4918,7 @@ void EncryptionPass::performHoistOptimization() {
             Value* baseMem = nullptr;
             std::map<Value*, std::set<Instruction*>> baseMemInsnMap;
 
-            getMemBases(loop, candidateInsns, baseMemInsnMap);
+            getMemBases(loop, candidateInsns, baseMemInsnMap, aggressive);
             
             errs() << "Number of independent taint-tracked base memory addresses: " << baseMemInsnMap.size() <<"\n";
             if (baseMemInsnMap.size() > perLoopHoistLimit) {

@@ -6,17 +6,17 @@ typedef _Bool uint1_t;
 
 typedef unsigned long size_t;
 
-void internal_memset(void *s, char c, size_t n, uint1_t isVolatile) __attribute__((used));
-int internal_memcmp(const void *s1, const void *s2, size_t n) __attribute__((used));
-void internal_memcpy(void *dest, const void *src, size_t n, uint1_t isVolatile) __attribute__((used));
-size_t internal_strlen(const char *s) __attribute__((used));
-char* internal_strcat(char* destination, const char* source) __attribute__((used));
-char* internal_strcpy(char* destination, const char* source) __attribute__((used));
-int internal_strcmp(const char *X, const char *Y) __attribute__((used));
-char* internal_strstr(const char *str, const char *substr) __attribute__((used));
+void tlibc_internal_memset(void *s, char c, size_t n, uint1_t isVolatile) __attribute__((used));
+int tlibc_internal_memcmp(const void *s1, const void *s2, size_t n) __attribute__((used));
+void tlibc_internal_memcpy(void *dest, const void *src, size_t n, uint1_t isVolatile) __attribute__((used));
+size_t tlibc_internal_strlen(const char *s) __attribute__((used));
+char* tlibc_internal_strcat(char* destination, const char* source) __attribute__((used));
+char* tlibc_internal_strcpy(char* destination, const char* source) __attribute__((used));
+int tlibc_internal_strcmp(const char *X, const char *Y) __attribute__((used));
+char* tlibc_internal_strstr(const char *str, const char *substr) __attribute__((used));
 
 
-void internal_memset(void *s, char c, size_t n, uint1_t isVolatile) {
+void tlibc_internal_memset(void *s, char c, size_t n, uint1_t isVolatile) {
     while (n > 0) {
         *(char *) s = c;
         s++;
@@ -24,7 +24,7 @@ void internal_memset(void *s, char c, size_t n, uint1_t isVolatile) {
     }
 }
 
-int internal_memcmp(const void *s1, const void *s2, size_t n) {
+int tlibc_internal_memcmp(const void *s1, const void *s2, size_t n) {
     if(!n) {
         return 0;
     }
@@ -35,7 +35,7 @@ int internal_memcmp(const void *s1, const void *s2, size_t n) {
     return ( *((unsigned char *)s1) - *((unsigned char *)s2));
 }
 
-void internal_memcpy(void *dest, const void *src, size_t n, uint1_t isVolatile) {
+void tlibc_internal_memcpy(void *dest, const void *src, size_t n, uint1_t isVolatile) {
     memcpy(dest, src, n);
     /*
     while (n > 0) {
@@ -47,7 +47,7 @@ void internal_memcpy(void *dest, const void *src, size_t n, uint1_t isVolatile) 
     */
 }
 
-size_t internal_strlen(const char *s) {
+size_t tlibc_internal_strlen(const char *s) {
     size_t len = 0;
     while (*s != '\0') {
         len++;
@@ -56,9 +56,9 @@ size_t internal_strlen(const char *s) {
     return len;
 }
 
-char* internal_strcat(char* destination, const char* source) {
+char* tlibc_internal_strcat(char* destination, const char* source) {
 	// make ptr point to the end of destination string
-	char* ptr = destination + internal_strlen(destination);
+	char* ptr = destination + tlibc_internal_strlen(destination);
 
 	// Appends characters of source to the destination string
 	while (*source != '\0')
@@ -72,7 +72,7 @@ char* internal_strcat(char* destination, const char* source) {
 }
 
 
-char* internal_strcpy(char* destination, const char* source)
+char* tlibc_internal_strcpy(char* destination, const char* source)
 {
 	// return if no memory is allocated to the destination
 	if (destination == NULL)
@@ -98,7 +98,7 @@ char* internal_strcpy(char* destination, const char* source)
 }
 
 // Function to implement strcmp function
-int internal_strcmp(const char *X, const char *Y)
+int tlibc_internal_strcmp(const char *X, const char *Y)
 {
 	while(*X)
 	{
@@ -115,7 +115,7 @@ int internal_strcmp(const char *X, const char *Y)
 }
 
 
-char* internal_strstr(const char *str, const char *substr)
+char* tlibc_internal_strstr(const char *str, const char *substr)
 {
 	  while (*str) 
 	  {
