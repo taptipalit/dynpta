@@ -4763,7 +4763,7 @@ void EncryptionPass::getMemBases(Loop* loop, std::set<Instruction*>& candidateIn
                             if (LoadInst* ldPtrInst = dyn_cast<LoadInst>(ldInst->getPointerOperand())) {
                                 // Who's the base of this? 
                                 Value* baseValue = ldPtrInst->getPointerOperand();
-                                if (isa<Argument>(baseValue)) {
+                                if (isa<AllocaInst>(baseValue)) {
                                     baseMemInsnMap[baseValue].insert(Inst);
                                 }
                                 continue;
@@ -4776,7 +4776,16 @@ void EncryptionPass::getMemBases(Loop* loop, std::set<Instruction*>& candidateIn
                     }
                     if (StoreInst* stInst = dyn_cast<StoreInst>(Inst)) {
                         gep = dyn_cast<GetElementPtrInst>(stInst->getPointerOperand());
-                        if (!gep) {
+                        if (aggressive) {
+                            if (LoadInst* ldPtrInst = dyn_cast<LoadInst>(stInst->getPointerOperand())) {
+                                // Who's the base of this? 
+                                Value* baseValue = ldPtrInst->getPointerOperand();
+                                if (isa<AllocaInst>(baseValue)) {
+                                    baseMemInsnMap[baseValue].insert(Inst);
+                                }
+                                continue;
+                            }
+                        } if (!gep) {
                             continue;
                         }
                     }
