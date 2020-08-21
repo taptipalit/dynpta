@@ -5300,15 +5300,21 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     // The SensitiveMemAllocTracker has
     // identified the sensitive memory allocations
-    for (CallInst* callInst: getAnalysis<SensitiveMemAllocTrackerPass>().getSensitiveMemAllocCalls()) {
-        if (pag->isIncludedFunction(callInst->getParent()->getParent())) {
-            Function* function = callInst->getCalledFunction();
-            if (!function) {
-                // TODO: Handle Funtion Pointer returned from SensitiveMemAllocTrackerPass 
-                errs() << "Function Pointer "<<*callInst<<"\n";
-                continue;
+    for (Instruction* sensitiveMem: getAnalysis<SensitiveMemAllocTrackerPass>().getSensitiveMemAllocCalls()) {
+        if (AllocaInst* allocInst = dyn_cast<AllocaInst>(sensitiveMem)) {
+            if (pag->isIncludedFunction(allocInst->getParent()->getParent())) {
+                sensitiveMemAllocCalls.push_back(allocInst);
             }
-            sensitiveMemAllocCalls.push_back(callInst);
+        } else if (CallInst* callInst = dyn_cast<CallInst>(allocInst)) {
+            if (pag->isIncludedFunction(callInst->getParent()->getParent())) {
+                Function* function = callInst->getCalledFunction();
+                if (!function) {
+                    // TODO: Handle Funtion Pointer returned from SensitiveMemAllocTrackerPass 
+                    errs() << "Function Pointer "<<*callInst<<"\n";
+                    continue;
+                }
+                sensitiveMemAllocCalls.push_back(callInst);
+            }
         }
     }
 

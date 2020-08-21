@@ -179,10 +179,14 @@ bool SensitiveMemAllocTrackerPass::runOnModule(Module& M) {
     findMemAllocsReachingSensitivePtrs();
 
     
-    for (CallInst* callInst: sensitiveMemAllocCalls) {
-        if (Function* calledFunction = callInst->getCalledFunction()) {
-            errs() << "Sensitive memory alloc: " << calledFunction->getName() << " in function: " 
-                << callInst->getParent()->getParent()->getName() << "\n";
+    for (Instruction* sensitiveMemAlloc: sensitiveMemAllocCalls) {
+        if (AllocaInst* allocInst = dyn_cast<AllocaInst>(sensitiveMemAlloc)) {
+            errs() << "Sensitive memory alloc: " << allocInst->getName() << " in function: " << allocInst->getParent()->getParent()->getName() << "\n";
+        } else if (CallInst* callInst = dyn_cast<CallInst>(sensitiveMemAlloc)) {
+            if (Function* calledFunction = callInst->getCalledFunction()) {
+                errs() << "Sensitive memory alloc: " << calledFunction->getName() << " in function: " 
+                    << callInst->getParent()->getParent()->getName() << "\n";
+            }
         }
     }
 
@@ -255,6 +259,13 @@ void SensitiveMemAllocTrackerPass::findStoresAtSensitivePtrs() {
     }
     for (GetElementPtrInst* gepInst: sensitiveGepPtrs) {
         workList.push_back(gepInst);
+        // if this gep is not a pointer to pointer type
+        if (gepInst->getType()->getPointerElementType() && !gepInst->getType()->getPointerElementType()->isPointerTy()) {
+            // If the base pointer is an alloca
+            if (AllocaInst* allocInst = dyn_cast<AllocaInst>(gepInst->getPointerOperand())) {
+                sensitiveMemAllocCalls.push_back(allocInst);
+            }
+        }
     }
     while (!workList.empty()) {
         Value* val = workList.back();

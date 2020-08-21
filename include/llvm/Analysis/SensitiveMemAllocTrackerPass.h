@@ -38,7 +38,7 @@ public:
 
     virtual bool runOnModule(llvm::Module& module);
 
-    std::vector<llvm::CallInst*>& getSensitiveMemAllocCalls() {
+    std::vector<llvm::Instruction*>& getSensitiveMemAllocCalls() {
         return sensitiveMemAllocCalls;
     }
 
@@ -59,7 +59,7 @@ private:
 
     std::vector<llvm::StoreInst*> storesAtSensitivePtrs;
 
-    std::vector<llvm::CallInst*> sensitiveMemAllocCalls;
+    std::vector<llvm::Instruction*> sensitiveMemAllocCalls;
 
     void collectLocalSensitiveAnnotations(llvm::Module&);
 
