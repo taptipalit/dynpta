@@ -12,6 +12,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <llvm/IR/Constants.h>
 
 
 class SensitiveMemAllocTrackerPass: public llvm::ModulePass {
@@ -38,7 +39,7 @@ public:
 
     virtual bool runOnModule(llvm::Module& module);
 
-    std::vector<llvm::Instruction*>& getSensitiveMemAllocCalls() {
+    std::vector<llvm::Value*>& getSensitiveMemAllocCalls() {
         return sensitiveMemAllocCalls;
     }
 
@@ -55,11 +56,13 @@ private:
     std::set<llvm::Function*> mallocRoutines;
 
     std::vector<llvm::AllocaInst*> sensitiveAllocaPtrs;
+    std::vector<llvm::GlobalVariable*> sensitiveGlobalPtrs;
+
     std::vector<llvm::GetElementPtrInst*> sensitiveGepPtrs;
 
     std::vector<llvm::StoreInst*> storesAtSensitivePtrs;
 
-    std::vector<llvm::Instruction*> sensitiveMemAllocCalls;
+    std::vector<llvm::Value*> sensitiveMemAllocCalls;
 
     void collectLocalSensitiveAnnotations(llvm::Module&);
 

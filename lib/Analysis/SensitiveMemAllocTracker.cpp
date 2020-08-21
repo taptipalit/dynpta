@@ -132,7 +132,9 @@ void SensitiveMemAllocTrackerPass::collectLocalSensitiveAnnotations(Module &M) {
                                         findAllSensitiveGepPtrs(gep);
                                     }
                                 }
-                            } 
+                            } else if (GlobalVariable* gvar = dyn_cast<GlobalVariable>(ldInst->getPointerOperand())) {
+                                sensitiveGlobalPtrs.push_back(gvar);
+                            }
                         }
                     }
                 }
@@ -179,7 +181,7 @@ bool SensitiveMemAllocTrackerPass::runOnModule(Module& M) {
     findMemAllocsReachingSensitivePtrs();
 
     
-    for (Instruction* sensitiveMemAlloc: sensitiveMemAllocCalls) {
+    for (Value* sensitiveMemAlloc: sensitiveMemAllocCalls) {
         if (AllocaInst* allocInst = dyn_cast<AllocaInst>(sensitiveMemAlloc)) {
             errs() << "Sensitive memory alloc: " << allocInst->getName() << " in function: " << allocInst->getParent()->getParent()->getName() << "\n";
         } else if (CallInst* callInst = dyn_cast<CallInst>(sensitiveMemAlloc)) {
@@ -187,6 +189,8 @@ bool SensitiveMemAllocTrackerPass::runOnModule(Module& M) {
                 errs() << "Sensitive memory alloc: " << calledFunction->getName() << " in function: " 
                     << callInst->getParent()->getParent()->getName() << "\n";
             }
+        } else {
+            errs() << "Global variable: " << *sensitiveMemAlloc << "\n";
         }
     }
 
@@ -256,6 +260,18 @@ void SensitiveMemAllocTrackerPass::findStoresAtSensitivePtrs() {
     std::vector<Value*> workList;
     for (AllocaInst* allocInst: sensitiveAllocaPtrs) {
         workList.push_back(allocInst);
+    }
+    for (GlobalVariable* gptr: sensitiveGlobalPtrs) {
+        if (gptr->hasInitializer()) {
+            Value* init = gptr->getInitializer();
+            if (ConstantExpr* ce = dyn_cast<ConstantExpr>(init)) {
+                if (ce->getOpcode() == Instruction::GetElementPtr) {
+                    Value* val = ce->getOperand(0);
+                    sensitiveMemAllocCalls.push_back(val);
+                }
+            }
+        }
+        workList.push_back(gptr);
     }
     for (GetElementPtrInst* gepInst: sensitiveGepPtrs) {
         workList.push_back(gepInst);
