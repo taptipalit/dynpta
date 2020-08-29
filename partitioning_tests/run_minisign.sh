@@ -2,6 +2,7 @@
 
 rm *.png *.dot
 file="$1"
+filewithlibc=$file"_withlibc"
 fileinst=$file"_inst"
 filedfsan=$fileinst"_dfs"
 
@@ -34,18 +35,18 @@ then
 fi
 
 
-#$LLVMROOT/llvm-link $file.bc internal_libc.bc  -o $file.bc #internal_libc.bc
-#if [ $? -ne 0 ]
-#then
-#    exit 1
-#fi
+$LLVMROOT/llvm-link $file.bc internal_libc.bc  -o $filewithlibc.bc #internal_libc.bc
+if [ $? -ne 0 ]
+then
+    exit 1
+fi
 
 #wpa -nander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $file.bc 
 # -hoist-taint-checks=true
-$LLVMROOT/opt -encryption -steens-fast -skip-csa=false -skip-vfa=true -callsite-threshold=10 -hoist-taint-checks=true -optimized-check=true -confidentiality=true -partitioning=true  $file.bc -o $fileinst.bc
+$LLVMROOT/opt -encryption -steens-fast -skip-csa=false -skip-vfa=false -callsite-threshold=10 -hoist-taint-checks=true -optimized-check=true -confidentiality=true -partitioning=true  $filewithlibc.bc -o $fileinst.bc
 $LLVMROOT/opt --dfsan -dfsan-abilist=./abilist.txt $fileinst.bc -o $filedfsan.bc
 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 

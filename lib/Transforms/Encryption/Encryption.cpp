@@ -34,11 +34,13 @@ cl::opt<int> perLoopHoistLimit("per-loop-hoist-limit", cl::desc("How many indivi
 
             static const int SPECIALIZE_THRESHOLD = 50;
 
+            int sensitiveValueFlows;
             EncryptionPass() : ModulePass(ID) {
                 loadStatCount = 0;
                 storeStatCount = 0;
                 decStatCount = 0;
                 encStatCount = 0;
+                sensitiveValueFlows = 0;
                 initializeEncryptionPassPass(*PassRegistry::getPassRegistry());
             }
 
@@ -305,6 +307,8 @@ cl::opt<int> perLoopHoistLimit("per-loop-hoist-limit", cl::desc("How many indivi
             }
 
             void collectInitialLoadStoreStats(Module&);
+
+            void computeTotalValueFlows(Module&);
     };
 }
 
@@ -1009,6 +1013,7 @@ void EncryptionPass::handleSink(Value* storePtr, std::vector<Value*>& sinkSites,
             }
         }
     }
+    sensitiveValueFlows++;
 }
 
 void EncryptionPass::getPtsFrom(Value* ptd, std::vector<Value*>& ptsFromVec) {
@@ -2219,7 +2224,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
     Type *DFSanReadLabelArgs[2] = { Type::getInt8PtrTy(*Ctx), IntptrTy };
     FunctionType* FTypeReadLabel = FunctionType::get(ShadowTy, DFSanReadLabelArgs, false);
 
-    InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq $$0xffff8fffffffffff, %rax\n\t and %rax, $1 \n\t add $1, $1 \n\t mov ($1), $0", "=r,r,r,~{rax}", true, false);
+    InlineAsm* DFSanReadLabelFn = InlineAsm::get(FTypeReadLabel, "movq %mm0, %rax\n\t and %rax, $1 \n\t movb ($1), $0", "=r,r,r,~{rax}", true, false);
 
 
     for (CallInst* externalCallInst : SensitiveExternalLibCallList) {
@@ -2530,22 +2535,25 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
             }
         } else if (externalFunction->getName() == "fgets") {
             Value* buffer = externalCallInst->getArgOperand(0);
+            Value* size = externalCallInst->getArgOperand(1);
             Value* fileStream0 = externalCallInst->getArgOperand(2);
             PointerType* voidPtrType = PointerType::get(IntegerType::get(M.getContext(), 8), 0);
             IntegerType* longType = IntegerType::get(M.getContext(), 64);
             Value* fileStream = InstBuilder.CreateBitCast(fileStream0, voidPtrType);
 
             if (isSensitiveArg(buffer, ptsToMap)) {
+
+                IRBuilder<> Builder(externalCallInst);
                 Function* decryptFunction = M.getFunction("decryptStringBeforeLibCall");
                 std::vector<Value*> ArgList;
                 ArgList.push_back(buffer);
+                ArgList.push_back(Builder.CreateSExtOrBitCast(size, longType));
                 //InstBuilder.CreateCall(decryptFunction, ArgList);
                 // Encrypt it back
-                Function* encryptFunction = M.getFunction("encryptStringAfterLibCall");
+                Function* encryptFunction = M.getFunction("encryptArrayForLibCall");
 
                 if (Partitioning){
 
-                    IRBuilder<> Builder(externalCallInst);
 
                     CallInst* readLabel = nullptr;
                     ConstantInt* noOfByte = Builder.getInt64(1);
@@ -5155,6 +5163,62 @@ bool EncryptionPass::hasNullCheck(Value* baseMem) {
     }
     return false;
 }
+void EncryptionPass::computeTotalValueFlows (Module& M) {
+    std::vector<Instruction*> workList;
+    long totalValueFlowCount = 0;
+    // find all Load instructions
+    for (Module::iterator MIterator = M.begin(); MIterator != M.end(); MIterator++) {
+        if (auto *F = dyn_cast<Function>(MIterator)) {
+            for (Function::iterator FIterator = F->begin(); FIterator != F->end(); FIterator++) {
+                if (auto *BB = dyn_cast<BasicBlock>(FIterator)) {
+                    for (BasicBlock::iterator BBIterator = BB->begin(); BBIterator != BB->end(); BBIterator++) {
+                        if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
+                            if (LoadInst* loadInst = dyn_cast<LoadInst>(Inst)) {
+                                if (!loadInst->getType()->isPointerTy()) {
+                                    workList.push_back(loadInst);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    while (!workList.empty()){
+        Instruction* inst = workList.back();
+        workList.pop_back();
+        //errs()<< " worklist "<< *inst << "\n";
+        for (User* instUser: inst->users()) {
+            // direct store
+            if (StoreInst* storeInst = dyn_cast<StoreInst>(instUser)) {
+                if (storeInst->getValueOperand() == inst) {
+                    //errs()<< " Store " << *storeInst << "\n";
+                    totalValueFlowCount++;
+                }
+            }
+            // look for type casts
+            else if (BitCastInst* bcInst = dyn_cast<BitCastInst>(instUser)){
+                workList.push_back(bcInst);
+            }
+            else if (SExtInst* sextInst = dyn_cast<SExtInst>(instUser)){
+                workList.push_back(sextInst);
+            }
+            else if (TruncInst* truncInst = dyn_cast<TruncInst>(instUser)){
+                workList.push_back(truncInst);
+            }
+            else if (ZExtInst* zextInst = dyn_cast<ZExtInst>(instUser)){
+                workList.push_back(zextInst);
+            }
+            else if (PtrToIntInst* ptrtointInst = dyn_cast<PtrToIntInst>(instUser)){
+                workList.push_back(ptrtointInst);
+            }
+            else if (IntToPtrInst* inttoptrInst = dyn_cast<IntToPtrInst>(instUser)){
+                workList.push_back(inttoptrInst);
+            }
+        }
+    }
+    errs() << "Total Value Flow Count is " << totalValueFlowCount << "\n";
+}
 
 bool EncryptionPass::runOnModule(Module &M) {
     this->mod = &M;
@@ -5162,6 +5226,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     computeAuthenticationCount = 0;
 
     collectInitialLoadStoreStats(M);
+    computeTotalValueFlows(M);
 
     // Check soundness of config options
     assert(!(Integrity && Confidentiality) && "Can't support both integrity and confidentiality right now");
@@ -5199,6 +5264,7 @@ bool EncryptionPass::runOnModule(Module &M) {
     instrumentedExternalFunctions.push_back("memchr");
     instrumentedExternalFunctions.push_back("memrchr");
     instrumentedExternalFunctions.push_back("llvm.memmove");
+    instrumentedExternalFunctions.push_back("fgets");
 
 
     //============== break
@@ -5360,6 +5426,7 @@ bool EncryptionPass::runOnModule(Module &M) {
         performSourceSinkAnalysis(M);
     }
 
+    errs() << "Sensitive value flows: " << sensitiveValueFlows << "\n";
     if (SensitiveObjSet) {
         delete(SensitiveObjSet);
     }

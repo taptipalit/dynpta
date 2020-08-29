@@ -49,13 +49,13 @@ $LLVMROOT/llvm-dis $filewithlibc.bc -o $filewithlibc.ll
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $file.bc 
 $LLVMROOT/opt -encryption -steens-fast -skip-csa=true -skip-vfa=false -callsite-threshold=10 -optimized-check=false -confidentiality=true -partitioning=true  $filewithlibc.bc -o $fileinst.bc
-$LLVMROOT/opt --dfsan $fileinst.bc -o $filedfsan.bc
+$LLVMROOT/opt --dfsan -dfsan-abilist=./abilist.txt $fileinst.bc -o $filedfsan.bc
 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc
 $LLVMROOT/llvm-dis $file.bc -o $file.ll
 $LLVMROOT/llvm-dis $fileinst.bc -o $fileinst.ll
-$LLVMROOT/llvm-dis $filedfsan.bc -dfsan-abilist=./abilist.txt -o $filedfsan.ll
+$LLVMROOT/llvm-dis $filedfsan.bc  -o $filedfsan.ll
 #exit 0
 #dot -Tpng pag_final.dot -o $file"_pag_final.png"
 #dot -Tpng pag_initial.dot -o $file"_pag_initial.png"
@@ -68,11 +68,11 @@ then
     exit 1
 fi
 
-$LLVMROOT/clang -c -fPIC -fPIE aes_inmemkey.s -o aes.o
+$LLVMROOT/clang -c -fPIC -fPIE aes_inreg.s -o aes.o
 $LLVMROOT/clang -c -fPIC -fPIE -march=native aes_helper.c -o aes_h.o
 #$LLVMROOT/clang -fPIC -pie -fsanitize=dataflow $GGDB aes.o aes_h.o $filedfsan.o -o $file
 #$LLVMROOT/clang $GGDB -O0 -fPIC -fPIE -fsanitize=dataflow aes.o aes_h.o $filedfsan.o -levent -o $file
-./run_glibc.sh $filedfsan.o $file
+./run_glibc.sh $filedfsan.o $file "-levent"
 
 if [ $? -ne 0 ]
 then

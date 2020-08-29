@@ -3,6 +3,7 @@
 rm *.png *.dot
 file="$1"
 fileinst=$file"_inst"
+filelibc=$file"_libc"
 filedfsan=$fileinst"_dfs"
 
 set -x
@@ -34,18 +35,18 @@ then
 fi
 
 
-#$LLVMROOT/llvm-link $file.bc internal_libc.bc  -o $file.bc #internal_libc.bc
-#if [ $? -ne 0 ]
-#then
-#    exit 1
-#fi
+$LLVMROOT/llvm-link $file.bc internal_libc.bc  -o $filelibc.bc #internal_libc.bc
+if [ $? -ne 0 ]
+then
+    exit 1
+fi
 
 #wpa -nander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 #wpa -ander -keep-self-cycle=all -dump-consG -dump-pag -print-all-pts $file.bc
 
 #$LLVMROOT/opt -wpa -print-all-pts -dump-pag -dump-consG $file.ll  -o $file.bc 
-$LLVMROOT/opt -encryption -steens-fast -skip-csa=false -skip-vfa -optimized-check=false -confidentiality=true -partitioning=true  $file.bc -o $fileinst.bc
-$LLVMROOT/opt --dfsan $fileinst.bc -o $filedfsan.bc
+$LLVMROOT/opt -encryption -steens-fast -skip-csa=false -skip-vfa=false -optimized-check=false -confidentiality=true -partitioning=true  $filelibc.bc -o $fileinst.bc
+$LLVMROOT/opt --dfsan -dfsan-abilist=./abilist.txt $fileinst.bc -o $filedfsan.bc
 
 # -fullanders -dump-pag -print-all-pts -dump-callgraph -dump-consG 
 #$LLVMROOT/opt -test-transform $file.bc  -o $fileinst.bc
@@ -64,17 +65,13 @@ then
     exit 1
 fi
 
-$LLVMROOT/clang -c -fPIC -fPIE aes_inmemkey.s -o aes.o
+$LLVMROOT/clang -c -fPIC -fPIE aes_inreg.s -o aes.o
 $LLVMROOT/clang -c -fPIC -fPIE -march=native aes_helper.c -o aes_h.o
 #$LLVMROOT/clang -fPIC -pie -fsanitize=dataflow $GGDB aes.o aes_h.o $filedfsan.o -o $file
-$LLVMROOT/clang $GGDB -O0 -fPIC -fPIE -fsanitize=dataflow aes.o aes_h.o $filedfsan.o -o $file
+#$LLVMROOT/clang $GGDB -O0 -fPIC -fPIE -fsanitize=dataflow aes.o aes_h.o $filedfsan.o -o $file
+./run_glibc.sh $filedfsan.o $file
 if [ $? -ne 0 ]
 then
     exit 1
 fi
 
-
-if [ $? -ne 0 ]
-then
-    exit 1
-fi

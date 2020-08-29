@@ -152,7 +152,12 @@ VOID RecordWritebackCall(VOID *ip, VOID * addr) {
 // Print a memory read record
 VOID RecordMemRead(VOID * ip, VOID * addr)
 {
-    mem_read_count++;
+    //fprintf(trace, "mem read address: %p\n", addr);
+    if (addr > (void*)0x7f000000000) {
+        mem_read_count++;
+    } else {
+        taint_lookup_count++;
+    }
     /*
     if (mem_read_count % 100 == 0) {
         fprintf(trace, "mem read: %lu\n", mem_read_count);
@@ -356,12 +361,14 @@ VOID Instruction(INS ins, VOID *v)
         if (INS_IsDirectCall(ins)) {
             ADDRINT targetCallAddr = INS_DirectControlFlowTargetAddress(ins);
             // What's the symbol at this address?
+            /*
             if (taintLookupFnAddr == targetCallAddr) {
                 INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordTaintLookupCall, IARG_INST_PTR, IARG_END);
             }
             if (taintSetFnAddr == targetCallAddr) {
                 INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordTaintSetCall, IARG_INST_PTR, IARG_END);
             }
+            */
             if (writebackFnAddr == targetCallAddr) {
                 INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordWritebackCall, IARG_INST_PTR, IARG_END);
             }
