@@ -19,7 +19,7 @@ using namespace llvm;
 
 namespace {
 cl::opt<bool> skipVFA("skip-vfa", cl::desc("Skip VFA: debug purposes only"), cl::init(true), cl::Hidden);
-cl::opt<int> perLoopHoistLimit("per-loop-hoist-limit", cl::desc("How many individual base memory taint checks can be hoisted per loop"), cl::init(4), cl::Hidden);
+cl::opt<int> perLoopHoistLimit("per-loop-hoist-limit", cl::desc("How many individual base memory taint checks can be hoisted per loop"), cl::init(2), cl::Hidden);
 
     struct InstructionReplacement {
         Instruction* OldInstruction;
@@ -2001,7 +2001,8 @@ void EncryptionPass::performAesCacheInstrumentation(Module& M, std::map<PAGNode*
     for (std::vector<InstructionReplacement*>::iterator ReplacementIt = ReplacementCheckList.begin() ;
             ReplacementIt != ReplacementCheckList.end(); ++ReplacementIt) {
         InstructionReplacement* Repl = *ReplacementIt;
-        if (Repl->OldInstruction->getParent()->getParent()->getName() == "apr_thread_create") {
+        if (Repl->OldInstruction->getParent()->getParent()->getName() == "apr_thread_create"
+                || Repl->OldInstruction->getParent()->getParent()->getName() == "CRYPTO_gcm128_encrypt") {
             errs() << "Skipping\n";
             continue;
         }
@@ -5458,9 +5459,11 @@ bool EncryptionPass::runOnModule(Module &M) {
                 continue;
             if (LoadInst* ldInst = dyn_cast<LoadInst>(user)) {
                 if (ldInst->getPointerOperand() == ptrVal) {
+                    /*
                     if (ldInst->getType()->isPointerTy()) {
                         continue;
                     }
+                    */
                     if (isOptimizedOut(ldInst, ptrVal)) {
                         continue;
                     }
@@ -5468,9 +5471,11 @@ bool EncryptionPass::runOnModule(Module &M) {
                 }
             } else if (StoreInst* stInst = dyn_cast<StoreInst>(user)) {
                 if (stInst->getPointerOperand() == ptrVal) {
+                    /*
                     if (stInst->getValueOperand()->getType()->isPointerTy()) {
                         continue;
                     }
+                    */
  
                     if (isOptimizedOut(stInst, ptrVal)) {
                         continue;
@@ -5486,6 +5491,18 @@ bool EncryptionPass::runOnModule(Module &M) {
     if (SensitiveObjSet) {
         delete(SensitiveObjSet);
     }
+
+    if (Confidentiality) {
+        AESCache.initializeAes(M, skipVFA, writebackCacheFunctions);
+        AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
+    }
+
+    if (Integrity) {
+        HMAC.initializeHMAC(M);
+        HMAC.widenSensitiveAllocationSites(M, SensitiveObjList);
+    }
+
+
     SensitiveObjSet = new std::set<PAGNode*>(SensitiveObjList.begin(), SensitiveObjList.end());
     errs() << "Total sensitive allocation sites after pointsFromSet: " << SensitiveObjSet->size() << "\n";
     SensitiveObjList.clear();
@@ -5496,16 +5513,6 @@ bool EncryptionPass::runOnModule(Module &M) {
         for (PAGNode* sensitiveNode: *SensitiveObjSet) {
             errs() << "After points-from analysis ensitive node: " << *sensitiveNode << "\n";
         }
-    }
-
-    if (Confidentiality) {
-        AESCache.initializeAes(M, skipVFA, writebackCacheFunctions);
-        AESCache.widenSensitiveAllocationSites(M, SensitiveObjList, ptsToMap, ptsFromMap);
-    }
-
-    if (Integrity) {
-        HMAC.initializeHMAC(M);
-        HMAC.widenSensitiveAllocationSites(M, SensitiveObjList);
     }
 
     if(Partitioning){

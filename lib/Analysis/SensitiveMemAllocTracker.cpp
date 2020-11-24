@@ -113,7 +113,11 @@ void SensitiveMemAllocTrackerPass::collectLocalSensitiveAnnotations(Module &M) {
                             } else if (LoadInst* loadInst = dyn_cast<LoadInst>(bitCastInst->getOperand(0))){
                                 if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(loadInst->getOperand(0))) {
                                     findAllSensitiveGepPtrs(gep);
+                                } else if (AllocaInst* allocaInst = dyn_cast<AllocaInst>(loadInst->getOperand(0))) {
+                                    sensitiveAllocaPtrs.push_back(allocaInst);
                                 }
+                            } else if (AllocaInst* allocaInst = dyn_cast<AllocaInst>(bitCastInst->getOperand(0))) {
+                                sensitiveAllocaPtrs.push_back(allocaInst);
                             }
                         } else if (LoadInst* ldInst = dyn_cast<LoadInst>(annotationArg)) {
                             if (GetElementPtrInst* gep = dyn_cast<GetElementPtrInst>(ldInst->getPointerOperand())) {
