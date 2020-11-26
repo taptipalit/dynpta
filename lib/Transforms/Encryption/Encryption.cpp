@@ -2236,6 +2236,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
         */
         //errs()<<"CallInst "<<*externalCallInst<<"\n";
         Function* externalFunction = externalCallInst->getCalledFunction();
+        //errs()<< "Function Name "<<externalFunction->getName()<<"\n";
         if (!externalFunction) {
             // Was a function pointer.
             std::set<Function*> possibleFuns;
@@ -3445,7 +3446,7 @@ void EncryptionPass::instrumentExternalFunctionCall(Module &M, std::map<PAGNode*
                     externalFunctionHandler(M, externalCallInst, decryptFunction, encryptFunction, ArgList);
                 }
             }
-        } else if (externalFunction->getName() == "read") {
+        } else if (externalFunction->getName() == "read" || externalFunction->getName() == "pread" || externalFunction->getName() == "pread64") {
             Value* bufferPtr = externalCallInst->getArgOperand(1);
             Value* numBytes = externalCallInst->getArgOperand(2);
 
@@ -5266,6 +5267,10 @@ bool EncryptionPass::runOnModule(Module &M) {
     instrumentedExternalFunctions.push_back("memrchr");
     instrumentedExternalFunctions.push_back("llvm.memmove");
     instrumentedExternalFunctions.push_back("fgets");
+    instrumentedExternalFunctions.push_back("read");
+    instrumentedExternalFunctions.push_back("pread");
+    instrumentedExternalFunctions.push_back("pread64");
+    instrumentedExternalFunctions.push_back("strncmp");
 
 
     //============== break
