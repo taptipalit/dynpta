@@ -51,6 +51,24 @@ std::vector<Value*>& SensitiveMemAllocTrackerPass::findAllGepBases(Value* gepBas
     return gepMap[gepBaseType];
 }
 
+AllocaInst* SensitiveMemAllocTrackerPass::doBackwardSlice(GetElementPtrInst* gepInst) {
+    std::vector<Value*> workList;
+    workList.push_back(gepInst);
+
+    while (!workList.empty()) {
+        Value* work = workList.back();
+        workList.pop_back();
+        if (User* workUser = dyn_cast<User>(work)) {
+            for (Value* op: workUser->operands()) {
+                if (AllocaInst* stackObj = dyn_cast<AllocaInst>(op)) {
+                    return stackObj;
+                }
+                workList.push_back(op);
+            }
+        }
+    }
+}
+
 /**
  * The programmer annotated one gep instruction as sensitive.
  * Need to find all other geps with the same base and same offset
@@ -66,8 +84,10 @@ void SensitiveMemAllocTrackerPass::findAllSensitiveGepPtrs(Value* gepValue) {
     Value* gepBase = gepInst->getPointerOperand();
     Value* offsetValue = gepInst->getOperand(gepInst->getNumOperands()-1);
     ConstantInt* constOffset = dyn_cast<ConstantInt>(offsetValue);
-    assert(constOffset && "How did we annotate a gep with a non-constant offset as sensitive?");
-    int offset = constOffset->getZExtValue();
+    int offset = -1;
+    if (constOffset) {
+        offset = constOffset->getZExtValue();
+    } // if not constOffset Treat the whole object as sensitive
 
     errs() << "Finding all sensitive gep ptrs with base: " << *gepBase << " and offset: " << offset << "\n";
     std::vector<Value*> gepBases = findAllGepBases(gepBase); 
@@ -77,12 +97,28 @@ void SensitiveMemAllocTrackerPass::findAllSensitiveGepPtrs(Value* gepValue) {
             if (GetElementPtrInst* otherGep = dyn_cast<GetElementPtrInst>(user)) {
                 Value* otherGepOffsetValue = otherGep->getOperand(otherGep->getNumOperands()-1);
                 ConstantInt* otherGepOffsetConst = dyn_cast<ConstantInt>(otherGepOffsetValue);
+                if (offset != -1) {
+                    if (otherGepOffsetConst) {
+                        int otherGepOffset = otherGepOffsetConst->getZExtValue();
+                        if (otherGepOffset == offset) {
+                            sensitiveGepPtrs.push_back(otherGep);
+                        }
+                    }
+                } else {
+                    sensitiveGepPtrs.push_back(otherGep);
+                }
+                /*
                 if (otherGepOffsetConst) {
                     int otherGepOffset = otherGepOffsetConst->getZExtValue();
-                    if (otherGepOffset == offset) {
+                    if (offset == -1) {
                         sensitiveGepPtrs.push_back(otherGep);
+                    } else {
+                        if (otherGepOffset == offset) {
+                            sensitiveGepPtrs.push_back(otherGep);
+                        }
                     }
                 }
+                */
             }
         }
     }

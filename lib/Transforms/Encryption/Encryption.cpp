@@ -5270,7 +5270,6 @@ bool EncryptionPass::runOnModule(Module &M) {
 
     //============== break
 
-    /*
     instrumentedExternalFunctions.push_back("select");
     instrumentedExternalFunctions.push_back("calloc");
     instrumentedExternalFunctions.push_back("aes_calloc");
@@ -5347,7 +5346,6 @@ bool EncryptionPass::runOnModule(Module &M) {
     instrumentedExternalFunctions.push_back("uname");
     instrumentedExternalFunctions.push_back("mk_string_build");
     instrumentedExternalFunctions.push_back("fopen64");
-    */
 
     //M.print(errs(), nullptr);
     LLVM_DEBUG (

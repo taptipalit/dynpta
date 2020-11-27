@@ -1081,7 +1081,7 @@ void annotate(void* ptr) {
     if (ptr == 0x0) return;
     size_t noOfByte = malloc_usable_size(ptr);
     noOfByte -=8; // some alignment stuff
-    fprintf(stderr, "no of bytes: %d\n", noOfByte);
+    fprintf(stderr, "no of bytes: %ld\n", noOfByte);
     dfsan_set_label(1, ptr, noOfByte/16);
     encryptArrayForLibCall(ptr, noOfByte/16);
 }

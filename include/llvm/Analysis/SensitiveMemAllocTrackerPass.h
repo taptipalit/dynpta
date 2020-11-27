@@ -74,6 +74,7 @@ private:
 
     std::vector<llvm::Value*>& findAllGepBases(llvm::Value* gepBase);
 
+    llvm::AllocaInst* doBackwardSlice(llvm::GetElementPtrInst*);
 };
 
 namespace llvm {
