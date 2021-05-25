@@ -4636,61 +4636,6 @@ Loop* EncryptionPass::cloneAndInsertLoop(DominatorTree* DT, LoopInfo* LI, Loop* 
 }
 
 
-/*
-bool EncryptionPass::isCandidateForHoisting(Instruction* inst, Value** baseMemLoc,
-        Loop** outLoop, LoopInfo** LI, DominatorTree** DT) {
-    if (StoreInst* stInst = dyn_cast<StoreInst>(inst)) {
-        if (!isa<GetElementPtrInst>(stInst->getPointerOperand())) {
-            return false;
-        }
-    }
-    if (LoadInst* ldInst = dyn_cast<LoadInst>(inst)) {
-        if (!isa<GetElementPtrInst>(ldInst->getPointerOperand())) {
-            return false;
-        }
-    }
-    Function* F = inst->getParent()->getParent();
-    BasicBlock* potentialBB = inst->getParent();
-    LoopInfo& loopInfo = getAnalysis<LoopInfoWrapperPass>(*F).getLoopInfo();
-    for (Loop* loop: loopInfo.getLoopsInPreorder()) {
-        if (!loop->empty()) {
-            continue;
-        }
-        if (!loop->isSafeToClone()) {
-            continue;
-        }
-        BasicBlock* header = loop->getHeader();
-        for (BasicBlock* succ: successors(header)) {
-            if (succ != loop->getExitBlock()) {
-                if (potentialBB == succ) {
-                    if (!loop->empty()) {
-                        continue;
-                    }
-                    // Not sure why I need it to have a preheader
-                    if (!loop->isSafeToClone() || (loop->getLoopPreheader() == nullptr)) {
-                        return false;
-                    }
-                    // Now, check if the base satisfies the conditions
-                    Value* base = getBaseValueForMemOp(inst, loop);
-                    if (base) {
-                        *baseMemLoc = base;
-                        *LI = &loopInfo;
-                        *DT = &(getAnalysis<DominatorTreeWrapperPass>(*F).getDomTree());
-                        *outLoop = loop;
-                        return true;
-                    } else {
-                        // The base is inside loop or couldn't determine the
-                        // base, give up!
-                        return false;
-                    }
-                }
-            }
-        }
-    }
-    return false;
-}
-*/
-
 bool EncryptionPass::hasPartialSenMemAccess(BasicBlock* bb, std::set<Instruction*>& candidateInsns) {
     for (BasicBlock::iterator BBIterator = bb->begin(); BBIterator != bb->end(); BBIterator++) {
         if (auto *Inst = dyn_cast<Instruction>(BBIterator)) {
