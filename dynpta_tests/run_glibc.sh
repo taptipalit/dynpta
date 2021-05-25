@@ -4,11 +4,8 @@ objfile="$1"
 exefile="$2"
 opts="$3"
 
-glibc_install=/mnt/Projects/tpalit/glibc/glibc-install
 
 set -eux
-#rm -rf tmp
-#mkdir tmp
 
 $LLVMROOT/clang -O0 \
     -L "${glibc_install}/lib" \
@@ -22,5 +19,3 @@ $LLVMROOT/clang -O0 \
     aes.o aes_h.o $objfile \
     -pthread $opts \
     ;
-#sudo chroot tmp /test_glibc.out
-
