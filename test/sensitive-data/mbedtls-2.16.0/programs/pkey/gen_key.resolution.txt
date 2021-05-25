@@ -1,3 +1,0 @@
-/tmp/gen_key-9ce563.o
--r=/tmp/gen_key-9ce563.o,main,plx
--r=/tmp/gen_key-9ce563.o,printf,

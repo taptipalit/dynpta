@@ -1,3 +1,0 @@
-/tmp/rsa_genkey-abf273.o
--r=/tmp/rsa_genkey-abf273.o,main,plx
--r=/tmp/rsa_genkey-abf273.o,printf,

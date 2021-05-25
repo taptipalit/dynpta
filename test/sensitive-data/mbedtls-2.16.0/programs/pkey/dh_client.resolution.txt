@@ -1,3 +1,0 @@
-/tmp/dh_client-280be4.o
--r=/tmp/dh_client-280be4.o,main,plx
--r=/tmp/dh_client-280be4.o,printf,

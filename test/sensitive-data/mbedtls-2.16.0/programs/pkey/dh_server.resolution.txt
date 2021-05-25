@@ -1,3 +1,0 @@
-/tmp/dh_server-699937.o
--r=/tmp/dh_server-699937.o,main,plx
--r=/tmp/dh_server-699937.o,printf,

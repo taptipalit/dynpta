@@ -1,3 +1,0 @@
-/tmp/key_app_writer-c7ad75.o
--r=/tmp/key_app_writer-c7ad75.o,main,plx
--r=/tmp/key_app_writer-c7ad75.o,printf,

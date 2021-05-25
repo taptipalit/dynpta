@@ -1,3 +1,0 @@
-/tmp/ecdsa-c5801f.o
--r=/tmp/ecdsa-c5801f.o,main,plx
--r=/tmp/ecdsa-c5801f.o,printf,
