@@ -26,8 +26,18 @@ where `$file.bc` is the LLVM bitcode.
 
 #### Encrypting sensitive data with DynPTA
 
-/* TODO */
+1. Update the environment variables at `dynpta_tests/run_dynpta.sh` to point
+   to the paths on your system.
 
+2. Run
+
+    `./run_dypta.sh $file`
+
+   where `$file` is the name of the bitcode without the `.bc` extension.
+
+   For example, to run the test program `test.c`, run
+
+   `./run_dypta.sh test`
    
 #### Citation
 ```
